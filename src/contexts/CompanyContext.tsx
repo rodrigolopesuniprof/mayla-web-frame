@@ -22,6 +22,8 @@ interface CompanyContextType {
   company: Company | null;
   loading: boolean;
   isDefault: boolean;
+  companyId: string | null;
+  primaryColor: string | undefined;
 }
 
 const CompanyContext = createContext<CompanyContextType>({
