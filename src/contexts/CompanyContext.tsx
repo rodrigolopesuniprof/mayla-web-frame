@@ -53,15 +53,16 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         .from("profiles")
         .select("company_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      const companyId = profile?.company_id;
+      // Fallback: try user_metadata if profile doesn't exist yet
+      const companyId = profile?.company_id || (user.user_metadata as any)?.company_id || null;
       const isFallback = !companyId;
 
       let companyData: any = null;
 
       if (companyId) {
-        const { data } = await supabase.from("companies").select("*").eq("id", companyId).single();
+        const { data } = await supabase.from("companies").select("*").eq("id", companyId).maybeSingle();
         companyData = data;
       }
 
@@ -71,7 +72,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           .from("profiles")
           .select("municipality_id")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (profile2?.municipality_id) {
           const { data: muni } = await supabase

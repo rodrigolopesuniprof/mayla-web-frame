@@ -3,7 +3,7 @@ import { TopBar } from "./TopBar";
 import { RppgCapture } from "./RppgCapture";
 import { BinahCapture } from "./BinahCapture";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMunicipality } from "@/contexts/MunicipalityContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -28,7 +28,7 @@ interface Measurement {
 
 export function HealthTab() {
   const { user } = useAuth();
-  const { municipality } = useMunicipality();
+  const { company, companyId } = useCompany();
   const [showRppg, setShowRppg] = useState(false);
   const [showBinah, setShowBinah] = useState(false);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
@@ -51,11 +51,11 @@ export function HealthTab() {
 
   // Check if Binah is enabled for this municipality
   const fetchBinahStatus = async () => {
-    if (!municipality?.id || !user) return;
+    if (!companyId || !user) return;
     const { data: feat } = await supabase
-      .from("municipality_features")
+      .from("company_features")
       .select("enabled, config")
-      .eq("municipality_id", municipality.id)
+      .eq("company_id", companyId)
       .eq("feature_key", "binah_special_measurement")
       .maybeSingle();
 
@@ -78,14 +78,14 @@ export function HealthTab() {
   useEffect(() => {
     fetchMeasurements();
     fetchBinahStatus();
-  }, [user, municipality]);
+  }, [user, companyId]);
 
   if (showBinah) {
     return (
       <BinahCapture
         onClose={() => setShowBinah(false)}
         onComplete={() => { fetchBinahStatus(); fetchMeasurements(); }}
-        municipalityId={municipality?.id ?? null}
+        municipalityId={null}
       />
     );
   }
