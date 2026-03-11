@@ -28,7 +28,7 @@ interface Validation {
   user_mission_id: string;
 }
 
-export function AdminHealthUnits() {
+export function AdminLocations() {
   const [units, setUnits] = useState<HealthUnit[]>([]);
   const [validations, setValidations] = useState<Validation[]>([]);
   const [loading, setLoading] = useState(true);

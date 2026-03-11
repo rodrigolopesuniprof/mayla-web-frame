@@ -23,7 +23,7 @@ interface Municipality {
   codigo_ibge: number | null;
 }
 
-export function AdminMunicipalities() {
+export function AdminCompanies() {
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [editing, setEditing] = useState<Municipality | null>(null);
   const [showForm, setShowForm] = useState(false);
