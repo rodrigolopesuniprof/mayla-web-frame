@@ -13,13 +13,11 @@ import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
 import { AdminPrograms } from "@/components/admin/AdminPrograms";
 import { AdminCampaigns } from "@/components/admin/AdminCampaigns";
 import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashboard";
+import { AdminMissions } from "@/components/admin/AdminMissions";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
-type Tab = "dashboard" | "corp_dashboard" | "empresas" | "usuarios" | "programas" | "missoes" | "campanhas" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
-
-// Keep legacy AdminMissions as reference to existing missions tab
-import { AdminESF as AdminMissionsLazy } from "@/components/admin/AdminESF";
+type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "missoes" | "campanhas" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
