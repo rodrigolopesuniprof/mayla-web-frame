@@ -49,6 +49,7 @@ export type Database = {
       appointment_slots: {
         Row: {
           active: boolean | null
+          company_id: string | null
           created_at: string | null
           current_bookings: number
           end_time: string
@@ -63,6 +64,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          company_id?: string | null
           created_at?: string | null
           current_bookings?: number
           end_time: string
@@ -77,6 +79,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          company_id?: string | null
           created_at?: string | null
           current_bookings?: number
           end_time?: string
@@ -90,6 +93,13 @@ export type Database = {
           start_time?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "appointment_slots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "appointment_slots_health_unit_id_fkey"
             columns: ["health_unit_id"]
@@ -117,6 +127,7 @@ export type Database = {
         Row: {
           appointment_date: string
           clinic_name: string | null
+          company_id: string | null
           created_at: string
           doctor_name: string | null
           id: string
@@ -131,6 +142,7 @@ export type Database = {
         Insert: {
           appointment_date: string
           clinic_name?: string | null
+          company_id?: string | null
           created_at?: string
           doctor_name?: string | null
           id?: string
@@ -145,6 +157,7 @@ export type Database = {
         Update: {
           appointment_date?: string
           clinic_name?: string | null
+          company_id?: string | null
           created_at?: string
           doctor_name?: string | null
           id?: string
@@ -158,6 +171,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "appointments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "appointments_municipality_id_fkey"
             columns: ["municipality_id"]
             isOneToOne: false
@@ -169,6 +189,157 @@ export type Database = {
             columns: ["slot_id"]
             isOneToOne: false
             referencedRelation: "appointment_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          accent_color: string
+          background_color: string
+          cnpj: string | null
+          created_at: string
+          employee_count: number | null
+          foreground_color: string
+          hr_contact_email: string | null
+          id: string
+          industry: string | null
+          logo_url: string | null
+          name: string
+          plan_type: string | null
+          primary_color: string
+          rppg_url: string | null
+          secondary_color: string
+          slug: string
+          telemedicine_url: string | null
+          updated_at: string
+          wellbeing_program_name: string | null
+        }
+        Insert: {
+          accent_color?: string
+          background_color?: string
+          cnpj?: string | null
+          created_at?: string
+          employee_count?: number | null
+          foreground_color?: string
+          hr_contact_email?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name: string
+          plan_type?: string | null
+          primary_color?: string
+          rppg_url?: string | null
+          secondary_color?: string
+          slug: string
+          telemedicine_url?: string | null
+          updated_at?: string
+          wellbeing_program_name?: string | null
+        }
+        Update: {
+          accent_color?: string
+          background_color?: string
+          cnpj?: string | null
+          created_at?: string
+          employee_count?: number | null
+          foreground_color?: string
+          hr_contact_email?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name?: string
+          plan_type?: string | null
+          primary_color?: string
+          rppg_url?: string | null
+          secondary_color?: string
+          slug?: string
+          telemedicine_url?: string | null
+          updated_at?: string
+          wellbeing_program_name?: string | null
+        }
+        Relationships: []
+      }
+      company_features: {
+        Row: {
+          company_id: string
+          config: Json | null
+          created_at: string | null
+          enabled: boolean | null
+          feature_key: string
+          id: string
+        }
+        Insert: {
+          company_id: string
+          config?: Json | null
+          created_at?: string | null
+          enabled?: boolean | null
+          feature_key: string
+          id?: string
+        }
+        Update: {
+          company_id?: string
+          config?: Json | null
+          created_at?: string | null
+          enabled?: boolean | null
+          feature_key?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_features_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_locations: {
+        Row: {
+          active: boolean | null
+          address: string | null
+          cnes_code: string | null
+          company_id: string
+          created_at: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          qr_code: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          address?: string | null
+          cnes_code?: string | null
+          company_id: string
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          qr_code: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          address?: string | null
+          cnes_code?: string | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          qr_code?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_locations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -601,6 +772,7 @@ export type Database = {
           active: boolean | null
           body: string | null
           color: string | null
+          company_id: string | null
           created_at: string | null
           created_by: string
           emoji: string | null
@@ -618,6 +790,7 @@ export type Database = {
           active?: boolean | null
           body?: string | null
           color?: string | null
+          company_id?: string | null
           created_at?: string | null
           created_by: string
           emoji?: string | null
@@ -635,6 +808,7 @@ export type Database = {
           active?: boolean | null
           body?: string | null
           color?: string | null
+          company_id?: string | null
           created_at?: string | null
           created_by?: string
           emoji?: string | null
@@ -649,6 +823,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_municipality_id_fkey"
             columns: ["municipality_id"]
@@ -667,9 +848,11 @@ export type Database = {
           birth_date: string | null
           cep: string | null
           cidade: string | null
+          company_id: string | null
           complemento: string | null
           cpf: string | null
           created_at: string
+          department: string | null
           endereco: string | null
           esf_team_id: string | null
           estado: string | null
@@ -684,6 +867,7 @@ export type Database = {
           id: string
           is_bolsa_familia: boolean | null
           is_pregnant: string | null
+          job_title: string | null
           last_acs_visit: boolean | null
           last_dental_visit: string | null
           level: string
@@ -695,6 +879,7 @@ export type Database = {
           points: number
           prenatal_dental_done: boolean | null
           prenatal_started: boolean | null
+          support_team_id: string | null
           updated_at: string
           user_id: string
         }
@@ -706,9 +891,11 @@ export type Database = {
           birth_date?: string | null
           cep?: string | null
           cidade?: string | null
+          company_id?: string | null
           complemento?: string | null
           cpf?: string | null
           created_at?: string
+          department?: string | null
           endereco?: string | null
           esf_team_id?: string | null
           estado?: string | null
@@ -723,6 +910,7 @@ export type Database = {
           id?: string
           is_bolsa_familia?: boolean | null
           is_pregnant?: string | null
+          job_title?: string | null
           last_acs_visit?: boolean | null
           last_dental_visit?: string | null
           level?: string
@@ -734,6 +922,7 @@ export type Database = {
           points?: number
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
+          support_team_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -745,9 +934,11 @@ export type Database = {
           birth_date?: string | null
           cep?: string | null
           cidade?: string | null
+          company_id?: string | null
           complemento?: string | null
           cpf?: string | null
           created_at?: string
+          department?: string | null
           endereco?: string | null
           esf_team_id?: string | null
           estado?: string | null
@@ -762,6 +953,7 @@ export type Database = {
           id?: string
           is_bolsa_familia?: boolean | null
           is_pregnant?: string | null
+          job_title?: string | null
           last_acs_visit?: boolean | null
           last_dental_visit?: string | null
           level?: string
@@ -773,10 +965,18 @@ export type Database = {
           points?: number
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
+          support_team_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_esf_team_id_fkey"
             columns: ["esf_team_id"]
@@ -791,10 +991,18 @@ export type Database = {
             referencedRelation: "municipalities"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_support_team_id_fkey"
+            columns: ["support_team_id"]
+            isOneToOne: false
+            referencedRelation: "support_teams"
+            referencedColumns: ["id"]
+          },
         ]
       }
       special_measurements: {
         Row: {
+          company_id: string | null
           created_at: string | null
           id: string
           measured_at: string | null
@@ -804,6 +1012,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           id?: string
           measured_at?: string | null
@@ -813,6 +1022,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           id?: string
           measured_at?: string | null
@@ -822,6 +1032,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "special_measurements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "special_measurements_municipality_id_fkey"
             columns: ["municipality_id"]
@@ -834,6 +1051,7 @@ export type Database = {
       specialties: {
         Row: {
           active: boolean | null
+          company_id: string | null
           created_at: string | null
           emoji: string | null
           id: string
@@ -842,6 +1060,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          company_id?: string | null
           created_at?: string | null
           emoji?: string | null
           id?: string
@@ -850,6 +1069,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          company_id?: string | null
           created_at?: string | null
           emoji?: string | null
           id?: string
@@ -857,6 +1077,13 @@ export type Database = {
           name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "specialties_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "specialties_municipality_id_fkey"
             columns: ["municipality_id"]
@@ -889,6 +1116,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      support_teams: {
+        Row: {
+          active: boolean | null
+          address: string | null
+          company_id: string
+          created_at: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          qr_code: string
+        }
+        Insert: {
+          active?: boolean | null
+          address?: string | null
+          company_id: string
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          qr_code: string
+        }
+        Update: {
+          active?: boolean | null
+          address?: string | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          qr_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_teams_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppressed_emails: {
         Row: {
@@ -983,6 +1254,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_municipality_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

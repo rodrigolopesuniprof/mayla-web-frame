@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { TabId } from "@/lib/mayla-config";
 import { BrandBadge, Avatar } from "./MaylaIcons";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMunicipality } from "@/contexts/MunicipalityContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -17,7 +17,7 @@ interface NotificationItem {
 }
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink }: { setTab: (id: TabId) => void; onOpenTelemedicine: () => void; onOpenAppointment: () => void; onOpenEsfLink: () => void }) {
-  const { isDefault } = useMunicipality();
+  const { isDefault } = useCompany();
   const { user } = useAuth();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<NotificationItem[]>([]);
@@ -45,7 +45,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   }, [user]);
 
   const [profilePoints, setProfilePoints] = useState(0);
-  const [profileLevel, setProfileLevel] = useState("Cidadão");
+  const [profileLevel, setProfileLevel] = useState("Colaborador");
   const [hasEsf, setHasEsf] = useState(true); // default true to avoid flash
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       });
   }, [user]);
 
-  const fullName = profileName || user?.user_metadata?.full_name || "Cidadão";
+  const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
   const firstName = fullName.split(" ")[0];
   const points = profilePoints;
   const healthScore = 82;
@@ -106,9 +106,9 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             ⚠️
           </div>
           <div className="flex-1">
-            <div className="text-[13px] font-semibold text-foreground mb-0.5">Vincule-se a um município</div>
+            <div className="text-[13px] font-semibold text-foreground mb-0.5">Vincule-se à sua empresa</div>
             <div className="text-[11px] text-muted-foreground leading-snug">
-              Preencha seu CEP no questionário de saúde para ser vinculado automaticamente, ou vincule-se a uma ESF.
+              Preencha seu perfil ou conecte-se à sua equipe de apoio para ser vinculado automaticamente.
             </div>
           </div>
           <span
@@ -182,7 +182,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         >
           <span className="text-2xl block mb-2">📋</span>
           <span className="text-[13px] font-semibold text-primary-foreground block">Agendar Consulta</span>
-          <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Presencial na UBS</span>
+          <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Presencial</span>
         </div>
       </div>
 
@@ -199,7 +199,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             🏥
           </div>
           <div className="flex-1">
-            <div className="text-[13px] font-semibold text-foreground mb-0.5">Vincule-se à sua ESF</div>
+            <div className="text-[13px] font-semibold text-foreground mb-0.5">Conecte-se à sua equipe</div>
             <div className="text-[11px] text-muted-foreground leading-snug">
               Escaneie o QR Code na unidade · ganhe +500 pts
             </div>
@@ -248,7 +248,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <div className="flex-1">
           <div className="text-[11px] text-muted-foreground mb-0.5">Próxima consulta</div>
           <div className="text-[13px] font-semibold text-foreground">Clínica Geral — Dr. Farias</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">UBS São Jorge · 10h30</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">10h30</div>
         </div>
         <span className="text-lg text-muted-foreground">›</span>
       </div>
@@ -275,7 +275,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
                       className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase"
                       style={{ color: `hsl(${alert.color})`, background: `hsl(${alert.color} / .1)` }}
                     >
-                      {alert.scope === "municipal" ? "Prefeitura" : "Você"}
+                      {alert.scope === "municipal" ? "Empresa" : "Você"}
                     </span>
                   </div>
                   {alert.body && <div className="text-[11px] text-muted-foreground leading-snug">{alert.body}</div>}
@@ -307,7 +307,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
                 background: selectedAlert ? `hsl(${selectedAlert.color} / .1)` : undefined,
               }}
             >
-              {selectedAlert?.scope === "municipal" ? "Prefeitura" : "Você"}
+              {selectedAlert?.scope === "municipal" ? "Empresa" : "Você"}
             </span>
           </div>
           {selectedAlert?.external_url && (

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { MunicipalLogo } from "./MaylaIcons";
-import { useMunicipality } from "@/contexts/MunicipalityContext";
-import { MUNICIPALITY_CONFIG } from "@/lib/mayla-config";
+import { CompanyLogo } from "./MaylaIcons";
+import { useCompany } from "@/contexts/CompanyContext";
+import { COMPANY_CONFIG } from "@/lib/mayla-config";
 
-function Visual({ type, logoUrl }: { type: "city" | "heart"; logoUrl?: string | null }) {
-  if (type === "city") {
+function Visual({ type, logoUrl }: { type: "company" | "heart"; logoUrl?: string | null }) {
+  if (type === "company") {
     return (
       <div className="relative" style={{ width: 180, height: 180 }}>
         <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle at 40% 40%, hsl(var(--mayla-sand)), hsl(var(--mayla-cream)))" }} />
@@ -20,7 +20,7 @@ function Visual({ type, logoUrl }: { type: "city" | "heart"; logoUrl?: string | 
             {logoUrl ? (
               <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
             ) : (
-              <MunicipalLogo size={56} white />
+              <CompanyLogo size={56} white />
             )}
           </div>
         </div>
@@ -59,16 +59,16 @@ function Visual({ type, logoUrl }: { type: "city" | "heart"; logoUrl?: string | 
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0);
-  const { municipality } = useMunicipality();
-  const muniName = municipality?.name ?? MUNICIPALITY_CONFIG.nome;
-  const logoUrl = municipality?.logo_url;
+  const { company } = useCompany();
+  const companyName = company?.name ?? COMPANY_CONFIG.nome;
+  const logoUrl = company?.logo_url;
 
   const slides = [
     {
-      tag: `${muniName} cuida de você`,
-      title: ["Saúde pública", "na palma da", "sua mão"],
-      sub: `O app oficial para facilitar seu acesso aos serviços de saúde do seu município.`,
-      visual: "city" as const,
+      tag: `${companyName} cuida de você`,
+      title: ["Bem-estar", "na palma da", "sua mão"],
+      sub: `O app para facilitar seu acesso aos programas de saúde e bem-estar da sua empresa.`,
+      visual: "company" as const,
     },
     {
       tag: "Tecnologia que cuida",
@@ -90,7 +90,6 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <div key={step} className="animate-fade-up flex-1 flex flex-col bg-background relative overflow-hidden">
-      {/* Decorative blobs */}
       <div
         className="absolute animate-morph"
         style={{

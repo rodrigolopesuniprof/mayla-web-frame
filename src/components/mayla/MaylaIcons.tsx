@@ -1,7 +1,7 @@
-import { MUNICIPALITY_CONFIG } from "@/lib/mayla-config";
-import { useMunicipality } from "@/contexts/MunicipalityContext";
+import { COMPANY_CONFIG } from "@/lib/mayla-config";
+import { useCompany } from "@/contexts/CompanyContext";
 
-export function MunicipalLogo({ size = 40, white = false }: { size?: number; white?: boolean }) {
+export function CompanyLogo({ size = 40, white = false }: { size?: number; white?: boolean }) {
   const mainColor = white ? "#fff" : "hsl(var(--mayla-pref))";
   const secondColor = white ? "rgba(255,255,255,.7)" : "hsl(var(--mayla-pref-lt))";
 
@@ -21,12 +21,14 @@ export function MunicipalLogo({ size = 40, white = false }: { size?: number; whi
   );
 }
 
+export const MunicipalLogo = CompanyLogo;
+
 export function BrandBadge({ height = 36, white = false }: { height?: number; white?: boolean }) {
   const isSmall = height <= 34;
-  const { municipality } = useMunicipality();
-  const name = municipality?.name ?? MUNICIPALITY_CONFIG.nome;
-  const secretaria = municipality?.secretaria ?? MUNICIPALITY_CONFIG.secretaria;
-  const logoUrl = municipality?.logo_url;
+  const { company } = useCompany();
+  const name = company?.name ?? COMPANY_CONFIG.nome;
+  const program = company?.wellbeing_program_name ?? COMPANY_CONFIG.programa;
+  const logoUrl = company?.logo_url;
 
   return (
     <div className="flex items-center" style={{ gap: isSmall ? 7 : 10 }}>
@@ -47,7 +49,7 @@ export function BrandBadge({ height = 36, white = false }: { height?: number; wh
         {logoUrl ? (
           <img src={logoUrl} alt={name} className="w-full h-full object-cover" />
         ) : (
-          <MunicipalLogo size={height * 0.65} white />
+          <CompanyLogo size={height * 0.65} white />
         )}
       </div>
       <div>
@@ -69,7 +71,7 @@ export function BrandBadge({ height = 36, white = false }: { height?: number; wh
             color: white ? "rgba(255,255,255,.6)" : undefined,
           }}
         >
-          {secretaria}
+          {program}
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { MunicipalityProvider } from "@/contexts/MunicipalityContext";
+import { CompanyProvider } from "@/contexts/CompanyContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
@@ -12,8 +12,8 @@ import ResetPassword from "./pages/ResetPassword.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
-import CityLanding from "./pages/CityLanding.tsx";
-import MunicipalDashboard from "./pages/MunicipalDashboard.tsx";
+import CompanyLanding from "./pages/CompanyLanding.tsx";
+import CompanyDashboard from "./pages/CompanyDashboard.tsx";
 
 const queryClient = new QueryClient();
 
@@ -24,10 +24,12 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <MunicipalityProvider>
+          <CompanyProvider>
             <Routes>
-              <Route path="/cidade/:slug" element={<CityLanding />} />
-              <Route path="/painel/:slug" element={<MunicipalDashboard />} />
+              <Route path="/empresa/:slug" element={<CompanyLanding />} />
+              {/* Backward compat */}
+              <Route path="/cidade/:slug" element={<CompanyLanding />} />
+              <Route path="/painel/:slug" element={<CompanyDashboard />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route
@@ -38,7 +40,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              {/* Admin routes - separate from citizen app */}
+              {/* Admin routes */}
               <Route path="/admin" element={<AdminLogin />} />
               <Route
                 path="/admin/painel"
@@ -50,7 +52,7 @@ const App = () => (
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </MunicipalityProvider>
+          </CompanyProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
