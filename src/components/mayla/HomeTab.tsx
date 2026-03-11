@@ -106,7 +106,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             ⚠️
           </div>
           <div className="flex-1">
-            <div className="text-[13px] font-semibold text-foreground mb-0.5">Vincule-se a um município</div>
+            <div className="text-[13px] font-semibold text-foreground mb-0.5">Vincule-se à sua empresa</div>
             <div className="text-[11px] text-muted-foreground leading-snug">
               Preencha seu CEP no questionário de saúde para ser vinculado automaticamente, ou vincule-se a uma ESF.
             </div>
