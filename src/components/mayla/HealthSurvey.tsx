@@ -14,12 +14,6 @@ interface SurveyData {
   prenatal_started: boolean;
   has_hypertension: boolean;
   has_diabetes: boolean;
-  lives_with_infant: boolean;
-  is_bolsa_familia: boolean;
-  last_acs_visit: boolean;
-  last_dental_visit: string;
-  prenatal_dental_done: boolean;
-  // New fields
   cep: string;
   endereco: string;
   bairro: string;
@@ -29,10 +23,11 @@ interface SurveyData {
   complemento: string;
   peso: string;
   altura: string;
-  has_bedridden_at_home: boolean;
-  has_pregnant_at_home: boolean;
-  has_child_under_5: boolean;
-  has_child_under_12: boolean;
+  mental_mood: number;
+  mental_anxiety: number;
+  mental_stress: number;
+  mental_sleep: number;
+  mental_social: number;
 }
 
 function getAge(birthDate: Date): number {
@@ -56,14 +51,86 @@ function computeTags(data: SurveyData): string[] {
   if (data.biological_sex === "female" && age >= 25 && age <= 64) {
     tags.push("TAG_MULHER_PREVENCAO");
   }
-  if (data.lives_with_infant || data.has_child_under_5 || data.has_child_under_12) {
-    tags.push("TAG_RESPONSAVEL_VACINA");
-  }
-  if (data.is_bolsa_familia) {
-    tags.push("TAG_VULNERAVEL");
+  // Mental health tag
+  if (data.mental_mood <= 2 || data.mental_anxiety >= 4 || data.mental_stress >= 4) {
+    tags.push("TAG_SAUDE_MENTAL");
   }
   return tags;
 }
+
+const MENTAL_STEPS: {
+  key: string;
+  category: string;
+  question: string;
+  field: keyof SurveyData;
+  options: { emoji: string; label: string; value: number }[];
+}[] = [
+  {
+    key: "mental_mood",
+    category: "HUMOR",
+    question: "Nas últimas 2 semanas, você se sentiu desanimado ou sem esperança?",
+    field: "mental_mood",
+    options: [
+      { emoji: "😭", label: "Sempre", value: 1 },
+      { emoji: "😢", label: "Frequente", value: 2 },
+      { emoji: "😐", label: "Às vezes", value: 3 },
+      { emoji: "🙂", label: "Raramente", value: 4 },
+      { emoji: "😊", label: "Nunca", value: 5 },
+    ],
+  },
+  {
+    key: "mental_anxiety",
+    category: "ANSIEDADE",
+    question: "Você se sentiu nervoso ou ansioso hoje?",
+    field: "mental_anxiety",
+    options: [
+      { emoji: "😰", label: "Muito", value: 1 },
+      { emoji: "😟", label: "Bastante", value: 2 },
+      { emoji: "😐", label: "Moderado", value: 3 },
+      { emoji: "🙂", label: "Pouco", value: 4 },
+      { emoji: "😌", label: "Nada", value: 5 },
+    ],
+  },
+  {
+    key: "mental_stress",
+    category: "ESTRESSE",
+    question: "Você sentiu que as coisas estavam fora do seu controle?",
+    field: "mental_stress",
+    options: [
+      { emoji: "🤯", label: "Completo", value: 1 },
+      { emoji: "😣", label: "Bastante", value: 2 },
+      { emoji: "😐", label: "Moderado", value: 3 },
+      { emoji: "🙂", label: "Pouco", value: 4 },
+      { emoji: "😎", label: "Nada", value: 5 },
+    ],
+  },
+  {
+    key: "mental_sleep",
+    category: "SONO",
+    question: "Como você dormiu na última noite?",
+    field: "mental_sleep",
+    options: [
+      { emoji: "😵", label: "Muito mal", value: 1 },
+      { emoji: "😴", label: "Mal", value: 2 },
+      { emoji: "😐", label: "Regular", value: 3 },
+      { emoji: "🙂", label: "Bem", value: 4 },
+      { emoji: "😊", label: "Muito bem", value: 5 },
+    ],
+  },
+  {
+    key: "mental_social",
+    category: "SUPORTE SOCIAL",
+    question: "Você sente que tem pessoas com quem pode contar quando precisa?",
+    field: "mental_social",
+    options: [
+      { emoji: "😔", label: "Nenhuma", value: 1 },
+      { emoji: "😕", label: "Quase", value: 2 },
+      { emoji: "😐", label: "Algumas", value: 3 },
+      { emoji: "🙂", label: "Sim", value: 4 },
+      { emoji: "🥰", label: "Sim, muito", value: 5 },
+    ],
+  },
+];
 
 export function HealthSurvey({ onDone }: { onDone: () => void }) {
   const { user } = useAuth();
@@ -79,11 +146,6 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
     prenatal_started: false,
     has_hypertension: false,
     has_diabetes: false,
-    lives_with_infant: false,
-    is_bolsa_familia: false,
-    last_acs_visit: false,
-    last_dental_visit: "",
-    prenatal_dental_done: false,
     cep: "",
     endereco: "",
     bairro: "",
@@ -93,10 +155,11 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
     complemento: "",
     peso: "",
     altura: "",
-    has_bedridden_at_home: false,
-    has_pregnant_at_home: false,
-    has_child_under_5: false,
-    has_child_under_12: false,
+    mental_mood: 0,
+    mental_anxiety: 0,
+    mental_stress: 0,
+    mental_sleep: 0,
+    mental_social: 0,
   });
 
   const fetchCep = async (cep: string) => {
@@ -114,7 +177,6 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
           cidade: json.localidade || "",
           estado: json.uf || "",
         }));
-        // Auto-detect municipality
         if (json.localidade && json.uf) {
           const { data: muni } = await supabase
             .from("municipalities")
@@ -137,7 +199,7 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
   };
 
   // Build dynamic steps
-  const steps: { key: string; question: string; subtext?: string }[] = [
+  const steps: { key: string; question: string; subtext?: string; category?: string }[] = [
     { key: "sex", question: "Como você se identifica?", subtext: "Isso nos ajuda a personalizar seus cuidados de saúde" },
     { key: "birth", question: "Qual sua data de nascimento?", subtext: "Usamos para filtrar indicadores de saúde para sua faixa etária" },
   ];
@@ -154,20 +216,10 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
   steps.push({ key: "chronic", question: "Você já recebeu diagnóstico médico de alguma dessas condições?", subtext: "Marque as que se aplicam" });
   steps.push({ key: "address", question: "Qual seu endereço?", subtext: "Digite o CEP para preencher automaticamente" });
   steps.push({ key: "body", question: "Qual seu peso e altura?", subtext: "Informações importantes para acompanhar sua saúde" });
-  steps.push({ key: "family", question: "Qual a situação da sua família?", subtext: "Marque as que se aplicam" });
 
-  // Show child_vaccine step if has children at home
-  if (data.lives_with_infant || data.has_child_under_5) {
-    steps.push({ key: "child_vaccine", question: "Seu filho tem menos de 12 anos?", subtext: "Crianças menores de 12 anos precisam de vacinações obrigatórias" });
-  }
-
-  steps.push({ key: "infant", question: "Você mora com crianças menores de 1 ano?" });
-  steps.push({ key: "bolsa", question: "Sua família é beneficiária do Bolsa Família?" });
-  steps.push({ key: "acs", question: "Recebeu a visita de um Agente Comunitário de Saúde nos últimos 6 meses?" });
-  steps.push({ key: "dental", question: "Quando foi sua última consulta com o **dentista** no postinho?" });
-
-  if (data.is_pregnant === "yes") {
-    steps.push({ key: "prenatal_dental", question: "Você já realizou seu acompanhamento odontológico do pré-natal?" });
+  // Mental health steps
+  for (const ms of MENTAL_STEPS) {
+    steps.push({ key: ms.key, question: ms.question, category: ms.category });
   }
 
   const totalSteps = steps.length;
@@ -182,9 +234,11 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
       case "pregnant": return !!data.is_pregnant;
       case "address": return data.cep.replace(/\D/g, "").length === 8 && !!data.endereco?.trim() && !!data.numero?.trim();
       case "body": return !!data.peso && !!data.altura;
-      case "family": return true;
-      case "child_vaccine": return true;
-      case "dental": return !!data.last_dental_visit;
+      case "mental_mood": return data.mental_mood > 0;
+      case "mental_anxiety": return data.mental_anxiety > 0;
+      case "mental_stress": return data.mental_stress > 0;
+      case "mental_sleep": return data.mental_sleep > 0;
+      case "mental_social": return data.mental_social > 0;
       default: return true;
     }
   };
@@ -201,7 +255,6 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
     if (!user) return;
     setSaving(true);
 
-    // Save profile fields
     const profileUpdate: any = {
       biological_sex: data.biological_sex,
       birth_date: data.birth_date ? format(data.birth_date, "yyyy-MM-dd") : null,
@@ -209,11 +262,6 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
       prenatal_started: data.prenatal_started,
       has_hypertension: data.has_hypertension,
       has_diabetes: data.has_diabetes,
-      lives_with_infant: data.lives_with_infant,
-      is_bolsa_familia: data.is_bolsa_familia,
-      last_dental_visit: data.last_dental_visit || null,
-      prenatal_dental_done: data.prenatal_dental_done,
-      last_acs_visit: data.last_acs_visit,
       health_survey_completed: true,
       cep: data.cep.replace(/\D/g, "") || null,
       endereco: data.endereco || null,
@@ -224,12 +272,12 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
       complemento: data.complemento || null,
       peso: data.peso ? parseFloat(data.peso) : null,
       altura: data.altura ? parseFloat(data.altura) : null,
-      has_bedridden_at_home: data.has_bedridden_at_home,
-      has_pregnant_at_home: data.has_pregnant_at_home,
-      has_child_under_5: data.has_child_under_5,
-      has_child_under_12: data.has_child_under_12,
+      mental_mood: data.mental_mood,
+      mental_anxiety: data.mental_anxiety,
+      mental_stress: data.mental_stress,
+      mental_sleep: data.mental_sleep,
+      mental_social: data.mental_social,
     };
-    // Auto-link municipality if detected via CEP
     if (detectedMunicipalityId) {
       profileUpdate.municipality_id = detectedMunicipalityId;
     }
@@ -259,7 +307,7 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
       }
     }
 
-    // Auto-complete "Dados Certos" mission (profile filled = completed)
+    // Auto-complete "Dados Certos" mission
     const { data: dadosMission } = await supabase
       .from("missions")
       .select("id")
@@ -304,8 +352,55 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
     </button>
   );
 
+  const MentalScaleCard = ({
+    emoji,
+    label,
+    selected,
+    onClick,
+  }: {
+    emoji: string;
+    label: string;
+    selected: boolean;
+    onClick: () => void;
+  }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex-1 flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl border-2 transition-all cursor-pointer min-w-0",
+        selected
+          ? "border-accent bg-accent/10 scale-105 shadow-md"
+          : "border-border bg-card hover:border-accent/30"
+      )}
+    >
+      <span className="text-2xl">{emoji}</span>
+      <span className={cn(
+        "text-[10px] leading-tight text-center font-medium",
+        selected ? "text-accent" : "text-muted-foreground"
+      )}>{label}</span>
+    </button>
+  );
+
   const renderStepContent = () => {
     if (!currentStep) return null;
+
+    // Check if it's a mental health step
+    const mentalStep = MENTAL_STEPS.find(ms => ms.key === currentStep.key);
+    if (mentalStep) {
+      const currentValue = data[mentalStep.field] as number;
+      return (
+        <div className="flex gap-2">
+          {mentalStep.options.map((opt) => (
+            <MentalScaleCard
+              key={opt.value}
+              emoji={opt.emoji}
+              label={opt.label}
+              selected={currentValue === opt.value}
+              onClick={() => setData({ ...data, [mentalStep.field]: opt.value })}
+            />
+          ))}
+        </div>
+      );
+    }
 
     switch (currentStep.key) {
       case "sex":
@@ -543,85 +638,6 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
           </div>
         );
 
-      case "family":
-        return (
-          <div className="flex flex-col gap-3">
-            <OptionButton
-              icon="🛏️"
-              label="Tem acamado em casa"
-              selected={data.has_bedridden_at_home}
-              onClick={() => setData({ ...data, has_bedridden_at_home: !data.has_bedridden_at_home })}
-            />
-            <OptionButton
-              icon="🤰"
-              label="Tem grávida em casa"
-              selected={data.has_pregnant_at_home}
-              onClick={() => setData({ ...data, has_pregnant_at_home: !data.has_pregnant_at_home })}
-            />
-            <OptionButton
-              icon="👶"
-              label="Tem criança menor de 5 anos em casa"
-              selected={data.has_child_under_5}
-              onClick={() => setData({ ...data, has_child_under_5: !data.has_child_under_5 })}
-            />
-            <OptionButton
-              icon="😊"
-              label="Nenhuma das anteriores"
-              selected={!data.has_bedridden_at_home && !data.has_pregnant_at_home && !data.has_child_under_5}
-              onClick={() => setData({ ...data, has_bedridden_at_home: false, has_pregnant_at_home: false, has_child_under_5: false })}
-            />
-          </div>
-        );
-
-      case "child_vaccine":
-        return (
-          <div className="flex flex-col gap-3">
-            <OptionButton icon="✅" label="Sim, menor de 12 anos" selected={data.has_child_under_12 === true} onClick={() => setData({ ...data, has_child_under_12: true })} />
-            <OptionButton icon="❌" label="Não, tem 12 anos ou mais" selected={data.has_child_under_12 === false} onClick={() => setData({ ...data, has_child_under_12: false })} />
-          </div>
-        );
-
-      case "infant":
-        return (
-          <div className="flex flex-col gap-3">
-            <OptionButton icon="👶" label="Sim" selected={data.lives_with_infant === true} onClick={() => setData({ ...data, lives_with_infant: true })} />
-            <OptionButton icon="❌" label="Não" selected={data.lives_with_infant === false} onClick={() => setData({ ...data, lives_with_infant: false })} />
-          </div>
-        );
-
-      case "bolsa":
-        return (
-          <div className="flex flex-col gap-3">
-            <OptionButton icon="✅" label="Sim" selected={data.is_bolsa_familia === true} onClick={() => setData({ ...data, is_bolsa_familia: true })} />
-            <OptionButton icon="❌" label="Não" selected={data.is_bolsa_familia === false} onClick={() => setData({ ...data, is_bolsa_familia: false })} />
-          </div>
-        );
-
-      case "acs":
-        return (
-          <div className="flex flex-col gap-3">
-            <OptionButton icon="👨‍⚕️" label="Sim" selected={data.last_acs_visit === true} onClick={() => setData({ ...data, last_acs_visit: true })} />
-            <OptionButton icon="❌" label="Não" selected={data.last_acs_visit === false} onClick={() => setData({ ...data, last_acs_visit: false })} />
-          </div>
-        );
-
-      case "dental":
-        return (
-          <div className="flex flex-col gap-3">
-            <OptionButton icon="😁" label="Menos de 6 meses" selected={data.last_dental_visit === "less_6m"} onClick={() => setData({ ...data, last_dental_visit: "less_6m" })} />
-            <OptionButton icon="😬" label="Mais de 6 meses" selected={data.last_dental_visit === "more_6m"} onClick={() => setData({ ...data, last_dental_visit: "more_6m" })} />
-            <OptionButton icon="🦷" label="Nunca fui ao dentista" selected={data.last_dental_visit === "never"} onClick={() => setData({ ...data, last_dental_visit: "never" })} />
-          </div>
-        );
-
-      case "prenatal_dental":
-        return (
-          <div className="flex flex-col gap-3">
-            <OptionButton icon="✅" label="Sim" selected={data.prenatal_dental_done === true} onClick={() => setData({ ...data, prenatal_dental_done: true })} />
-            <OptionButton icon="❌" label="Ainda não" selected={data.prenatal_dental_done === false} onClick={() => setData({ ...data, prenatal_dental_done: false })} />
-          </div>
-        );
-
       default:
         return null;
     }
@@ -658,9 +674,16 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
 
       {/* Header */}
       <div className="px-[22px] pt-4 pb-2">
-        <div className="text-[10px] text-muted-foreground tracking-[.16em] uppercase mb-2">
-          Personalização da sua Jornada
-        </div>
+        {currentStep?.category && (
+          <div className="text-[11px] text-accent tracking-[.2em] uppercase font-bold mb-2">
+            {currentStep.category}
+          </div>
+        )}
+        {!currentStep?.category && (
+          <div className="text-[10px] text-muted-foreground tracking-[.16em] uppercase mb-2">
+            Personalização da sua Jornada
+          </div>
+        )}
         <h2 className="font-display text-[22px] font-medium text-foreground leading-[1.3] mb-1"
           dangerouslySetInnerHTML={{ __html: currentStep?.question?.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') || '' }}
         />

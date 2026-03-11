@@ -985,6 +985,11 @@ export type Database = {
           last_dental_visit: string | null
           level: string
           lives_with_infant: boolean | null
+          mental_anxiety: number | null
+          mental_mood: number | null
+          mental_sleep: number | null
+          mental_social: number | null
+          mental_stress: number | null
           municipality_id: string | null
           numero: string | null
           peso: number | null
@@ -1028,6 +1033,11 @@ export type Database = {
           last_dental_visit?: string | null
           level?: string
           lives_with_infant?: boolean | null
+          mental_anxiety?: number | null
+          mental_mood?: number | null
+          mental_sleep?: number | null
+          mental_social?: number | null
+          mental_stress?: number | null
           municipality_id?: string | null
           numero?: string | null
           peso?: number | null
@@ -1071,6 +1081,11 @@ export type Database = {
           last_dental_visit?: string | null
           level?: string
           lives_with_infant?: boolean | null
+          mental_anxiety?: number | null
+          mental_mood?: number | null
+          mental_sleep?: number | null
+          mental_social?: number | null
+          mental_stress?: number | null
           municipality_id?: string | null
           numero?: string | null
           peso?: number | null
