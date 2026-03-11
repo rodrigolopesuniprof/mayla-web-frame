@@ -72,7 +72,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           .from("profiles")
           .select("municipality_id")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (profile2?.municipality_id) {
           const { data: muni } = await supabase

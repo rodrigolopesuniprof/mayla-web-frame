@@ -3,7 +3,7 @@ import { TopBar } from "./TopBar";
 import { RppgCapture } from "./RppgCapture";
 import { BinahCapture } from "./BinahCapture";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMunicipality } from "@/contexts/MunicipalityContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
