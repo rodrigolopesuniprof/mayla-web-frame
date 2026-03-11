@@ -118,7 +118,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <CompanyContext.Provider value={{ company, loading, isDefault }}>
+    <CompanyContext.Provider value={{ company, loading, isDefault, companyId: company?.id || null, primaryColor: company?.primary_color }}>
       {children}
     </CompanyContext.Provider>
   );
