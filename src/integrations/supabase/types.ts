@@ -1243,7 +1243,25 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      company_health_summary: {
+        Row: {
+          active_users: number | null
+          avg_heart_rate: number | null
+          avg_spo2: number | null
+          avg_stress_level: number | null
+          company_id: string | null
+          week: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       delete_email: {
@@ -1263,6 +1281,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_hr_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_wellbeing_manager: { Args: { _user_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -1282,7 +1303,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "manager" | "user"
+      app_role:
+        | "admin"
+        | "manager"
+        | "user"
+        | "company_admin"
+        | "hr_manager"
+        | "wellbeing_manager"
+        | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1410,7 +1438,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "manager", "user"],
+      app_role: [
+        "admin",
+        "manager",
+        "user",
+        "company_admin",
+        "hr_manager",
+        "wellbeing_manager",
+        "employee",
+      ],
     },
   },
 } as const

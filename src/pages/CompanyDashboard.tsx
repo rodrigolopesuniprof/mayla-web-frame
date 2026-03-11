@@ -87,13 +87,15 @@ export default function CompanyDashboard() {
       .select("role")
       .eq("user_id", userId);
 
-    const isManager = roles?.some(r => r.role === "manager") || false;
-    const isAdmin = roles?.some(r => r.role === "admin") || false;
+    const corporateRoles = ["admin", "manager", "company_admin", "hr_manager", "wellbeing_manager"];
+    const hasAccess = roles?.some(r => corporateRoles.includes(r.role)) || false;
 
-    if (!isManager && !isAdmin) {
+    if (!hasAccess) {
       setError("Acesso negado. Você não tem permissão de gestor.");
       return;
     }
+
+    const isAdmin = roles?.some(r => r.role === "admin") || false;
 
     if (!isAdmin) {
       const { data: profile } = await supabase
