@@ -78,7 +78,7 @@ export function HealthTab() {
   useEffect(() => {
     fetchMeasurements();
     fetchBinahStatus();
-  }, [user, municipality]);
+  }, [user, companyId]);
 
   if (showBinah) {
     return (
