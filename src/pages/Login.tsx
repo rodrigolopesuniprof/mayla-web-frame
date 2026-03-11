@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 
 type Mode = "login" | "signup" | "forgot";
 
-interface MunicipalityOption {
+interface CompanyOption {
   id: string;
   name: string;
 }
@@ -21,24 +21,36 @@ export default function Login() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [cpf, setCpf] = useState("");
-  const [municipalityId, setMunicipalityId] = useState("");
-  const [municipalities, setMunicipalities] = useState<MunicipalityOption[]>([]);
+  const [companyId, setCompanyId] = useState("");
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
 
   useEffect(() => {
-    // Load municipalities for signup selector
-    const load = async () => {
-      const { data } = await supabase
-        .from("municipalities")
-        .select("id, name")
-        .order("name");
-      if (data) setMunicipalities(data);
+    const loadCompanies = async () => {
+      // Load from both companies and municipalities for backward compat
+      const [companiesRes, munisRes] = await Promise.all([
+        supabase.from("companies").select("id, name").order("name"),
+        supabase.from("municipalities").select("id, name").order("name"),
+      ]);
+      const all: CompanyOption[] = [];
+      if (companiesRes.data) all.push(...companiesRes.data);
+      if (munisRes.data) {
+        munisRes.data.forEach((m) => {
+          if (!all.find((c) => c.id === m.id)) all.push(m);
+        });
+      }
+      all.sort((a, b) => a.name.localeCompare(b.name));
+      setCompanies(all);
     };
-    load();
+    loadCompanies();
 
-    // Check if came from city landing link
-    const savedId = localStorage.getItem("selected_municipality_id");
-    if (savedId) {
-      setMunicipalityId(savedId);
+    // Check if came from company/city landing link
+    const savedCompanyId = localStorage.getItem("selected_company_id");
+    const savedMuniId = localStorage.getItem("selected_municipality_id");
+    if (savedCompanyId) {
+      setCompanyId(savedCompanyId);
+      setMode("signup");
+    } else if (savedMuniId) {
+      setCompanyId(savedMuniId);
       setMode("signup");
     }
   }, []);
@@ -59,6 +71,8 @@ export default function Login() {
     if (error) {
       toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
     } else {
+      localStorage.removeItem("selected_company_id");
+      localStorage.removeItem("selected_company_name");
       localStorage.removeItem("selected_municipality_id");
       localStorage.removeItem("selected_municipality_name");
       navigate("/");
@@ -72,8 +86,8 @@ export default function Login() {
       toast({ title: "CPF inválido", description: "Informe os 11 dígitos do CPF.", variant: "destructive" });
       return;
     }
-    if (!municipalityId) {
-      toast({ title: "Selecione seu município", description: "Escolha a cidade onde utiliza o serviço de saúde.", variant: "destructive" });
+    if (!companyId) {
+      toast({ title: "Selecione sua empresa", description: "Escolha a empresa onde você trabalha.", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -81,7 +95,7 @@ export default function Login() {
       email,
       password,
       options: {
-        data: { full_name: fullName, cpf: rawCpf, municipality_id: municipalityId },
+        data: { full_name: fullName, cpf: rawCpf, company_id: companyId },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -89,6 +103,8 @@ export default function Login() {
     if (error) {
       toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
     } else {
+      localStorage.removeItem("selected_company_id");
+      localStorage.removeItem("selected_company_name");
       localStorage.removeItem("selected_municipality_id");
       localStorage.removeItem("selected_municipality_name");
       toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
@@ -120,7 +136,7 @@ export default function Login() {
               mayla<span className="text-accent">.</span>
             </div>
             <div className="text-[11px] text-muted-foreground mt-1.5 tracking-[.14em] uppercase">
-              saúde com você
+              bem-estar corporativo
             </div>
           </div>
           <h1 className="font-display text-2xl font-medium text-foreground">
@@ -153,18 +169,18 @@ export default function Login() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="municipality">Município</Label>
+                <Label htmlFor="company">Empresa</Label>
                 <select
-                  id="municipality"
-                  value={municipalityId}
-                  onChange={(e) => setMunicipalityId(e.target.value)}
+                  id="company"
+                  value={companyId}
+                  onChange={(e) => setCompanyId(e.target.value)}
                   required
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <option value="">Selecione sua cidade...</option>
-                  {municipalities.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
+                  <option value="">Selecione sua empresa...</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>

@@ -3,17 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { AdminMunicipalities } from "@/components/admin/AdminMunicipalities";
+import { AdminCompanies } from "@/components/admin/AdminCompanies";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminNotifications } from "@/components/admin/AdminNotifications";
-import { AdminHealthUnits } from "@/components/admin/AdminHealthUnits";
+import { AdminLocations } from "@/components/admin/AdminLocations";
 import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
 import { AdminAppointments } from "@/components/admin/AdminAppointments";
-import { AdminESF } from "@/components/admin/AdminESF";
+import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
-type Tab = "dashboard" | "municipios" | "usuarios" | "avisos" | "unidades" | "especialidades" | "agendamentos" | "esf";
+type Tab = "dashboard" | "empresas" | "usuarios" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
@@ -54,7 +54,6 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
       <div className="border-b border-border bg-card sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
@@ -62,13 +61,13 @@ export default function Admin() {
             <nav className="flex gap-1">
               {[
                 { id: "dashboard" as Tab, label: "📊 Dashboard" },
-                { id: "municipios" as Tab, label: "🏛️ Municípios" },
-                { id: "esf" as Tab, label: "🏠 ESF" },
+                { id: "empresas" as Tab, label: "🏢 Empresas" },
+                { id: "equipes" as Tab, label: "👥 Equipes" },
                 { id: "especialidades" as Tab, label: "🩺 Especialidades" },
                 { id: "agendamentos" as Tab, label: "📋 Agendamentos" },
-                { id: "usuarios" as Tab, label: "👥 Usuários" },
+                { id: "usuarios" as Tab, label: "👤 Colaboradores" },
                 { id: "avisos" as Tab, label: "📢 Avisos" },
-                { id: "unidades" as Tab, label: "🏥 Unidades" },
+                { id: "locais" as Tab, label: "📍 Locais" },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -92,16 +91,15 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-6xl mx-auto px-6 py-6">
         {activeTab === "dashboard" && <AdminDashboard />}
-        {activeTab === "municipios" && <AdminMunicipalities />}
-        {activeTab === "esf" && <AdminESF />}
+        {activeTab === "empresas" && <AdminCompanies />}
+        {activeTab === "equipes" && <AdminSupportTeams />}
         {activeTab === "especialidades" && <AdminSpecialties />}
         {activeTab === "agendamentos" && <AdminAppointments />}
         {activeTab === "usuarios" && <AdminUsers />}
         {activeTab === "avisos" && <AdminNotifications />}
-        {activeTab === "unidades" && <AdminHealthUnits />}
+        {activeTab === "locais" && <AdminLocations />}
       </div>
     </div>
   );
