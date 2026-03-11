@@ -199,7 +199,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             🏥
           </div>
           <div className="flex-1">
-            <div className="text-[13px] font-semibold text-foreground mb-0.5">Vincule-se à sua ESF</div>
+            <div className="text-[13px] font-semibold text-foreground mb-0.5">Conecte-se à sua equipe</div>
             <div className="text-[11px] text-muted-foreground leading-snug">
               Escaneie o QR Code na unidade · ganhe +500 pts
             </div>
