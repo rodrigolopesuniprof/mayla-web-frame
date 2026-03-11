@@ -22,12 +22,16 @@ interface CompanyContextType {
   company: Company | null;
   loading: boolean;
   isDefault: boolean;
+  companyId: string | null;
+  primaryColor: string | undefined;
 }
 
 const CompanyContext = createContext<CompanyContextType>({
   company: null,
   loading: true,
   isDefault: false,
+  companyId: null,
+  primaryColor: undefined,
 });
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
@@ -114,7 +118,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <CompanyContext.Provider value={{ company, loading, isDefault }}>
+    <CompanyContext.Provider value={{ company, loading, isDefault, companyId: company?.id || null, primaryColor: company?.primary_color }}>
       {children}
     </CompanyContext.Provider>
   );

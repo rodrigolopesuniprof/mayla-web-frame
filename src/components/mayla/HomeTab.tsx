@@ -144,7 +144,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             <div className="text-[11px] text-muted-foreground mt-0.5">Medição de ontem · 87 bpm</div>
           </div>
           <button
-            onClick={() => setTab("saude")}
+            onClick={() => setTab("bemestar")}
             className="border-none rounded-xl px-3 py-2 text-accent-foreground text-[11px] font-semibold cursor-pointer"
             style={{ background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))" }}
           >
@@ -212,7 +212,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       <div
         className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 relative overflow-hidden cursor-pointer"
         style={{ background: "linear-gradient(135deg, hsl(var(--mayla-ink)), #3D2820)" }}
-        onClick={() => setTab("saude")}
+        onClick={() => setTab("bemestar")}
       >
         <div className="absolute rounded-full" style={{ top: -20, right: -20, width: 90, height: 90, background: "rgba(255,255,255,.04)" }} />
         <div
