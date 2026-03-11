@@ -285,83 +285,108 @@ export default function CompanyDashboard() {
         {!data ? (
           <p className="text-muted-foreground text-center py-12">Carregando dados...</p>
         ) : (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              {[
-                { label: "Colaboradores cadastrados", value: data.totalEmployees, emoji: "👥" },
-                { label: "Vinculados a equipes", value: data.withTeam, emoji: "👥" },
-                { label: "Questionário completo", value: data.surveyCompleted, emoji: "📋" },
-                { label: "Agendamentos", value: data.totalAppointments, emoji: "📅" },
-              ].map(m => (
-                <Card key={m.label}>
-                  <CardContent className="p-5 text-center">
-                    <span className="text-2xl mb-2 block">{m.emoji}</span>
-                    <div className="text-3xl font-bold text-foreground">{m.value}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{m.label}</div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="w-full justify-start">
+              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="wellbeing">Bem-estar</TabsTrigger>
+              <TabsTrigger value="programs">Programas</TabsTrigger>
+              <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
+            </TabsList>
 
-            <Card className="mb-8">
-              <CardContent className="p-5">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Completude dos dados</h3>
-                <div className="space-y-3">
-                  {[
-                    { label: "Com endereço preenchido", value: data.withAddress, total: data.totalEmployees },
-                    { label: "Questionário de saúde completo", value: data.surveyCompleted, total: data.totalEmployees },
-                    { label: "Vinculados a equipes", value: data.withTeam, total: data.totalEmployees },
-                  ].map(item => {
-                    const pct = item.total > 0 ? Math.round((item.value / item.total) * 100) : 0;
-                    return (
-                      <div key={item.label}>
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-foreground">{item.label}</span>
-                          <span className="text-muted-foreground">{item.value}/{item.total} ({pct}%)</span>
-                        </div>
-                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: `hsl(${primaryHsl})` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+            <TabsContent value="overview">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {[
+                  { label: "Colaboradores cadastrados", value: data.totalEmployees, emoji: "👥" },
+                  { label: "Vinculados a equipes", value: data.withTeam, emoji: "👥" },
+                  { label: "Questionário completo", value: data.surveyCompleted, emoji: "📋" },
+                  { label: "Agendamentos", value: data.totalAppointments, emoji: "📅" },
+                ].map(m => (
+                  <Card key={m.label}>
+                    <CardContent className="p-5 text-center">
+                      <span className="text-2xl mb-2 block">{m.emoji}</span>
+                      <div className="text-3xl font-bold text-foreground">{m.value}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{m.label}</div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-            <Card>
-              <CardContent className="p-5">
-                <h3 className="text-lg font-semibold text-foreground mb-4">🏆 Ranking das Equipes</h3>
-                {data.teamRanking.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma equipe cadastrada.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {data.teamRanking.map((team, i) => (
-                      <div key={team.id} className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
-                        <span className="text-lg font-bold text-muted-foreground w-8 text-center">
-                          {i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}º`}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-semibold text-foreground block truncate">{team.name}</span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {team.surveyDone}/{team.count} com questionário completo
-                          </span>
+              <Card className="mb-8">
+                <CardContent className="p-5">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">Completude dos dados</h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Com endereço preenchido", value: data.withAddress, total: data.totalEmployees },
+                      { label: "Questionário de saúde completo", value: data.surveyCompleted, total: data.totalEmployees },
+                      { label: "Vinculados a equipes", value: data.withTeam, total: data.totalEmployees },
+                    ].map(item => {
+                      const pct = item.total > 0 ? Math.round((item.value / item.total) * 100) : 0;
+                      return (
+                        <div key={item.label}>
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="text-foreground">{item.label}</span>
+                            <span className="text-muted-foreground">{item.value}/{item.total} ({pct}%)</span>
+                          </div>
+                          <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: `hsl(${primaryHsl})` }} />
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-lg font-bold" style={{ color: `hsl(${primaryHsl})` }}>{team.count}</span>
-                          <span className="text-[11px] text-muted-foreground block">colaboradores</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <p className="text-center text-xs text-muted-foreground mt-8">
-              📢 {data.totalNotifications} mensagens enviadas · Dados atualizados em tempo real
-            </p>
-          </>
+              <Card>
+                <CardContent className="p-5">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">🏆 Ranking das Equipes</h3>
+                  {data.teamRanking.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">Nenhuma equipe cadastrada.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.teamRanking.map((team, i) => (
+                        <div key={team.id} className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
+                          <span className="text-lg font-bold text-muted-foreground w-8 text-center">
+                            {i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}º`}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-semibold text-foreground block truncate">{team.name}</span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {team.surveyDone}/{team.count} com questionário completo
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-lg font-bold" style={{ color: `hsl(${primaryHsl})` }}>{team.count}</span>
+                            <span className="text-[11px] text-muted-foreground block">colaboradores</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <p className="text-center text-xs text-muted-foreground mt-8">
+                📢 {data.totalNotifications} mensagens enviadas · Dados atualizados em tempo real
+              </p>
+            </TabsContent>
+
+            <TabsContent value="wellbeing">
+              <AggregatedDashboard
+                companyId={company.id}
+                primaryColor={primaryHsl}
+                totalEmployees={data.totalEmployees}
+              />
+            </TabsContent>
+
+            <TabsContent value="programs">
+              <WellbeingPrograms companyId={company.id} primaryColor={primaryHsl} />
+            </TabsContent>
+
+            <TabsContent value="campaigns">
+              <CampaignsList companyId={company.id} primaryColor={primaryHsl} />
+            </TabsContent>
+          </Tabs>
         )}
       </main>
     </div>
