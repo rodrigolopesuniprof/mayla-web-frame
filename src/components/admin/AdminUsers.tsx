@@ -30,14 +30,14 @@ interface Profile {
   full_name: string | null;
   cpf: string | null;
   phone: string | null;
-  municipality_id: string | null;
+  company_id: string | null;
   level: string;
   points: number;
   health_survey_completed: boolean | null;
   esf_team_id: string | null;
 }
 
-interface Municipality {
+interface Company {
   id: string;
   name: string;
 }
@@ -60,9 +60,9 @@ interface EngagementData {
 export function AdminUsers() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [emailMap, setEmailMap] = useState<Record<string, string>>({});
-  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
-  const [filterMuni, setFilterMuni] = useState<string>("");
+  const [filterCompany, setFilterCompany] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   // Add user form
@@ -70,12 +70,12 @@ export function AdminUsers() {
   const [addName, setAddName] = useState("");
   const [addEmail, setAddEmail] = useState("");
   const [addCpf, setAddCpf] = useState("");
-  const [addMuniId, setAddMuniId] = useState("");
+  const [addCompanyId, setAddCompanyId] = useState("");
   const [addSaving, setAddSaving] = useState(false);
 
   // CSV
   const [showCsv, setShowCsv] = useState(false);
-  const [csvMuniId, setCsvMuniId] = useState("");
+  const [csvCompanyId, setCsvCompanyId] = useState("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResult, setCsvResult] = useState<any>(null);
@@ -86,7 +86,7 @@ export function AdminUsers() {
   const [editEmail, setEditEmail] = useState("");
   const [editCpf, setEditCpf] = useState("");
   const [editPhone, setEditPhone] = useState("");
-  const [editMuniId, setEditMuniId] = useState("");
+  const [editCompanyId, setEditCompanyId] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   // Delete user
@@ -109,18 +109,19 @@ export function AdminUsers() {
   const [engageProfile, setEngageProfile] = useState<Profile | null>(null);
   const [engageData, setEngageData] = useState<EngagementData | null>(null);
   const [engageLoading, setEngageLoading] = useState(false);
+
   const loadProfiles = useCallback(async () => {
     setLoading(true);
     let query = supabase.from("profiles").select("*").order("full_name");
-    if (filterMuni) query = query.eq("municipality_id", filterMuni);
+    if (filterCompany) query = query.eq("company_id", filterCompany);
     const { data } = await query;
     if (data) setProfiles(data as Profile[]);
     setLoading(false);
-  }, [filterMuni]);
+  }, [filterCompany]);
 
-  const loadMunicipalities = useCallback(async () => {
-    const { data } = await supabase.from("municipalities").select("id, name").order("name");
-    if (data) setMunicipalities(data as Municipality[]);
+  const loadCompanies = useCallback(async () => {
+    const { data } = await supabase.from("companies").select("id, name").order("name");
+    if (data) setCompanies(data as Company[]);
   }, []);
 
   const loadEmails = useCallback(async () => {
@@ -132,7 +133,7 @@ export function AdminUsers() {
     } catch {}
   }, []);
 
-  useEffect(() => { loadMunicipalities(); loadEmails(); }, [loadMunicipalities, loadEmails]);
+  useEffect(() => { loadCompanies(); loadEmails(); }, [loadCompanies, loadEmails]);
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
   const filteredProfiles = profiles.filter((p) => {
@@ -146,16 +147,16 @@ export function AdminUsers() {
     );
   });
 
-  const getMuniName = (id: string | null) => {
+  const getCompanyName = (id: string | null) => {
     if (!id) return "—";
-    return municipalities.find((m) => m.id === id)?.name || "—";
+    return companies.find((c) => c.id === id)?.name || "—";
   };
 
   // --- Add user ---
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addMuniId) {
-      toast({ title: "Selecione um município", variant: "destructive" });
+    if (!addCompanyId) {
+      toast({ title: "Selecione uma empresa", variant: "destructive" });
       return;
     }
     setAddSaving(true);
@@ -163,7 +164,7 @@ export function AdminUsers() {
       const res = await supabase.functions.invoke("import-users", {
         body: {
           users: [{ name: addName, email: addEmail, cpf: addCpf }],
-          municipality_id: addMuniId,
+          company_id: addCompanyId,
         },
       });
       if (res.error) throw res.error;
@@ -183,8 +184,8 @@ export function AdminUsers() {
 
   // --- CSV import ---
   const handleCsvImport = async () => {
-    if (!csvFile || !csvMuniId) {
-      toast({ title: "Selecione um arquivo CSV e um município", variant: "destructive" });
+    if (!csvFile || !csvCompanyId) {
+      toast({ title: "Selecione um arquivo CSV e uma empresa", variant: "destructive" });
       return;
     }
     setCsvImporting(true);
@@ -223,7 +224,7 @@ export function AdminUsers() {
       for (let i = 0; i < users.length; i += 20) {
         const batch = users.slice(i, i + 20);
         const res = await supabase.functions.invoke("import-users", {
-          body: { users: batch, municipality_id: csvMuniId },
+          body: { users: batch, company_id: csvCompanyId },
         });
         if (res.data?.details) allResults = allResults.concat(res.data.details);
       }
@@ -245,14 +246,13 @@ export function AdminUsers() {
     setEditEmail(emailMap[p.user_id] || "");
     setEditCpf(p.cpf || "");
     setEditPhone(p.phone || "");
-    setEditMuniId(p.municipality_id || "");
+    setEditCompanyId(p.company_id || "");
   };
 
   const handleEditSave = async () => {
     if (!editProfile) return;
     setEditSaving(true);
     try {
-      // Update profile fields
       const res = await supabase.functions.invoke("manage-user", {
         body: {
           action: "update",
@@ -261,14 +261,13 @@ export function AdminUsers() {
             full_name: editName,
             cpf: editCpf,
             phone: editPhone,
-            municipality_id: editMuniId,
+            company_id: editCompanyId,
           },
         },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
 
-      // Update email if changed
       const currentEmail = emailMap[editProfile.user_id] || "";
       if (editEmail && editEmail !== currentEmail) {
         const emailRes = await supabase.functions.invoke("manage-user", {
@@ -280,7 +279,6 @@ export function AdminUsers() {
         });
         if (emailRes.error) throw emailRes.error;
         if (emailRes.data?.error) throw new Error(emailRes.data.error);
-        // Update local map
         setEmailMap((prev) => ({ ...prev, [editProfile.user_id]: editEmail }));
       }
 
@@ -359,7 +357,6 @@ export function AdminUsers() {
       if (error) throw error;
       toast({ title: "Atendimento registrado!" });
       setNoteText("");
-      // Reload notes
       const { data } = await supabase
         .from("support_notes")
         .select("*")
@@ -435,10 +432,10 @@ export function AdminUsers() {
                 <Input value={addCpf} onChange={(e) => setAddCpf(e.target.value)} placeholder="000.000.000-00" />
               </div>
               <div className="space-y-2">
-                <Label>Município *</Label>
-                <select value={addMuniId} onChange={(e) => setAddMuniId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                <Label>Empresa *</Label>
+                <select value={addCompanyId} onChange={(e) => setAddCompanyId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
                   <option value="">Selecione...</option>
-                  {municipalities.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="md:col-span-2">
@@ -464,10 +461,10 @@ export function AdminUsers() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="space-y-2">
-                <Label>Município *</Label>
-                <select value={csvMuniId} onChange={(e) => setCsvMuniId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                <Label>Empresa *</Label>
+                <select value={csvCompanyId} onChange={(e) => setCsvCompanyId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
                   <option value="">Selecione...</option>
-                  {municipalities.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -475,7 +472,7 @@ export function AdminUsers() {
                 <Input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} />
               </div>
               <div className="flex items-end">
-                <Button onClick={handleCsvImport} disabled={csvImporting || !csvFile || !csvMuniId}>
+                <Button onClick={handleCsvImport} disabled={csvImporting || !csvFile || !csvCompanyId}>
                   {csvImporting ? "Importando..." : "Importar"}
                 </Button>
               </div>
@@ -503,9 +500,9 @@ export function AdminUsers() {
       {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap">
         <Input placeholder="Buscar por nome, CPF ou e-mail..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-        <select value={filterMuni} onChange={(e) => setFilterMuni(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-          <option value="">Todos os municípios</option>
-          {municipalities.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <option value="">Todas as empresas</option>
+          {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
@@ -520,7 +517,7 @@ export function AdminUsers() {
                   <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">E-mail</th>
                   <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">CPF</th>
                   <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Telefone</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Município</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Empresa</th>
                   <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Info</th>
                   <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Ações</th>
                 </tr>
@@ -537,7 +534,7 @@ export function AdminUsers() {
                       <td className="px-4 py-3 text-sm text-muted-foreground">{emailMap[p.user_id] || "—"}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{p.cpf || "—"}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{p.phone || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{getMuniName(p.municipality_id)}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{getCompanyName(p.company_id)}</td>
                       <td className="px-4 py-3">
                         <span className="text-xs text-muted-foreground">{p.level} · {p.points} pts</span>
                       </td>
@@ -593,10 +590,10 @@ export function AdminUsers() {
               <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="(00) 00000-0000" />
             </div>
             <div className="space-y-2">
-              <Label>Município</Label>
-              <select value={editMuniId} onChange={(e) => setEditMuniId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">Sem município</option>
-                {municipalities.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              <Label>Empresa</Label>
+              <select value={editCompanyId} onChange={(e) => setEditCompanyId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="">Sem empresa</option>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           </div>
@@ -726,7 +723,6 @@ export function AdminUsers() {
             <p className="text-sm text-muted-foreground py-6 text-center">Carregando dados...</p>
           ) : engageData && engageProfile ? (
             <div className="space-y-4 py-2">
-              {/* Summary cards */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-secondary rounded-xl p-3 text-center">
                   <div className="text-2xl mb-1">🏅</div>
@@ -750,7 +746,6 @@ export function AdminUsers() {
                 </div>
               </div>
 
-              {/* Detail list */}
               <div className="space-y-2">
                 <DetailRow label="Questionário de saúde" value={engageProfile.health_survey_completed ? "✅ Completo" : "❌ Pendente"} />
                 <DetailRow label="ESF vinculada" value={engageProfile.esf_team_id ? "✅ Sim" : "❌ Não"} />

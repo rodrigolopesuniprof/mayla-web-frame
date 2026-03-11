@@ -50,11 +50,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { users, municipality_id } = await req.json();
+    const { users, company_id } = await req.json();
 
-    if (!Array.isArray(users) || !municipality_id) {
+    if (!Array.isArray(users) || !company_id) {
       return new Response(
-        JSON.stringify({ error: "Dados inválidos. Envie { users: [{name, email, cpf}], municipality_id }" }),
+        JSON.stringify({ error: "Dados inválidos. Envie { users: [{name, email, cpf}], company_id }" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
           email,
           password: tempPassword,
           email_confirm: true,
-          user_metadata: { full_name: name },
+          user_metadata: { full_name: name, company_id },
         });
 
       if (userError) {
@@ -91,9 +91,9 @@ Deno.serve(async (req) => {
           if (existing) {
             await supabaseAdmin
               .from("profiles")
-              .update({ municipality_id, cpf: cpf || undefined })
+              .update({ company_id, cpf: cpf || undefined })
               .eq("user_id", existing.id);
-            results.push({ email, success: true, error: "Usuário já existia, vinculado ao município" });
+            results.push({ email, success: true, error: "Usuário já existia, vinculado à empresa" });
           } else {
             results.push({ email, success: false, error: userError.message });
           }
@@ -103,11 +103,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Update profile with municipality and CPF
+      // Update profile with company and CPF
       await supabaseAdmin
         .from("profiles")
         .update({
-          municipality_id,
+          company_id,
           cpf: cpf || undefined,
           full_name: name || undefined,
         })
