@@ -17,7 +17,7 @@ interface NotificationItem {
 }
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink }: { setTab: (id: TabId) => void; onOpenTelemedicine: () => void; onOpenAppointment: () => void; onOpenEsfLink: () => void }) {
-  const { isDefault } = useMunicipality();
+  const { isDefault } = useCompany();
   const { user } = useAuth();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<NotificationItem[]>([]);
