@@ -51,11 +51,11 @@ export function HealthTab() {
 
   // Check if Binah is enabled for this municipality
   const fetchBinahStatus = async () => {
-    if (!municipality?.id || !user) return;
+    if (!companyId || !user) return;
     const { data: feat } = await supabase
-      .from("municipality_features")
+      .from("company_features")
       .select("enabled, config")
-      .eq("municipality_id", municipality.id)
+      .eq("company_id", companyId)
       .eq("feature_key", "binah_special_measurement")
       .maybeSingle();
 
