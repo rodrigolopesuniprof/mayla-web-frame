@@ -30,6 +30,8 @@ const CompanyContext = createContext<CompanyContextType>({
   company: null,
   loading: true,
   isDefault: false,
+  companyId: null,
+  primaryColor: undefined,
 });
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
