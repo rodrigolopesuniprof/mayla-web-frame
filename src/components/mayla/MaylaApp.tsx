@@ -5,8 +5,8 @@ import { OnboardingScreen } from "./OnboardingScreen";
 import { HealthSurvey } from "./HealthSurvey";
 import { BottomNav } from "./BottomNav";
 import { HomeTab } from "./HomeTab";
-import { HealthTab } from "./HealthTab";
-import { ServicesTab } from "./ServicesTab";
+import { WellbeingTab } from "./WellbeingTab";
+import { ProgramsTab } from "./ProgramsTab";
 import { MissionsTab } from "./MissionsTab";
 import { ProfileTab } from "./ProfileTab";
 import { TelemedicineScreen } from "./TelemedicineScreen";
@@ -27,7 +27,6 @@ export function MaylaApp() {
   const [showAppointment, setShowAppointment] = useState(false);
   const [showEsfLink, setShowEsfLink] = useState(false);
 
-  // Check if health survey is completed (skip when retaking)
   useEffect(() => {
     if (!user || phase !== "survey" || isRetake) {
       if (isRetake) setSurveyChecked(true);
@@ -46,21 +45,12 @@ export function MaylaApp() {
       });
   }, [user, phase, isRetake]);
 
-  const handleOnboardingDone = () => {
-    setPhase("survey");
-  };
-
-  const handleSurveyDone = () => {
-    setIsRetake(false);
-    setPhase("main");
-  };
+  const handleOnboardingDone = () => setPhase("survey");
+  const handleSurveyDone = () => { setIsRetake(false); setPhase("main"); };
 
   const handleRetakeSurvey = async () => {
     if (user) {
-      await supabase
-        .from("profiles")
-        .update({ health_survey_completed: false })
-        .eq("user_id", user.id);
+      await supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", user.id);
     }
     setIsRetake(true);
     setSurveyChecked(true);
@@ -80,15 +70,9 @@ export function MaylaApp() {
           boxShadow: "0 25px 80px rgba(42,30,26,.15), 0 8px 24px rgba(42,30,26,.1)",
         }}
       >
-        {phase === "splash" && (
-          <SplashScreen onDone={() => setPhase("onboarding")} />
-        )}
-        {phase === "onboarding" && (
-          <OnboardingScreen onDone={handleOnboardingDone} />
-        )}
-        {phase === "survey" && surveyChecked && (
-          <HealthSurvey onDone={handleSurveyDone} />
-        )}
+        {phase === "splash" && <SplashScreen onDone={() => setPhase("onboarding")} />}
+        {phase === "onboarding" && <OnboardingScreen onDone={handleOnboardingDone} />}
+        {phase === "survey" && surveyChecked && <HealthSurvey onDone={handleSurveyDone} />}
         {phase === "main" && (
           <>
             {showTelemedicine ? (
@@ -107,13 +91,8 @@ export function MaylaApp() {
                     onOpenEsfLink={() => setShowEsfLink(true)}
                   />
                 )}
-                {activeTab === "saude" && <HealthTab />}
-                {activeTab === "servicos" && (
-                  <ServicesTab
-                    onOpenTelemedicine={() => setShowTelemedicine(true)}
-                    onOpenAppointment={() => setShowAppointment(true)}
-                  />
-                )}
+                {activeTab === "bemestar" && <WellbeingTab />}
+                {activeTab === "programas" && <ProgramsTab />}
                 {activeTab === "missoes" && <MissionsTab />}
                 {activeTab === "perfil" && <ProfileTab onRetakeSurvey={handleRetakeSurvey} />}
               </div>
