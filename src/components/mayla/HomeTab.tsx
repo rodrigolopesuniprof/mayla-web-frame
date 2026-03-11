@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { TabId } from "@/lib/mayla-config";
 import { BrandBadge, Avatar } from "./MaylaIcons";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMunicipality } from "@/contexts/MunicipalityContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
