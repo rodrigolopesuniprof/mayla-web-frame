@@ -113,10 +113,11 @@ Deno.serve(async (req) => {
         })
         .eq("user_id", userData.user.id);
 
-      // Assign user role
+      // Assign employee role for corporate users
+      const assignedRole = u.role && ["employee", "hr_manager", "wellbeing_manager", "company_admin"].includes(u.role) ? u.role : "employee";
       await supabaseAdmin
         .from("user_roles")
-        .upsert({ user_id: userData.user.id, role: "user" }, { onConflict: "user_id,role" });
+        .upsert({ user_id: userData.user.id, role: assignedRole }, { onConflict: "user_id,role" });
 
       results.push({ email, success: true });
     }
