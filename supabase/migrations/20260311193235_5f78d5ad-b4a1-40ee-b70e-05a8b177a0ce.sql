@@ -1,0 +1,3 @@
+ALTER TABLE public.companies 
+  ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'ES',
+  ADD COLUMN IF NOT EXISTS cnae text;

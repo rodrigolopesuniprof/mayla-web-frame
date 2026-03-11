@@ -304,6 +304,7 @@ export type Database = {
         Row: {
           accent_color: string
           background_color: string
+          cnae: string | null
           cnpj: string | null
           created_at: string
           employee_count: number | null
@@ -318,6 +319,7 @@ export type Database = {
           rppg_url: string | null
           secondary_color: string
           slug: string
+          state: string
           telemedicine_url: string | null
           updated_at: string
           wellbeing_program_name: string | null
@@ -325,6 +327,7 @@ export type Database = {
         Insert: {
           accent_color?: string
           background_color?: string
+          cnae?: string | null
           cnpj?: string | null
           created_at?: string
           employee_count?: number | null
@@ -339,6 +342,7 @@ export type Database = {
           rppg_url?: string | null
           secondary_color?: string
           slug: string
+          state?: string
           telemedicine_url?: string | null
           updated_at?: string
           wellbeing_program_name?: string | null
@@ -346,6 +350,7 @@ export type Database = {
         Update: {
           accent_color?: string
           background_color?: string
+          cnae?: string | null
           cnpj?: string | null
           created_at?: string
           employee_count?: number | null
@@ -360,6 +365,7 @@ export type Database = {
           rppg_url?: string | null
           secondary_color?: string
           slug?: string
+          state?: string
           telemedicine_url?: string | null
           updated_at?: string
           wellbeing_program_name?: string | null
