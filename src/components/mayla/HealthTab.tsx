@@ -28,7 +28,7 @@ interface Measurement {
 
 export function HealthTab() {
   const { user } = useAuth();
-  const { municipality } = useMunicipality();
+  const { company, companyId } = useCompany();
   const [showRppg, setShowRppg] = useState(false);
   const [showBinah, setShowBinah] = useState(false);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
