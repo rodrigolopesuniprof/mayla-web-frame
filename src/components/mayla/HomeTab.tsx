@@ -248,7 +248,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <div className="flex-1">
           <div className="text-[11px] text-muted-foreground mb-0.5">Próxima consulta</div>
           <div className="text-[13px] font-semibold text-foreground">Clínica Geral — Dr. Farias</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">UBS São Jorge · 10h30</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">10h30</div>
         </div>
         <span className="text-lg text-muted-foreground">›</span>
       </div>
