@@ -229,6 +229,13 @@ export type Database = {
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "campaign_participants_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "company_campaign_summary"
+            referencedColumns: ["campaign_id"]
+          },
         ]
       }
       campaigns: {
@@ -1134,6 +1141,13 @@ export type Database = {
             foreignKeyName: "program_missions_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
+            referencedRelation: "company_program_summary"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "program_missions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
             referencedRelation: "wellbeing_programs"
             referencedColumns: ["id"]
           },
@@ -1482,6 +1496,28 @@ export type Database = {
       }
     }
     Views: {
+      company_campaign_summary: {
+        Row: {
+          badges_awarded: number | null
+          campaign_id: string | null
+          company_id: string | null
+          ends_at: string | null
+          starts_at: string | null
+          title: string | null
+          total_completed: number | null
+          total_participants: number | null
+          total_points_awarded: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_health_summary: {
         Row: {
           active_users: number | null
@@ -1501,6 +1537,49 @@ export type Database = {
           },
         ]
       }
+      company_program_summary: {
+        Row: {
+          active: boolean | null
+          category: string | null
+          company_id: string | null
+          completed_missions: number | null
+          participants: number | null
+          program_id: string | null
+          title: string | null
+          total_missions: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wellbeing_programs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_wellbeing_summary: {
+        Row: {
+          avg_mood: number | null
+          avg_sleep: number | null
+          avg_stress: number | null
+          avg_workload: number | null
+          company_id: string | null
+          total_checkins: number | null
+          unique_participants: number | null
+          week_start: string | null
+          wellbeing_index: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wellbeing_checkins_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       delete_email: {
@@ -1510,6 +1589,19 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      get_company_wellbeing_summary: {
+        Args: { _company_id: string }
+        Returns: {
+          avg_mood: number
+          avg_sleep: number
+          avg_stress: number
+          avg_workload: number
+          total_checkins: number
+          unique_participants: number
+          week_start: string
+          wellbeing_index: number
+        }[]
       }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_municipality_id: { Args: { _user_id: string }; Returns: string }
