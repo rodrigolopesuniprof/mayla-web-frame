@@ -10,16 +10,22 @@ import { AdminLocations } from "@/components/admin/AdminLocations";
 import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
 import { AdminAppointments } from "@/components/admin/AdminAppointments";
 import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
+import { AdminPrograms } from "@/components/admin/AdminPrograms";
+import { AdminCampaigns } from "@/components/admin/AdminCampaigns";
+import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashboard";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
-type Tab = "dashboard" | "empresas" | "usuarios" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
+type Tab = "dashboard" | "corp_dashboard" | "empresas" | "usuarios" | "programas" | "missoes" | "campanhas" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
+
+// Keep legacy AdminMissions as reference to existing missions tab
+import { default as AdminMissionsLazy } from "@/components/admin/AdminESF";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>("corp_dashboard");
 
   useEffect(() => {
     if (!user) return;
@@ -52,54 +58,64 @@ export default function Admin() {
     );
   }
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "corp_dashboard", label: "📊 Dashboard" },
+    { id: "empresas", label: "🏢 Empresas" },
+    { id: "usuarios", label: "👤 Colaboradores" },
+    { id: "programas", label: "🌿 Programas" },
+    { id: "missoes", label: "🎯 Missões" },
+    { id: "campanhas", label: "🏆 Campanhas" },
+    { id: "avisos", label: "📢 Notificações" },
+    { id: "equipes", label: "👥 Equipes" },
+    { id: "locais", label: "📍 Locais" },
+    { id: "especialidades", label: "🩺 Especialidades" },
+    { id: "agendamentos", label: "📋 Agendamentos" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <h1 className="font-display text-xl font-medium text-foreground">🛡️ Painel Admin</h1>
-            <nav className="flex gap-1">
-              {[
-                { id: "dashboard" as Tab, label: "📊 Dashboard" },
-                { id: "empresas" as Tab, label: "🏢 Empresas" },
-                { id: "equipes" as Tab, label: "👥 Equipes" },
-                { id: "especialidades" as Tab, label: "🩺 Especialidades" },
-                { id: "agendamentos" as Tab, label: "📋 Agendamentos" },
-                { id: "usuarios" as Tab, label: "👤 Colaboradores" },
-                { id: "avisos" as Tab, label: "📢 Avisos" },
-                { id: "locais" as Tab, label: "📍 Locais" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border-none cursor-pointer ${
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <img src={maylaLogo} alt="Mayla" className="w-8 h-8 rounded-lg" />
+            <h1 className="font-display text-xl font-medium text-foreground">Admin</h1>
           </div>
           <div className="flex items-center gap-3">
-            <img src={maylaLogo} alt="Mayla" className="w-8 h-8 rounded-lg" />
             <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>← Sair</Button>
-            <Button variant="ghost" size="sm" onClick={signOut}>Sair</Button>
+            <Button variant="ghost" size="sm" onClick={signOut}>Logout</Button>
           </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 pb-2">
+          <nav className="flex gap-1 overflow-x-auto">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border-none cursor-pointer whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-6">
-        {activeTab === "dashboard" && <AdminDashboard />}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {activeTab === "corp_dashboard" && <AdminCorporateDashboard />}
         {activeTab === "empresas" && <AdminCompanies />}
+        {activeTab === "usuarios" && <AdminUsers />}
+        {activeTab === "programas" && <AdminPrograms />}
+        {activeTab === "missoes" && <AdminMissionsLazy />}
+        {activeTab === "campanhas" && <AdminCampaigns />}
+        {activeTab === "avisos" && <AdminNotifications />}
         {activeTab === "equipes" && <AdminSupportTeams />}
+        {activeTab === "locais" && <AdminLocations />}
         {activeTab === "especialidades" && <AdminSpecialties />}
         {activeTab === "agendamentos" && <AdminAppointments />}
-        {activeTab === "usuarios" && <AdminUsers />}
-        {activeTab === "avisos" && <AdminNotifications />}
-        {activeTab === "locais" && <AdminLocations />}
       </div>
     </div>
   );
