@@ -182,7 +182,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         >
           <span className="text-2xl block mb-2">📋</span>
           <span className="text-[13px] font-semibold text-primary-foreground block">Agendar Consulta</span>
-          <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Presencial na UBS</span>
+          <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Presencial</span>
         </div>
       </div>
 
