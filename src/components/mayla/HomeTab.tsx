@@ -64,7 +64,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       });
   }, [user]);
 
-  const fullName = profileName || user?.user_metadata?.full_name || "Cidadão";
+  const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
   const firstName = fullName.split(" ")[0];
   const points = profilePoints;
   const healthScore = 82;
