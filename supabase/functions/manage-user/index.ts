@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
       if (updates.full_name !== undefined) profileUpdates.full_name = updates.full_name;
       if (updates.cpf !== undefined) profileUpdates.cpf = updates.cpf;
       if (updates.phone !== undefined) profileUpdates.phone = updates.phone;
-      if (updates.municipality_id !== undefined) profileUpdates.municipality_id = updates.municipality_id || null;
+      if (updates.company_id !== undefined) profileUpdates.company_id = updates.company_id || null;
 
       if (Object.keys(profileUpdates).length > 0) {
         const { error } = await supabaseAdmin
