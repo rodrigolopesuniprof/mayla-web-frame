@@ -193,6 +193,113 @@ export type Database = {
           },
         ]
       }
+      campaign_participants: {
+        Row: {
+          badge_awarded: boolean | null
+          campaign_id: string
+          completed_at: string | null
+          id: string
+          joined_at: string | null
+          points_earned: number | null
+          user_id: string
+        }
+        Insert: {
+          badge_awarded?: boolean | null
+          campaign_id: string
+          completed_at?: string | null
+          id?: string
+          joined_at?: string | null
+          points_earned?: number | null
+          user_id: string
+        }
+        Update: {
+          badge_awarded?: boolean | null
+          campaign_id?: string
+          completed_at?: string | null
+          id?: string
+          joined_at?: string | null
+          points_earned?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_participants_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_participants_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "company_campaign_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          active: boolean | null
+          badge_emoji: string | null
+          badge_name: string | null
+          bonus_points: number | null
+          category: string | null
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          emoji: string | null
+          ends_at: string
+          id: string
+          starts_at: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          badge_emoji?: string | null
+          badge_name?: string | null
+          bonus_points?: number | null
+          category?: string | null
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          emoji?: string | null
+          ends_at: string
+          id?: string
+          starts_at: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          badge_emoji?: string | null
+          badge_name?: string | null
+          bonus_points?: number | null
+          category?: string | null
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          emoji?: string | null
+          ends_at?: string
+          id?: string
+          starts_at?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           accent_color: string
@@ -1000,6 +1107,52 @@ export type Database = {
           },
         ]
       }
+      program_missions: {
+        Row: {
+          created_at: string | null
+          id: string
+          mission_id: string
+          program_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mission_id: string
+          program_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mission_id?: string
+          program_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_missions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "company_program_summary"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "program_missions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "wellbeing_programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       special_measurements: {
         Row: {
           company_id: string | null
@@ -1241,8 +1394,130 @@ export type Database = {
         }
         Relationships: []
       }
+      wellbeing_checkins: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          mood: number | null
+          notes: string | null
+          sleep_quality: number | null
+          stress_level: number | null
+          user_id: string
+          week_start: string
+          workload: number | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          mood?: number | null
+          notes?: string | null
+          sleep_quality?: number | null
+          stress_level?: number | null
+          user_id: string
+          week_start?: string
+          workload?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          mood?: number | null
+          notes?: string | null
+          sleep_quality?: number | null
+          stress_level?: number | null
+          user_id?: string
+          week_start?: string
+          workload?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wellbeing_checkins_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wellbeing_programs: {
+        Row: {
+          active: boolean | null
+          category: string
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          emoji: string | null
+          ends_at: string | null
+          id: string
+          starts_at: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          category?: string
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          emoji?: string | null
+          ends_at?: string | null
+          id?: string
+          starts_at?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          category?: string
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          emoji?: string | null
+          ends_at?: string | null
+          id?: string
+          starts_at?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wellbeing_programs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      company_campaign_summary: {
+        Row: {
+          badges_awarded: number | null
+          campaign_id: string | null
+          company_id: string | null
+          ends_at: string | null
+          starts_at: string | null
+          title: string | null
+          total_completed: number | null
+          total_participants: number | null
+          total_points_awarded: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_health_summary: {
         Row: {
           active_users: number | null
@@ -1262,6 +1537,49 @@ export type Database = {
           },
         ]
       }
+      company_program_summary: {
+        Row: {
+          active: boolean | null
+          category: string | null
+          company_id: string | null
+          completed_missions: number | null
+          participants: number | null
+          program_id: string | null
+          title: string | null
+          total_missions: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wellbeing_programs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_wellbeing_summary: {
+        Row: {
+          avg_mood: number | null
+          avg_sleep: number | null
+          avg_stress: number | null
+          avg_workload: number | null
+          company_id: string | null
+          total_checkins: number | null
+          unique_participants: number | null
+          week_start: string | null
+          wellbeing_index: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wellbeing_checkins_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       delete_email: {
@@ -1271,6 +1589,19 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      get_company_wellbeing_summary: {
+        Args: { _company_id: string }
+        Returns: {
+          avg_mood: number
+          avg_sleep: number
+          avg_stress: number
+          avg_workload: number
+          total_checkins: number
+          unique_participants: number
+          week_start: string
+          wellbeing_index: number
+        }[]
       }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_municipality_id: { Args: { _user_id: string }; Returns: string }
