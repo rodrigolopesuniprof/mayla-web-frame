@@ -7,89 +7,90 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 
-interface Municipality {
+interface Company {
   id: string;
   name: string;
-  state: string;
   slug: string;
-  logo_url: string | null;
-  secretaria: string;
+  state: string;
+  cnpj: string | null;
+  cnae: string | null;
   rppg_url: string | null;
+  telemedicine_url: string | null;
+  hr_contact_email: string | null;
+  logo_url: string | null;
   primary_color: string;
   accent_color: string;
   background_color: string;
   foreground_color: string;
   secondary_color: string;
-  codigo_ibge: number | null;
 }
 
 export function AdminCompanies() {
-  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
-  const [editing, setEditing] = useState<Municipality | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [editing, setEditing] = useState<Company | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  // Form state
   const [form, setForm] = useState({
     name: "",
-    state: "ES",
     slug: "",
-    secretaria: "Secretaria Municipal de Saúde",
+    state: "ES",
+    cnpj: "",
+    cnae: "",
     rppg_url: "https://rppg.saudecomvc.com.br/login",
+    telemedicine_url: "",
+    hr_contact_email: "",
     primary_color: "204 67% 32%",
     accent_color: "5 75% 60%",
     background_color: "30 50% 96%",
     foreground_color: "16 30% 13%",
     secondary_color: "30 25% 89%",
-    codigo_ibge: "",
-    telemedicine_url: "",
-    ubs_email: "",
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("municipalities").select("*").order("name");
-    if (data) setMunicipalities(data as Municipality[]);
+    const { data } = await supabase.from("companies").select("*").order("name");
+    if (data) setCompanies(data as unknown as Company[]);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const resetForm = () => {
     setForm({
-      name: "", state: "ES", slug: "",
-      secretaria: "Secretaria Municipal de Saúde",
+      name: "", slug: "", state: "ES", cnpj: "", cnae: "",
       rppg_url: "https://rppg.saudecomvc.com.br/login",
+      telemedicine_url: "", hr_contact_email: "",
       primary_color: "204 67% 32%", accent_color: "5 75% 60%",
       background_color: "30 50% 96%", foreground_color: "16 30% 13%",
-      secondary_color: "30 25% 89%", codigo_ibge: "",
-      telemedicine_url: "", ubs_email: "",
+      secondary_color: "30 25% 89%",
     });
     setLogoFile(null);
     setEditing(null);
     setShowForm(false);
   };
 
-  const startEdit = (m: Municipality) => {
-    setEditing(m);
+  const startEdit = (c: Company) => {
+    setEditing(c);
     setForm({
-      name: m.name, state: m.state, slug: m.slug,
-      secretaria: m.secretaria, rppg_url: m.rppg_url || "",
-      primary_color: m.primary_color, accent_color: m.accent_color,
-      background_color: m.background_color, foreground_color: m.foreground_color,
-      secondary_color: m.secondary_color, codigo_ibge: m.codigo_ibge?.toString() || "",
-      telemedicine_url: (m as any).telemedicine_url || "", ubs_email: (m as any).ubs_email || "",
+      name: c.name, slug: c.slug, state: (c as any).state || "ES",
+      cnpj: c.cnpj || "", cnae: (c as any).cnae || "",
+      rppg_url: c.rppg_url || "", telemedicine_url: c.telemedicine_url || "",
+      hr_contact_email: c.hr_contact_email || "",
+      primary_color: c.primary_color, accent_color: c.accent_color,
+      background_color: c.background_color, foreground_color: c.foreground_color,
+      secondary_color: c.secondary_color,
     });
     setLogoFile(null);
     setShowForm(true);
   };
 
-  const uploadLogo = async (municipalityId: string): Promise<string | null> => {
+  const uploadLogo = async (companyId: string): Promise<string | null> => {
     if (!logoFile) return null;
     const ext = logoFile.name.split(".").pop();
-    const path = `${municipalityId}/logo.${ext}`;
-    
+    const path = `${companyId}/logo.${ext}`;
+
     const { error } = await supabase.storage
-      .from("municipality-logos")
+      .from("company-logos")
       .upload(path, logoFile, { upsert: true });
 
     if (error) {
@@ -97,7 +98,7 @@ export function AdminCompanies() {
       return null;
     }
 
-    const { data } = supabase.storage.from("municipality-logos").getPublicUrl(path);
+    const { data } = supabase.storage.from("company-logos").getPublicUrl(path);
     return `${data.publicUrl}?v=${Date.now()}`;
   };
 
@@ -106,28 +107,37 @@ export function AdminCompanies() {
     setSaving(true);
 
     try {
-      const formData = {
-        ...form,
-        codigo_ibge: form.codigo_ibge ? parseInt(form.codigo_ibge) : null,
+      const formData: any = {
+        name: form.name,
+        slug: form.slug,
+        state: form.state,
+        cnpj: form.cnpj || null,
+        cnae: form.cnae || null,
+        rppg_url: form.rppg_url || null,
+        telemedicine_url: form.telemedicine_url || null,
+        hr_contact_email: form.hr_contact_email || null,
+        primary_color: form.primary_color,
+        accent_color: form.accent_color,
+        background_color: form.background_color,
+        foreground_color: form.foreground_color,
+        secondary_color: form.secondary_color,
       };
 
       if (editing) {
-        // Update
         let logo_url = editing.logo_url;
         if (logoFile) {
           const url = await uploadLogo(editing.id);
           if (url) logo_url = url;
         }
         const { error } = await supabase
-          .from("municipalities")
+          .from("companies")
           .update({ ...formData, logo_url })
           .eq("id", editing.id);
         if (error) throw error;
-        toast({ title: "Município atualizado!" });
+        toast({ title: "Empresa atualizada!" });
       } else {
-        // Insert
         const { data, error } = await supabase
-          .from("municipalities")
+          .from("companies")
           .insert(formData)
           .select("id")
           .single();
@@ -135,10 +145,10 @@ export function AdminCompanies() {
         if (logoFile && data) {
           const url = await uploadLogo(data.id);
           if (url) {
-            await supabase.from("municipalities").update({ logo_url: url }).eq("id", data.id);
+            await supabase.from("companies").update({ logo_url: url }).eq("id", data.id);
           }
         }
-        toast({ title: "Município criado!" });
+        toast({ title: "Empresa criada!" });
       }
       resetForm();
       load();
@@ -149,12 +159,12 @@ export function AdminCompanies() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja remover este município?")) return;
-    const { error } = await supabase.from("municipalities").delete().eq("id", id);
+    if (!confirm("Tem certeza que deseja remover esta empresa?")) return;
+    const { error } = await supabase.from("companies").delete().eq("id", id);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Município removido" });
+      toast({ title: "Empresa removida" });
       load();
     }
   };
@@ -180,10 +190,10 @@ export function AdminCompanies() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-2xl text-foreground">Municípios ({municipalities.length})</h2>
+        <h2 className="font-display text-2xl text-foreground">Empresas ({companies.length})</h2>
         {!showForm && (
           <Button onClick={() => { resetForm(); setShowForm(true); }}>
-            + Novo Município
+            + Nova Empresa
           </Button>
         )}
       </div>
@@ -192,31 +202,31 @@ export function AdminCompanies() {
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg flex items-center justify-between">
-              {editing ? "Editar Município" : "Novo Município"}
+              {editing ? "Editar Empresa" : "Nova Empresa"}
               <Button variant="ghost" size="sm" onClick={resetForm}>✕</Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Nome *</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Prefeitura de..." required />
+                <Label>Razão Social *</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Empresa Ltda." required />
               </div>
               <div className="space-y-2">
                 <Label>Slug *</Label>
-                <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="nome-da-cidade" required />
+                <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="nome-da-empresa" required />
               </div>
               <div className="space-y-2">
                 <Label>Estado *</Label>
                 <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} required />
               </div>
               <div className="space-y-2">
-                <Label>Código IBGE</Label>
-                <Input type="number" value={form.codigo_ibge} onChange={(e) => setForm({ ...form, codigo_ibge: e.target.value })} placeholder="320100" />
+                <Label>CNPJ</Label>
+                <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
               </div>
               <div className="space-y-2">
-                <Label>Secretaria</Label>
-                <Input value={form.secretaria} onChange={(e) => setForm({ ...form, secretaria: e.target.value })} />
+                <Label>CNAE</Label>
+                <Input value={form.cnae} onChange={(e) => setForm({ ...form, cnae: e.target.value })} placeholder="Atividade econômica" />
               </div>
               <div className="space-y-2">
                 <Label>URL rPPG</Label>
@@ -227,8 +237,8 @@ export function AdminCompanies() {
                 <Input value={form.telemedicine_url} onChange={(e) => setForm({ ...form, telemedicine_url: e.target.value })} placeholder="https://telemedicina.exemplo.com" />
               </div>
               <div className="space-y-2">
-                <Label>E-mail UBS (agendamento)</Label>
-                <Input type="email" value={form.ubs_email} onChange={(e) => setForm({ ...form, ubs_email: e.target.value })} placeholder="agendamento@ubs.gov.br" />
+                <Label>E-mail (agendamento)</Label>
+                <Input type="email" value={form.hr_contact_email} onChange={(e) => setForm({ ...form, hr_contact_email: e.target.value })} placeholder="contato@empresa.com.br" />
               </div>
               <div className="space-y-2">
                 <Label>Logomarca</Label>
@@ -269,7 +279,7 @@ export function AdminCompanies() {
               </div>
 
               <div className="md:col-span-2 lg:col-span-3 flex gap-2 pt-2">
-                <Button type="submit" disabled={saving}>{saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar município"}</Button>
+                <Button type="submit" disabled={saving}>{saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar empresa"}</Button>
                 <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>
               </div>
             </form>
@@ -279,47 +289,46 @@ export function AdminCompanies() {
 
       {/* List */}
       <div className="grid gap-3">
-        {municipalities.map((m) => (
-          <Card key={m.id} className="overflow-hidden">
+        {companies.map((c) => (
+          <Card key={c.id} className="overflow-hidden">
             <div className="flex items-center gap-4 p-4">
-              {/* Logo */}
               <div
                 className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold text-primary-foreground"
                 style={{
-                  background: m.logo_url
-                    ? `url(${m.logo_url}) center/cover`
-                    : `linear-gradient(135deg, hsl(${m.primary_color}), hsl(${m.primary_color} / 0.7))`,
+                  background: c.logo_url
+                    ? `url(${c.logo_url}) center/cover`
+                    : `linear-gradient(135deg, hsl(${c.primary_color}), hsl(${c.primary_color} / 0.7))`,
                 }}
               >
-                {!m.logo_url && m.name.charAt(0)}
-              </div>
-              
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm text-foreground truncate">{m.name}</div>
-                <div className="text-xs text-muted-foreground">{m.state} · /{m.slug} · {m.secretaria}</div>
+                {!c.logo_url && c.name.charAt(0)}
               </div>
 
-              {/* Color swatches */}
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm text-foreground truncate">{c.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {(c as any).state || "ES"} · /{c.slug}
+                  {c.cnpj && ` · CNPJ: ${c.cnpj}`}
+                </div>
+              </div>
+
               <div className="hidden md:flex items-center gap-1">
-                {[m.primary_color, m.accent_color, m.background_color, m.secondary_color].map((c, i) => (
+                {[c.primary_color, c.accent_color, c.background_color, c.secondary_color].map((color, i) => (
                   <span
                     key={i}
                     className="w-5 h-5 rounded-full border border-border"
-                    style={{ backgroundColor: `hsl(${c})` }}
-                    title={c}
+                    style={{ backgroundColor: `hsl(${color})` }}
+                    title={color}
                   />
                 ))}
               </div>
 
-              {/* Actions */}
               <div className="flex gap-1.5 flex-wrap">
-                <BinahToggle municipalityId={m.id} />
+                <BinahToggle companyId={c.id} />
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    const url = `${window.location.origin}/cidade/${m.slug}`;
+                    const url = `${window.location.origin}/empresa/${c.slug}`;
                     navigator.clipboard.writeText(url);
                     toast({ title: "Link copiado!", description: url });
                   }}
@@ -330,29 +339,28 @@ export function AdminCompanies() {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    const url = `${window.location.origin}/painel/${m.slug}`;
+                    const url = `${window.location.origin}/dashboard/${c.slug}`;
                     navigator.clipboard.writeText(url);
                     toast({ title: "Link do painel copiado!", description: url });
                   }}
                 >
                   📊 Painel
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => startEdit(m)}>Editar</Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(m.id)}>Remover</Button>
+                <Button variant="outline" size="sm" onClick={() => startEdit(c)}>Editar</Button>
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}>Remover</Button>
               </div>
             </div>
           </Card>
         ))}
-        {municipalities.length === 0 && (
-          <p className="text-muted-foreground text-sm text-center py-8">Nenhum município cadastrado.</p>
+        {companies.length === 0 && (
+          <p className="text-muted-foreground text-sm text-center py-8">Nenhuma empresa cadastrada.</p>
         )}
       </div>
     </div>
   );
 }
 
-// Inline Binah toggle per municipality
-function BinahToggle({ municipalityId }: { municipalityId: string }) {
+function BinahToggle({ companyId }: { companyId: string }) {
   const [enabled, setEnabled] = useState(false);
   const [limit, setLimit] = useState(3);
   const [loaded, setLoaded] = useState(false);
@@ -360,9 +368,9 @@ function BinahToggle({ municipalityId }: { municipalityId: string }) {
 
   useEffect(() => {
     supabase
-      .from("municipality_features")
+      .from("company_features")
       .select("enabled, config")
-      .eq("municipality_id", municipalityId)
+      .eq("company_id", companyId)
       .eq("feature_key", "binah_special_measurement")
       .maybeSingle()
       .then(({ data }) => {
@@ -372,20 +380,20 @@ function BinahToggle({ municipalityId }: { municipalityId: string }) {
         }
         setLoaded(true);
       });
-  }, [municipalityId]);
+  }, [companyId]);
 
   const toggle = async (val: boolean) => {
     setEnabled(val);
     const { error } = await supabase
-      .from("municipality_features")
+      .from("company_features")
       .upsert(
         {
-          municipality_id: municipalityId,
+          company_id: companyId,
           feature_key: "binah_special_measurement",
           enabled: val,
           config: { monthly_limit: limit },
         },
-        { onConflict: "municipality_id,feature_key" }
+        { onConflict: "company_id,feature_key" }
       );
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -395,15 +403,15 @@ function BinahToggle({ municipalityId }: { municipalityId: string }) {
 
   const saveLimit = async () => {
     await supabase
-      .from("municipality_features")
+      .from("company_features")
       .upsert(
         {
-          municipality_id: municipalityId,
+          company_id: companyId,
           feature_key: "binah_special_measurement",
           enabled,
           config: { monthly_limit: limit },
         },
-        { onConflict: "municipality_id,feature_key" }
+        { onConflict: "company_id,feature_key" }
       );
     toast({ title: "Limite atualizado" });
     setShowConfig(false);
