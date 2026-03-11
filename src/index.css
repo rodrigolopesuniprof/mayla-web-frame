@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Mayla Design System */
+    --background: 30 50% 96%; /* #FDF6EE cream */
+    --foreground: 16 30% 13%; /* #2A1E1A ink */
+
+    --card: 0 0% 100%;
+    --card-foreground: 16 30% 13%;
+
+    --popover: 30 50% 96%;
+    --popover-foreground: 16 30% 13%;
+
+    --primary: 204 67% 32%; /* #1A5C8A pref */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 30 25% 89%; /* #EDE5D8 sand */
+    --secondary-foreground: 16 22% 39%; /* #7A5C4F bark */
+
+    --muted: 30 25% 89%;
+    --muted-foreground: 16 15% 57%; /* #9E8880 */
+
+    --accent: 5 75% 60%; /* #E8574A rose */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 5 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 25% 89%;
+    --input: 30 25% 89%;
+    --ring: 204 67% 32%;
+
+    --radius: 1.125rem;
+
+    /* Extended Mayla tokens */
+    --mayla-rose: 5 75% 60%;
+    --mayla-rose-lt: 7 83% 70%;
+    --mayla-peach: 20 86% 74%;
+    --mayla-cream: 30 50% 96%;
+    --mayla-sand: 30 25% 89%;
+    --mayla-bark: 16 22% 39%;
+    --mayla-ink: 16 30% 13%;
+    --mayla-green: 149 42% 49%;
+    --mayla-amber: 42 86% 55%;
+    --mayla-teal: 177 48% 47%;
+    --mayla-bg: 25 18% 87%;
+    --mayla-pref: 204 67% 32%;
+    --mayla-pref-lt: 204 55% 44%;
+
+    --sidebar-background: 30 50% 96%;
+    --sidebar-foreground: 16 30% 13%;
+    --sidebar-primary: 204 67% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 25% 89%;
+    --sidebar-accent-foreground: 16 30% 13%;
+    --sidebar-border: 30 25% 89%;
+    --sidebar-ring: 204 67% 32%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'DM Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Fraunces', serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Fraunces', serif;
+  }
+
+  .font-body {
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+/* Animations */
+@keyframes morph {
+  from { border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; }
+  to   { border-radius: 40% 60% 45% 55% / 60% 40% 60% 40%; }
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--mayla-rose) / 0.4), 0 0 0 8px hsl(var(--mayla-rose) / 0.1); }
+  50%      { box-shadow: 0 0 0 6px hsl(var(--mayla-rose) / 0.2), 0 0 0 14px hsl(var(--mayla-rose) / 0.05); }
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%      { transform: scale(1.15); }
+  28%      { transform: scale(1); }
+  42%      { transform: scale(1.08); }
+  70%      { transform: scale(1); }
+}
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes splash-logo {
+  0%   { opacity: 0; transform: scale(0.82) translateY(12px); }
+  60%  { opacity: 1; transform: scale(1.03) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes splash-sub {
+  0%, 35% { opacity: 0; transform: translateY(14px); }
+  100%    { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+
+@keyframes scan-line {
+  0%   { top: 25%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 75%; opacity: 0; }
+}
+
+.animate-fade-up { animation: fade-slide-up 0.38s ease both; }
+.animate-fade-in { animation: fade-in 0.4s ease both; }
+.animate-heartbeat { animation: heartbeat 1.4s ease-in-out infinite; }
+.animate-blink { animation: blink-dot 1.2s ease-in-out infinite; }
+.animate-splash-logo { animation: splash-logo 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-splash-sub { animation: splash-sub 0.7s 0.4s ease both; }
+.animate-morph { animation: morph 9s ease-in-out infinite alternate; }
+
+::-webkit-scrollbar { width: 0; display: none; }

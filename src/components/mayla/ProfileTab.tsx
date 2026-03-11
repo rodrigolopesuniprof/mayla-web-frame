@@ -1,0 +1,528 @@
+import { useState, useEffect } from "react";
+import { TopBar } from "./TopBar";
+import { Avatar } from "./MaylaIcons";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+
+interface Profile {
+  full_name: string | null;
+  cpf: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  points: number;
+  level: string;
+  esf_team_id: string | null;
+}
+
+interface EsfInfo {
+  name: string;
+  address: string | null;
+}
+
+interface HealthProfile {
+  biological_sex: string | null;
+  birth_date: string | null;
+  is_pregnant: string | null;
+  prenatal_started: boolean | null;
+  has_hypertension: boolean | null;
+  has_diabetes: boolean | null;
+  lives_with_infant: boolean | null;
+  is_bolsa_familia: boolean | null;
+  last_acs_visit: boolean | null;
+  last_dental_visit: string | null;
+  prenatal_dental_done: boolean | null;
+  cep: string | null;
+  endereco: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
+  numero: string | null;
+  complemento: string | null;
+  peso: number | null;
+  altura: number | null;
+  has_bedridden_at_home: boolean | null;
+  has_pregnant_at_home: boolean | null;
+  has_child_under_5: boolean | null;
+  has_child_under_12: boolean | null;
+}
+
+type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes";
+
+export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } = {}) {
+  const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [esfInfo, setEsfInfo] = useState<EsfInfo | null>(null);
+  const [subView, setSubView] = useState<SubView>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, cpf, phone, birth_date, points, level, esf_team_id")
+        .eq("user_id", user.id)
+        .single();
+      if (data) {
+        setProfile(data as Profile);
+        if ((data as any).esf_team_id) {
+          const { data: esf } = await supabase
+            .from("esf_teams")
+            .select("name, address")
+            .eq("id", (data as any).esf_team_id)
+            .single();
+          if (esf) setEsfInfo(esf as EsfInfo);
+        }
+      }
+      setLoadingProfile(false);
+    };
+    fetchProfile();
+  }, [user]);
+
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || "Usuário";
+  const initials = displayName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+
+  if (subView) {
+    return (
+      <div className="animate-fade-up flex-1 overflow-y-auto pb-4">
+        <div className="px-[22px] py-[14px] flex items-center gap-3 border-b border-border">
+          <button
+            onClick={() => setSubView(null)}
+            className="text-sm text-primary bg-transparent border-none cursor-pointer"
+          >
+            ← Voltar
+          </button>
+        </div>
+        <div className="px-[22px] pt-4">
+          {subView === "dados" && <MeusDados profile={profile} userId={user?.id} onUpdate={setProfile} />}
+          {subView === "autoavaliacao" && <AutoAvaliacao userId={user?.id} onRetakeSurvey={onRetakeSurvey} />}
+          {subView === "medicoes" && <HistoricoMedicoes userId={user?.id} />}
+          {subView === "consultas" && <ConsultasAgendadas userId={user?.id} />}
+          {(subView === "medicamentos" || subView === "exames" || subView === "notificacoes" || subView === "configuracoes") && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <span className="text-4xl">🚧</span>
+              <p className="text-sm text-muted-foreground">Em breve</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-fade-up flex-1 overflow-y-auto pb-4">
+      <TopBar />
+
+      <div className="flex flex-col items-center pt-8 pb-4">
+        <Avatar initials={initials} size={72} />
+        <h2 className="font-display text-xl font-medium text-foreground mt-3">{displayName}</h2>
+        <p className="text-[13px] text-muted-foreground mt-1">{user?.email}</p>
+        {!loadingProfile && profile && (
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-sm">⭐</span>
+            <span className="text-xs font-semibold text-foreground">{profile.points.toLocaleString()} pontos</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">
+              {profile.level}
+            </span>
+          </div>
+        )}
+        {esfInfo && (
+          <div className="mt-2 px-4 py-3 bg-primary/10 rounded-xl flex items-center gap-3">
+            <span className="text-xl">🏥</span>
+            <div>
+              <span className="text-xs font-semibold text-foreground block">{esfInfo.name}</span>
+              {esfInfo.address && <span className="text-[10px] text-muted-foreground">{esfInfo.address}</span>}
+            </div>
+          </div>
+        )}
+        {!esfInfo && !loadingProfile && (
+          <p className="text-[11px] text-muted-foreground text-center mt-1">Não vinculado a nenhuma ESF</p>
+        )}
+      </div>
+
+      <div className="px-[22px] flex flex-col gap-2.5">
+        {([
+          { key: "dados" as SubView, emoji: "📋", label: "Meus dados" },
+          { key: "autoavaliacao" as SubView, emoji: "🩺", label: "Auto avaliação" },
+          { key: "medicoes" as SubView, emoji: "📊", label: "Histórico de medições" },
+          { key: "consultas" as SubView, emoji: "📅", label: "Consultas agendadas" },
+          { key: "medicamentos" as SubView, emoji: "💊", label: "Medicamentos" },
+          { key: "exames" as SubView, emoji: "📄", label: "Exames e resultados" },
+          { key: "notificacoes" as SubView, emoji: "🔔", label: "Notificações" },
+          { key: "configuracoes" as SubView, emoji: "⚙️", label: "Configurações" },
+        ]).map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setSubView(item.key)}
+            className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3 cursor-pointer text-left w-full hover:border-accent/30 transition-colors"
+          >
+            <span className="text-xl">{item.emoji}</span>
+            <span className="text-[14px] font-medium text-foreground flex-1">{item.label}</span>
+            <span className="text-muted-foreground">›</span>
+          </button>
+        ))}
+
+        <button
+          onClick={signOut}
+          className="bg-destructive/10 rounded-2xl p-4 border border-destructive/20 flex items-center gap-3 cursor-pointer text-left w-full hover:bg-destructive/20 transition-colors mt-2"
+        >
+          <span className="text-xl">🚪</span>
+          <span className="text-[14px] font-medium text-destructive flex-1">Sair da conta</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Sub-views
+
+function AutoAvaliacao({ userId, onRetakeSurvey }: { userId?: string; onRetakeSurvey?: () => void }) {
+  const [health, setHealth] = useState<HealthProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<HealthProfile | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("profiles")
+      .select("biological_sex, birth_date, is_pregnant, prenatal_started, has_hypertension, has_diabetes, lives_with_infant, is_bolsa_familia, last_acs_visit, last_dental_visit, prenatal_dental_done, cep, endereco, bairro, cidade, estado, numero, complemento, peso, altura, has_bedridden_at_home, has_pregnant_at_home, has_child_under_5, has_child_under_12")
+      .eq("user_id", userId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setHealth(data as any);
+          setForm(data as any);
+        }
+        setLoading(false);
+      });
+  }, [userId]);
+
+  const handleSave = async () => {
+    if (!userId || !form) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        biological_sex: form.biological_sex,
+        is_pregnant: form.is_pregnant,
+        prenatal_started: form.prenatal_started,
+        has_hypertension: form.has_hypertension,
+        has_diabetes: form.has_diabetes,
+        lives_with_infant: form.lives_with_infant,
+        is_bolsa_familia: form.is_bolsa_familia,
+        last_acs_visit: form.last_acs_visit,
+        last_dental_visit: form.last_dental_visit,
+        prenatal_dental_done: form.prenatal_dental_done,
+        cep: form.cep,
+        endereco: form.endereco,
+        bairro: form.bairro,
+        cidade: form.cidade,
+        estado: form.estado,
+        numero: form.numero,
+        complemento: form.complemento,
+        peso: form.peso,
+        altura: form.altura,
+        has_bedridden_at_home: form.has_bedridden_at_home,
+        has_pregnant_at_home: form.has_pregnant_at_home,
+        has_child_under_5: form.has_child_under_5,
+        has_child_under_12: form.has_child_under_12,
+      } as any)
+      .eq("user_id", userId);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      setHealth(form);
+      setEditing(false);
+      toast({ title: "Auto avaliação atualizada!" });
+    }
+  };
+
+  if (loading) return <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>;
+  if (!health) return (
+    <div className="flex flex-col items-center py-16 gap-3">
+      <span className="text-4xl">🩺</span>
+      <p className="text-sm text-muted-foreground">Questionário não preenchido ainda.</p>
+      {onRetakeSurvey && (
+        <Button onClick={onRetakeSurvey} variant="outline" className="mt-2">Preencher agora</Button>
+      )}
+    </div>
+  );
+
+  const sexLabel = health.biological_sex === "male" ? "Masculino" : health.biological_sex === "female" ? "Feminino" : "—";
+  const pregnantLabel = health.is_pregnant === "yes" ? "Sim" : health.is_pregnant === "no" ? "Não" : health.is_pregnant === "unsure" ? "Não tenho certeza" : "—";
+  const dentalLabel = health.last_dental_visit === "less_6m" ? "Menos de 6 meses" : health.last_dental_visit === "more_6m" ? "Mais de 6 meses" : health.last_dental_visit === "never" ? "Nunca" : "—";
+  const addressLine = [health.endereco, health.numero, health.complemento, health.bairro].filter(Boolean).join(", ");
+  const cityLine = [health.cidade, health.estado].filter(Boolean).join(" - ");
+
+  const InfoRow = ({ label, value, editField }: { label: string; value: string; editField?: React.ReactNode }) => (
+    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+      <span className="text-[13px] text-muted-foreground">{label}</span>
+      {editing && editField ? editField : <span className="text-[13px] font-medium text-foreground text-right max-w-[55%]">{value}</span>}
+    </div>
+  );
+
+  const ToggleField = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
+    <div className="flex gap-2">
+      <button onClick={() => onChange(true)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Sim</button>
+      <button onClick={() => onChange(false)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${!checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Não</button>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-lg font-medium text-foreground">Auto avaliação</h3>
+        {!editing ? (
+          <Button variant="outline" size="sm" onClick={() => { setForm(health); setEditing(true); }}>Editar</Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
+          </div>
+        )}
+      </div>
+
+      {/* Health data */}
+      <div className="bg-card rounded-2xl border border-border p-4">
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Saúde</p>
+        <InfoRow label="Sexo biológico" value={sexLabel}
+          editField={
+            <div className="flex gap-2">
+              <button onClick={() => setForm({ ...form!, biological_sex: "male" })} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${form?.biological_sex === "male" ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Masculino</button>
+              <button onClick={() => setForm({ ...form!, biological_sex: "female" })} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${form?.biological_sex === "female" ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Feminino</button>
+            </div>
+          }
+        />
+        <InfoRow label="Gravidez" value={pregnantLabel}
+          editField={
+            <div className="flex gap-1.5">
+              {["yes", "no", "unsure"].map(v => (
+                <button key={v} onClick={() => setForm({ ...form!, is_pregnant: v })} className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer ${form?.is_pregnant === v ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>
+                  {v === "yes" ? "Sim" : v === "no" ? "Não" : "Incerto"}
+                </button>
+              ))}
+            </div>
+          }
+        />
+        <InfoRow label="Hipertensão" value={health.has_hypertension ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.has_hypertension ?? false} onChange={(v) => setForm({ ...form!, has_hypertension: v })} />}
+        />
+        <InfoRow label="Diabetes" value={health.has_diabetes ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.has_diabetes ?? false} onChange={(v) => setForm({ ...form!, has_diabetes: v })} />}
+        />
+        <InfoRow label="Peso" value={health.peso ? `${health.peso} kg` : "—"}
+          editField={<Input type="number" className="w-20 h-8 text-xs" value={form?.peso ?? ""} onChange={(e) => setForm({ ...form!, peso: e.target.value ? Number(e.target.value) : null })} />}
+        />
+        <InfoRow label="Altura" value={health.altura ? `${health.altura} cm` : "—"}
+          editField={<Input type="number" className="w-20 h-8 text-xs" value={form?.altura ?? ""} onChange={(e) => setForm({ ...form!, altura: e.target.value ? Number(e.target.value) : null })} />}
+        />
+        <InfoRow label="Última ida ao dentista" value={dentalLabel}
+          editField={
+            <div className="flex gap-1.5">
+              {[{ v: "less_6m", l: "< 6m" }, { v: "more_6m", l: "> 6m" }, { v: "never", l: "Nunca" }].map(({ v, l }) => (
+                <button key={v} onClick={() => setForm({ ...form!, last_dental_visit: v })} className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer ${form?.last_dental_visit === v ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>{l}</button>
+              ))}
+            </div>
+          }
+        />
+      </div>
+
+      {/* Address */}
+      <div className="bg-card rounded-2xl border border-border p-4">
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Endereço</p>
+        <InfoRow label="CEP" value={health.cep || "—"} />
+        <InfoRow label="Endereço" value={addressLine || "—"} />
+        <InfoRow label="Cidade" value={cityLine || "—"} />
+      </div>
+
+      {/* Family */}
+      <div className="bg-card rounded-2xl border border-border p-4">
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Família</p>
+        <InfoRow label="Mora com criança < 1 ano" value={health.lives_with_infant ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.lives_with_infant ?? false} onChange={(v) => setForm({ ...form!, lives_with_infant: v })} />}
+        />
+        <InfoRow label="Criança < 5 anos em casa" value={health.has_child_under_5 ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.has_child_under_5 ?? false} onChange={(v) => setForm({ ...form!, has_child_under_5: v })} />}
+        />
+        <InfoRow label="Filho < 12 anos (vacinas)" value={health.has_child_under_12 ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.has_child_under_12 ?? false} onChange={(v) => setForm({ ...form!, has_child_under_12: v })} />}
+        />
+        <InfoRow label="Acamado em casa" value={health.has_bedridden_at_home ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.has_bedridden_at_home ?? false} onChange={(v) => setForm({ ...form!, has_bedridden_at_home: v })} />}
+        />
+        <InfoRow label="Grávida em casa" value={health.has_pregnant_at_home ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.has_pregnant_at_home ?? false} onChange={(v) => setForm({ ...form!, has_pregnant_at_home: v })} />}
+        />
+        <InfoRow label="Bolsa Família" value={health.is_bolsa_familia ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.is_bolsa_familia ?? false} onChange={(v) => setForm({ ...form!, is_bolsa_familia: v })} />}
+        />
+        <InfoRow label="Visita ACS recente" value={health.last_acs_visit ? "Sim" : "Não"}
+          editField={<ToggleField checked={form?.last_acs_visit ?? false} onChange={(v) => setForm({ ...form!, last_acs_visit: v })} />}
+        />
+      </div>
+
+      {onRetakeSurvey && (
+        <button
+          onClick={onRetakeSurvey}
+          className="bg-accent/10 rounded-2xl p-4 border border-accent/20 flex items-center gap-3 cursor-pointer text-left w-full hover:bg-accent/20 transition-colors"
+        >
+          <span className="text-xl">🔄</span>
+          <span className="text-[14px] font-medium text-accent flex-1">Refazer questionário completo</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MeusDados({ profile, userId, onUpdate }: { profile: Profile | null; userId?: string; onUpdate: (p: Profile) => void }) {
+  const [name, setName] = useState(profile?.full_name || "");
+  const [cpf, setCpf] = useState(profile?.cpf || "");
+  const [phone, setPhone] = useState(profile?.phone || "");
+  const [birthDate, setBirthDate] = useState(profile?.birth_date || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!userId) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: name, cpf, phone, birth_date: birthDate || null })
+      .eq("user_id", userId);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      onUpdate({ ...profile!, full_name: name, cpf, phone, birth_date: birthDate || null });
+      toast({ title: "Dados atualizados!" });
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h3 className="font-display text-lg font-medium text-foreground">Meus dados</h3>
+      <div className="space-y-2">
+        <Label>Nome completo</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label>CPF</Label>
+        <Input value={cpf} onChange={(e) => setCpf(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label>Telefone</Label>
+        <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(00) 00000-0000" />
+      </div>
+      <div className="space-y-2">
+        <Label>Data de nascimento</Label>
+        <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+      </div>
+      <Button onClick={handleSave} disabled={saving} className="mt-2">
+        {saving ? "Salvando..." : "Salvar alterações"}
+      </Button>
+    </div>
+  );
+}
+
+function HistoricoMedicoes({ userId }: { userId?: string }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("health_measurements")
+      .select("*")
+      .eq("user_id", userId)
+      .order("measured_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        setItems(data || []);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  if (loading) return <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>;
+  if (items.length === 0) return (
+    <div className="flex flex-col items-center py-16 gap-3">
+      <span className="text-4xl">📊</span>
+      <p className="text-sm text-muted-foreground">Nenhuma medição registrada ainda.</p>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="font-display text-lg font-medium text-foreground">Histórico de medições</h3>
+      {items.map((m) => (
+        <div key={m.id} className="bg-card rounded-2xl p-3.5 border border-border">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[13px] font-semibold text-foreground">{m.measurement_type}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {new Date(m.measured_at).toLocaleDateString("pt-BR")}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+            {m.heart_rate && <span>❤️ {m.heart_rate} bpm</span>}
+            {m.spo2 && <span>🫁 {m.spo2}%</span>}
+            {m.blood_pressure_sys && <span>🩸 {m.blood_pressure_sys}/{m.blood_pressure_dia}</span>}
+            {m.respiratory_rate && <span>💨 {m.respiratory_rate} rpm</span>}
+            {m.stress_level != null && <span>😰 Estresse: {m.stress_level}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConsultasAgendadas({ userId }: { userId?: string }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("appointments")
+      .select("*")
+      .eq("user_id", userId)
+      .order("appointment_date", { ascending: true })
+      .then(({ data }) => {
+        setItems(data || []);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  if (loading) return <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>;
+  if (items.length === 0) return (
+    <div className="flex flex-col items-center py-16 gap-3">
+      <span className="text-4xl">📅</span>
+      <p className="text-sm text-muted-foreground">Nenhuma consulta agendada.</p>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="font-display text-lg font-medium text-foreground">Consultas agendadas</h3>
+      {items.map((a) => (
+        <div key={a.id} className="bg-card rounded-2xl p-3.5 border border-border">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[13px] font-semibold text-foreground">{a.specialty}</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${a.status === "scheduled" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+              {a.status === "scheduled" ? "Agendada" : a.status}
+            </span>
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            📅 {new Date(a.appointment_date).toLocaleDateString("pt-BR")} às {new Date(a.appointment_date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+          </div>
+          {a.doctor_name && <div className="text-[11px] text-muted-foreground">👨‍⚕️ {a.doctor_name}</div>}
+          {a.clinic_name && <div className="text-[11px] text-muted-foreground">🏥 {a.clinic_name}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
