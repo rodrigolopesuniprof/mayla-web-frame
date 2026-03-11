@@ -19,7 +19,7 @@ import maylaLogo from "@/assets/mayla-avatar.png";
 type Tab = "dashboard" | "corp_dashboard" | "empresas" | "usuarios" | "programas" | "missoes" | "campanhas" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
 
 // Keep legacy AdminMissions as reference to existing missions tab
-import { default as AdminMissionsLazy } from "@/components/admin/AdminESF";
+import { AdminESF as AdminMissionsLazy } from "@/components/admin/AdminESF";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
