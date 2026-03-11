@@ -1,23 +1,22 @@
 import { useEffect } from "react";
-import { useMunicipality } from "@/contexts/MunicipalityContext";
-import { MunicipalLogo } from "./MaylaIcons";
-import { MUNICIPALITY_CONFIG } from "@/lib/mayla-config";
+import { useCompany } from "@/contexts/CompanyContext";
+import { CompanyLogo } from "./MaylaIcons";
+import { COMPANY_CONFIG } from "@/lib/mayla-config";
 
 export function SplashScreen({ onDone }: { onDone: () => void }) {
-  const { municipality } = useMunicipality();
+  const { company } = useCompany();
 
   useEffect(() => {
     const timer = setTimeout(onDone, 2600);
     return () => clearTimeout(timer);
   }, [onDone]);
 
-  const muniName = municipality?.name ?? MUNICIPALITY_CONFIG.nome;
-  const muniSecretaria = municipality?.secretaria ?? MUNICIPALITY_CONFIG.secretaria;
-  const logoUrl = municipality?.logo_url;
+  const companyName = company?.name ?? COMPANY_CONFIG.nome;
+  const programName = company?.wellbeing_program_name ?? COMPANY_CONFIG.programa;
+  const logoUrl = company?.logo_url;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden bg-background">
-      {/* Decorative blobs */}
       <div
         className="absolute animate-morph"
         style={{
@@ -47,7 +46,6 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
         }}
       />
 
-      {/* Content */}
       <div className="animate-splash-logo flex flex-col items-center gap-3.5 mb-8">
         <div
           className="flex items-center justify-center overflow-hidden"
@@ -58,14 +56,14 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
           }}
         >
           {logoUrl ? (
-            <img src={logoUrl} alt={muniName} className="w-full h-full object-cover" />
+            <img src={logoUrl} alt={companyName} className="w-full h-full object-cover" />
           ) : (
-            <MunicipalLogo size={48} white />
+            <CompanyLogo size={48} white />
           )}
         </div>
         <div className="text-center">
-          <div className="text-xs font-bold text-foreground">{muniName}</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">{muniSecretaria}</div>
+          <div className="text-xs font-bold text-foreground">{companyName}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{programName}</div>
         </div>
       </div>
 
@@ -76,11 +74,10 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
           mayla<span className="text-accent">.</span>
         </div>
         <div className="text-[11px] text-muted-foreground mt-2 tracking-[.14em] uppercase">
-          saúde com você
+          bem-estar corporativo
         </div>
       </div>
 
-      {/* Loading dots */}
       <div className="absolute bottom-[52px] flex gap-[7px]">
         {[0, 1, 2].map((i) => (
           <div

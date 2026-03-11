@@ -307,7 +307,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
                 background: selectedAlert ? `hsl(${selectedAlert.color} / .1)` : undefined,
               }}
             >
-              {selectedAlert?.scope === "municipal" ? "Prefeitura" : "Você"}
+              {selectedAlert?.scope === "municipal" ? "Empresa" : "Você"}
             </span>
           </div>
           {selectedAlert?.external_url && (
