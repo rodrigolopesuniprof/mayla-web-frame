@@ -85,7 +85,7 @@ export function HealthTab() {
       <BinahCapture
         onClose={() => setShowBinah(false)}
         onComplete={() => { fetchBinahStatus(); fetchMeasurements(); }}
-        municipalityId={municipality?.id ?? null}
+        municipalityId={null}
       />
     );
   }
