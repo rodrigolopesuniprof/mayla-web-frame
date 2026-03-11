@@ -45,7 +45,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   }, [user]);
 
   const [profilePoints, setProfilePoints] = useState(0);
-  const [profileLevel, setProfileLevel] = useState("Cidadão");
+  const [profileLevel, setProfileLevel] = useState("Colaborador");
   const [hasEsf, setHasEsf] = useState(true); // default true to avoid flash
 
   useEffect(() => {
