@@ -25,7 +25,7 @@ interface Municipality {
   codigo_ibge: number | null;
 }
 
-export function AdminESF() {
+export function AdminSupportTeams() {
   const [teams, setTeams] = useState<EsfTeam[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [selectedMuni, setSelectedMuni] = useState<string>("");
