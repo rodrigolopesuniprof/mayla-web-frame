@@ -103,8 +103,6 @@ export default function Admin() {
         {activeTab === "empresas" && <AdminCompanies />}
         {activeTab === "usuarios" && <AdminUsers />}
         {activeTab === "programas" && <AdminPrograms />}
-        {activeTab === "missoes" && <AdminMissions />}
-        {activeTab === "campanhas" && <AdminCampaigns />}
         {activeTab === "avisos" && <AdminNotifications />}
         {activeTab === "equipes" && <AdminSupportTeams />}
         {activeTab === "locais" && <AdminLocations />}
