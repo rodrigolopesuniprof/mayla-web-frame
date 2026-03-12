@@ -270,7 +270,7 @@ export function AdminPrograms() {
   const openNewMission = (campaign: Campaign, program: Program) => {
     setMissionParentCampaign(campaign);
     setMissionParentProgram(program);
-    setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral" });
+    setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
     setShowMissionForm(true);
   };
 
