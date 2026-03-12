@@ -47,6 +47,12 @@ const AUTO_CHECKS: Record<string, (ctx: { hasMeasurementToday: boolean; profile:
   auto_checkin: ({ hasCheckinThisWeek }) => hasCheckinThisWeek,
 };
 
+const getWeekStart = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().split("T")[0];
+};
+
 export function MissionsTab() {
   const { user } = useAuth();
   const [missions, setMissions] = useState<UserMission[]>([]);
