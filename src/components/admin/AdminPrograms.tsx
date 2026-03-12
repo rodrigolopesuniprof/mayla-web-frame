@@ -278,7 +278,7 @@ export function AdminPrograms() {
     if (!missionForm.title || !missionParentCampaign) { toast.error("Preencha o nome da missão."); return; }
     const { data: mission, error } = await supabase.from("missions").insert({
       title: missionForm.title, points: parseInt(missionForm.points) || 0, frequency: missionForm.frequency,
-      tag: missionForm.tag, emoji: "🎯", active: true,
+      tag: missionForm.tag, emoji: "🎯", active: true, validation_type: missionForm.validation_type,
     }).select("id").single();
     if (error || !mission) { toast.error("Erro ao criar missão: " + (error?.message || "")); return; }
     const { error: linkError } = await supabase.from("campaign_missions").insert({
