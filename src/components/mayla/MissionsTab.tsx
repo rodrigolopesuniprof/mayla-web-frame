@@ -36,11 +36,15 @@ const VALIDATION_LABELS: Record<string, { label: string; icon: string }> = {
   self_report: { label: "Registrar ✓", icon: "" },
   qr_code: { label: "Escanear QR", icon: "📱 " },
   photo_proof: { label: "Enviar foto", icon: "📷 " },
+  auto_rppg: { label: "Automática", icon: "🤖 " },
+  auto_survey: { label: "Automática", icon: "🤖 " },
+  auto_checkin: { label: "Automática", icon: "🤖 " },
 };
 
-const AUTO_COMPLETE_CHECKS: Record<string, (ctx: { hasMeasurementToday: boolean; profile: any }) => boolean> = {
-  "Medição rPPG": ({ hasMeasurementToday }) => hasMeasurementToday,
-  "Dados Certos": ({ profile }) => !!profile?.health_survey_completed,
+const AUTO_CHECKS: Record<string, (ctx: { hasMeasurementToday: boolean; profile: any; hasCheckinThisWeek: boolean }) => boolean> = {
+  auto_rppg: ({ hasMeasurementToday }) => hasMeasurementToday,
+  auto_survey: ({ profile }) => !!profile?.health_survey_completed,
+  auto_checkin: ({ hasCheckinThisWeek }) => hasCheckinThisWeek,
 };
 
 export function MissionsTab() {
