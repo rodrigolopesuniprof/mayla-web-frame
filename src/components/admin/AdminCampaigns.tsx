@@ -77,10 +77,12 @@ export function AdminCampaigns() {
       company_id: form.company_id, starts_at: form.starts_at, ends_at: form.ends_at,
     };
     if (editing) {
-      await supabase.from("campaigns").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("campaigns").update(payload).eq("id", editing.id);
+      if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
       toast.success("Campanha atualizada.");
     } else {
-      await supabase.from("campaigns").insert(payload);
+      const { error } = await supabase.from("campaigns").insert(payload);
+      if (error) { toast.error("Erro ao criar: " + error.message); return; }
       toast.success("Campanha criada.");
     }
     setShowForm(false);
