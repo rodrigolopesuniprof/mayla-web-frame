@@ -11,13 +11,11 @@ import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
 import { AdminAppointments } from "@/components/admin/AdminAppointments";
 import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
 import { AdminPrograms } from "@/components/admin/AdminPrograms";
-import { AdminCampaigns } from "@/components/admin/AdminCampaigns";
 import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashboard";
-import { AdminMissions } from "@/components/admin/AdminMissions";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
-type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "missoes" | "campanhas" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
+type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
@@ -61,8 +59,6 @@ export default function Admin() {
     { id: "empresas", label: "🏢 Empresas" },
     { id: "usuarios", label: "👤 Colaboradores" },
     { id: "programas", label: "🌿 Programas" },
-    { id: "missoes", label: "🎯 Missões" },
-    { id: "campanhas", label: "🏆 Campanhas" },
     { id: "avisos", label: "📢 Notificações" },
     { id: "equipes", label: "👥 Equipes" },
     { id: "locais", label: "📍 Locais" },
@@ -107,8 +103,6 @@ export default function Admin() {
         {activeTab === "empresas" && <AdminCompanies />}
         {activeTab === "usuarios" && <AdminUsers />}
         {activeTab === "programas" && <AdminPrograms />}
-        {activeTab === "missoes" && <AdminMissions />}
-        {activeTab === "campanhas" && <AdminCampaigns />}
         {activeTab === "avisos" && <AdminNotifications />}
         {activeTab === "equipes" && <AdminSupportTeams />}
         {activeTab === "locais" && <AdminLocations />}
