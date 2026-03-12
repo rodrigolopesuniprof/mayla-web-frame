@@ -270,6 +270,7 @@ export function MissionsTab() {
           {pendingMissions.map((m) => {
             const vType = m.mission.validation_type || "self_report";
             const vLabel = VALIDATION_LABELS[vType] || VALIDATION_LABELS.self_report;
+            const isAuto = vType.startsWith("auto_");
             return (
               <div key={m.id} className="bg-card rounded-2xl p-4 border border-border">
                 <div className="flex items-start gap-3">
@@ -286,13 +287,19 @@ export function MissionsTab() {
                       <span className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase bg-accent/10 text-accent">
                         {TAG_LABELS[m.mission.tag] || m.mission.tag}
                       </span>
-                      <button
-                        onClick={() => handleAction(m)}
-                        className="text-[11px] font-semibold text-accent-foreground px-3 py-1 rounded-lg border-none cursor-pointer"
-                        style={{ background: "linear-gradient(135deg, hsl(var(--mayla-green)), hsl(var(--mayla-teal)))" }}
-                      >
-                        {vLabel.icon}{vLabel.label}
-                      </button>
+                      {isAuto ? (
+                        <span className="text-[11px] font-semibold text-muted-foreground px-3 py-1 rounded-lg bg-secondary">
+                          🤖 Aguardando ação no app
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleAction(m)}
+                          className="text-[11px] font-semibold text-accent-foreground px-3 py-1 rounded-lg border-none cursor-pointer"
+                          style={{ background: "linear-gradient(135deg, hsl(var(--mayla-green)), hsl(var(--mayla-teal)))" }}
+                        >
+                          {vLabel.icon}{vLabel.label}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
