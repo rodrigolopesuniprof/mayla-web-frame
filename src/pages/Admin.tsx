@@ -11,9 +11,7 @@ import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
 import { AdminAppointments } from "@/components/admin/AdminAppointments";
 import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
 import { AdminPrograms } from "@/components/admin/AdminPrograms";
-import { AdminCampaigns } from "@/components/admin/AdminCampaigns";
 import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashboard";
-import { AdminMissions } from "@/components/admin/AdminMissions";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
