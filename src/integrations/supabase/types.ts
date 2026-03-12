@@ -193,6 +193,52 @@ export type Database = {
           },
         ]
       }
+      campaign_missions: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          id: string
+          mission_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          id?: string
+          mission_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          id?: string
+          mission_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_missions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_missions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "company_campaign_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_participants: {
         Row: {
           badge_awarded: boolean | null
@@ -252,6 +298,7 @@ export type Database = {
           emoji: string | null
           ends_at: string
           id: string
+          program_id: string | null
           starts_at: string
           title: string
           updated_at: string | null
@@ -269,6 +316,7 @@ export type Database = {
           emoji?: string | null
           ends_at: string
           id?: string
+          program_id?: string | null
           starts_at: string
           title: string
           updated_at?: string | null
@@ -286,6 +334,7 @@ export type Database = {
           emoji?: string | null
           ends_at?: string
           id?: string
+          program_id?: string | null
           starts_at?: string
           title?: string
           updated_at?: string | null
@@ -296,6 +345,20 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "company_program_summary"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "campaigns_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "wellbeing_programs"
             referencedColumns: ["id"]
           },
         ]
