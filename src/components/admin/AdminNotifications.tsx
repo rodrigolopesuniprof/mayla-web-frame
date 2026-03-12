@@ -86,13 +86,15 @@ export function AdminNotifications() {
 
   async function loadData() {
     setLoading(true);
-    const [notifRes, munRes, usersRes] = await Promise.all([
+    const [notifRes, munRes, compRes, usersRes] = await Promise.all([
       supabase.from("notifications").select("*").order("priority", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("municipalities").select("id, name").order("name"),
+      supabase.from("companies").select("id, name").order("name"),
       supabase.from("profiles").select("user_id, full_name, cpf"),
     ]);
     if (notifRes.data) setNotifications(notifRes.data);
     if (munRes.data) setMunicipalities(munRes.data);
+    if (compRes.data) setCompanies(compRes.data);
     if (usersRes.data) setUsers(usersRes.data);
     setLoading(false);
   }
