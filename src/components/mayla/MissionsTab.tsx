@@ -99,7 +99,6 @@ export function MissionsTab() {
           .filter((m) => m.mission)
           .sort((a, b) => (b.mission.priority || 0) - (a.mission.priority || 0));
 
-        // Deduplicate: keep only the most recent user_mission per mission_id
         const seen = new Map<string, typeof allMissions[0]>();
         for (const m of allMissions) {
           if (!seen.has(m.mission_id)) {
@@ -108,7 +107,6 @@ export function MissionsTab() {
         }
         const sorted = Array.from(seen.values());
 
-        // Auto-complete eligible missions
         const toComplete: string[] = [];
         for (const m of sorted) {
           if (m.status !== "pending") continue;
@@ -149,7 +147,6 @@ export function MissionsTab() {
     setMissions((prev) =>
       prev.map((m) => (m.id === missionId ? { ...m, status: "completed" } : m))
     );
-    // Refresh points from DB (trigger adds them server-side)
     if (user) {
       const { data } = await supabase
         .from("profiles")
@@ -177,8 +174,6 @@ export function MissionsTab() {
 
   const handleQrScan = useCallback(async (code: string) => {
     if (!user || !scanningMission) return;
-
-    // Verify QR code matches a health unit
     const { data: unit } = await supabase
       .from("health_units")
       .select("id, name")
@@ -193,7 +188,6 @@ export function MissionsTab() {
       return;
     }
 
-    // Record validation
     await supabase.from("mission_validations").insert({
       user_mission_id: scanningMission,
       user_id: user.id,
@@ -209,8 +203,6 @@ export function MissionsTab() {
 
   const handlePhotoCaptured = useCallback(async (photoUrl: string) => {
     if (!user || !photoMission) return;
-
-    // Record validation as pending review
     await supabase.from("mission_validations").insert({
       user_mission_id: photoMission,
       user_id: user.id,
@@ -219,7 +211,6 @@ export function MissionsTab() {
       status: "pending",
     } as any);
 
-    // Update mission to pending_review
     await supabase
       .from("user_missions")
       .update({ status: "pending_review" } as any)
@@ -236,22 +227,22 @@ export function MissionsTab() {
   return (
     <div className="animate-fade-up flex-1 overflow-y-auto pb-4">
       <TopBar />
-      <div className="px-[22px] pt-5 pb-4">
+      <div className="px-5 pt-5 pb-4">
         <h2 className="font-display text-2xl font-medium text-foreground mb-1">Missões</h2>
-        <p className="text-[13px] text-muted-foreground">Complete missões e ganhe pontos de saúde</p>
+        <p className="text-sm text-muted-foreground">Complete missões e ganhe pontos de saúde</p>
       </div>
 
       {/* Points summary */}
       <div
-        className="mx-[22px] mb-5 rounded-[18px] p-4 flex items-center gap-4"
+        className="mx-5 mb-5 rounded-[18px] p-5 flex items-center gap-4"
         style={{ background: "linear-gradient(135deg, hsl(var(--mayla-ink)), #3D2820)" }}
       >
-        <div className="text-3xl">⭐</div>
+        <div className="text-4xl">⭐</div>
         <div>
-          <div className="font-display text-xl font-bold" style={{ color: "#fff" }}>
+          <div className="font-display text-2xl font-bold" style={{ color: "#fff" }}>
             {profile?.points.toLocaleString() ?? 0} pontos
           </div>
-          <div className="text-[12px]" style={{ color: "rgba(255,255,255,.6)" }}>
+          <div className="text-sm" style={{ color: "rgba(255,255,255,.6)" }}>
             Nível: {profile?.level ?? "Cidadão"} · {completedCount}/{missions.length} missões
           </div>
         </div>
@@ -261,40 +252,40 @@ export function MissionsTab() {
         <div className="py-12 text-center text-sm text-muted-foreground">Carregando missões...</div>
       ) : missions.length === 0 ? (
         <div className="flex flex-col items-center py-16 gap-3">
-          <span className="text-4xl">🎯</span>
-          <p className="text-sm text-muted-foreground">Complete o questionário de saúde para liberar suas missões.</p>
+          <span className="text-5xl">🎯</span>
+          <p className="text-base text-muted-foreground text-center px-8">Complete o questionário de saúde para liberar suas missões.</p>
         </div>
       ) : (
-        <div className="px-[22px] flex flex-col gap-3">
+        <div className="px-5 flex flex-col gap-3">
           {/* Pending missions */}
           {pendingMissions.map((m) => {
             const vType = m.mission.validation_type || "self_report";
             const vLabel = VALIDATION_LABELS[vType] || VALIDATION_LABELS.self_report;
             const isAuto = vType.startsWith("auto_");
             return (
-              <div key={m.id} className="bg-card rounded-2xl p-4 border border-border">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">{m.mission.emoji}</span>
+              <div key={m.id} className="bg-card rounded-2xl p-5 border border-border">
+                <div className="flex items-start gap-3.5">
+                  <span className="text-3xl">{m.mission.emoji}</span>
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[13px] font-semibold text-foreground">{m.mission.title}</span>
-                      <span className="text-[11px] font-semibold text-accent">+{m.mission.points} pts</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[15px] font-semibold text-foreground">{m.mission.title}</span>
+                      <span className="text-sm font-semibold text-accent">+{m.mission.points} pts</span>
                     </div>
                     {m.mission.description && (
-                      <div className="text-[11px] text-muted-foreground mb-2">{m.mission.description}</div>
+                      <div className="text-sm text-muted-foreground mb-3">{m.mission.description}</div>
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase bg-accent/10 text-accent">
+                      <span className="text-[11px] font-semibold rounded-md px-2 py-0.5 tracking-[.06em] uppercase bg-accent/10 text-accent">
                         {TAG_LABELS[m.mission.tag] || m.mission.tag}
                       </span>
                       {isAuto ? (
-                        <span className="text-[11px] font-semibold text-muted-foreground px-3 py-1 rounded-lg bg-secondary">
-                          🤖 Aguardando ação no app
+                        <span className="text-sm font-semibold text-muted-foreground px-3 py-1.5 rounded-lg bg-secondary">
+                          🤖 Aguardando ação
                         </span>
                       ) : (
                         <button
                           onClick={() => handleAction(m)}
-                          className="text-[11px] font-semibold text-accent-foreground px-3 py-1 rounded-lg border-none cursor-pointer"
+                          className="text-sm font-semibold text-accent-foreground px-4 py-2 rounded-xl border-none cursor-pointer"
                           style={{ background: "linear-gradient(135deg, hsl(var(--mayla-green)), hsl(var(--mayla-teal)))" }}
                         >
                           {vLabel.icon}{vLabel.label}
@@ -310,22 +301,22 @@ export function MissionsTab() {
           {/* Pending review missions */}
           {pendingReviewMissions.length > 0 && (
             <>
-              <p className="text-[11px] font-medium text-muted-foreground tracking-[.1em] uppercase mt-2">
+              <p className="text-xs font-medium text-muted-foreground tracking-[.1em] uppercase mt-2">
                 Aguardando validação
               </p>
               {pendingReviewMissions.map((m) => (
-                <div key={m.id} className="bg-card rounded-2xl p-4 border border-primary/20">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">{m.mission.emoji}</span>
+                <div key={m.id} className="bg-card rounded-2xl p-5 border border-primary/20">
+                  <div className="flex items-start gap-3.5">
+                    <span className="text-3xl">{m.mission.emoji}</span>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[13px] font-semibold text-foreground">{m.mission.title}</span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[15px] font-semibold text-foreground">{m.mission.title}</span>
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
                           ⏳ Em análise
                         </span>
                       </div>
                       {m.mission.description && (
-                        <div className="text-[11px] text-muted-foreground">{m.mission.description}</div>
+                        <div className="text-sm text-muted-foreground">{m.mission.description}</div>
                       )}
                     </div>
                   </div>
@@ -337,20 +328,20 @@ export function MissionsTab() {
           {/* Completed missions */}
           {completedMissions.length > 0 && (
             <>
-              <p className="text-[11px] font-medium text-muted-foreground tracking-[.1em] uppercase mt-2">
+              <p className="text-xs font-medium text-muted-foreground tracking-[.1em] uppercase mt-2">
                 Concluídas
               </p>
               {completedMissions.map((m) => (
-                <div key={m.id} className="bg-card rounded-2xl p-4 border border-border opacity-60">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">{m.mission.emoji}</span>
+                <div key={m.id} className="bg-card rounded-2xl p-5 border border-border opacity-60">
+                  <div className="flex items-start gap-3.5">
+                    <span className="text-3xl">{m.mission.emoji}</span>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[13px] font-semibold text-foreground">✅ {m.mission.title}</span>
-                        <span className="text-[11px] font-semibold text-muted-foreground">+{m.mission.points} pts</span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[15px] font-semibold text-foreground">✅ {m.mission.title}</span>
+                        <span className="text-sm font-semibold text-muted-foreground">+{m.mission.points} pts</span>
                       </div>
                       {m.mission.description && (
-                        <div className="text-[11px] text-muted-foreground">{m.mission.description}</div>
+                        <div className="text-sm text-muted-foreground">{m.mission.description}</div>
                       )}
                     </div>
                   </div>
@@ -361,7 +352,6 @@ export function MissionsTab() {
         </div>
       )}
 
-      {/* QR Scanner overlay */}
       {scanningMission && (
         <QrScanner
           onScan={handleQrScan}
@@ -369,7 +359,6 @@ export function MissionsTab() {
         />
       )}
 
-      {/* Photo capture overlay */}
       {photoMission && user && (
         <PhotoCapture
           userId={user.id}

@@ -35,14 +35,19 @@ export function CampaignsList({ companyId, primaryColor }: Props) {
   }, [companyId, user]);
 
   const loadData = async () => {
+    let campaignQuery = supabase
+      .from("campaigns")
+      .select("*")
+      .eq("active", true)
+      .gte("ends_at", new Date().toISOString().split("T")[0])
+      .order("starts_at");
+
+    if (companyId) {
+      campaignQuery = campaignQuery.eq("company_id", companyId);
+    }
+
     const [campaignsRes, participationsRes] = await Promise.all([
-      supabase
-        .from("campaigns")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("active", true)
-        .gte("ends_at", new Date().toISOString().split("T")[0])
-        .order("starts_at"),
+      campaignQuery,
       user
         ? supabase
             .from("campaign_participants")
