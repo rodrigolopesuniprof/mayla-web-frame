@@ -50,16 +50,20 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
   const [loadingMissions, setLoadingMissions] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase
+    let query = supabase
       .from("wellbeing_programs")
       .select("*")
-      .eq("company_id", companyId)
       .eq("active", true)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setPrograms((data as Program[]) || []);
-        setLoading(false);
-      });
+      .order("created_at", { ascending: false });
+    
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+    
+    query.then(({ data }) => {
+      setPrograms((data as Program[]) || []);
+      setLoading(false);
+    });
   }, [companyId]);
 
   const toggleProgram = async (program: Program) => {
