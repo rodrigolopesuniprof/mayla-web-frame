@@ -111,7 +111,7 @@ export function AdminPrograms() {
   const [showMissionForm, setShowMissionForm] = useState(false);
   const [missionParentCampaign, setMissionParentCampaign] = useState<Campaign | null>(null);
   const [missionParentProgram, setMissionParentProgram] = useState<Program | null>(null);
-  const [missionForm, setMissionForm] = useState({ title: "", points: "10", frequency: "daily", tag: "geral" });
+  const [missionForm, setMissionForm] = useState({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
 
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<{ type: "program" | "campaign" | "mission"; id: string; title: string; campaignId?: string } | null>(null);
