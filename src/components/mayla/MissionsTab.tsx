@@ -59,7 +59,7 @@ export function MissionsTab() {
     if (!user) return;
 
     const fetchData = async () => {
-      const [missionsRes, profileRes, measurementsRes] = await Promise.all([
+      const [missionsRes, profileRes, measurementsRes, checkinsRes] = await Promise.all([
         supabase
           .from("user_missions")
           .select("id, status, created_at, mission_id, mission:missions(title, description, emoji, points, tag, priority, validation_type, frequency)")
@@ -75,6 +75,12 @@ export function MissionsTab() {
           .select("id")
           .eq("user_id", user.id)
           .gte("measured_at", new Date().toISOString().split("T")[0])
+          .limit(1),
+        supabase
+          .from("wellbeing_checkins")
+          .select("id")
+          .eq("user_id", user.id)
+          .gte("week_start", getWeekStart())
           .limit(1),
       ]);
 
