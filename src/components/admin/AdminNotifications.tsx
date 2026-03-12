@@ -234,7 +234,7 @@ export function AdminNotifications() {
                     {n.active ? "Ativo" : "Inativo"}
                   </span>
                   <span className="text-[10px] rounded px-1.5 py-0.5 bg-secondary text-secondary-foreground">
-                    {n.scope === "municipal" ? `🏛 ${getMunName(n.municipality_id)}` : `👤 ${getUserName(n.target_user_id)}`}
+                    {n.scope === "municipal" ? `🏛 ${getMunName(n.municipality_id)}` : n.scope === "company" ? `🏢 ${getCompanyName((n as any).company_id)}` : `👤 ${getUserName(n.target_user_id)}`}
                   </span>
                 </div>
                 {n.body && <p className="text-xs text-muted-foreground mb-1">{n.body}</p>}
