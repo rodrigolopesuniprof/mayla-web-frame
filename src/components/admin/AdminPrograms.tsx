@@ -70,6 +70,17 @@ const TAG_OPTIONS = [
   { value: "geral", label: "Geral" },
 ];
 
+const VALIDATION_OPTIONS = [
+  { value: "self_report", label: "Auto-relato", badge: "✅ Auto-relato" },
+  { value: "qr_code", label: "QR Code", badge: "📱 QR" },
+  { value: "photo_proof", label: "Foto comprovante", badge: "📷 Foto" },
+  { value: "auto_rppg", label: "Automática: Medição rPPG", badge: "🤖 rPPG" },
+  { value: "auto_survey", label: "Automática: Questionário", badge: "🤖 Questionário" },
+  { value: "auto_checkin", label: "Automática: Check-in", badge: "🤖 Check-in" },
+];
+
+const VALIDATION_BADGE: Record<string, string> = Object.fromEntries(VALIDATION_OPTIONS.map(o => [o.value, o.badge]));
+
 // ── Component ──────────────────────────────────────────
 export function AdminPrograms() {
   const [programs, setPrograms] = useState<Program[]>([]);
