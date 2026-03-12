@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown } from "lucide-react";
-import { CATEGORY_LABELS, CATEGORY_TAG_MAP } from "@/lib/program-categories";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { CATEGORY_LABELS } from "@/lib/program-categories";
 
 interface Program {
   id: string;
@@ -14,6 +14,16 @@ interface Program {
   active: boolean;
   starts_at: string | null;
   ends_at: string | null;
+}
+
+interface Campaign {
+  id: string;
+  title: string;
+  emoji: string;
+  description: string | null;
+  starts_at: string;
+  ends_at: string;
+  bonus_points: number;
 }
 
 interface Mission {
@@ -32,8 +42,11 @@ interface Props {
 export function WellbeingPrograms({ companyId, primaryColor }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [missions, setMissions] = useState<Record<string, Mission[]>>({});
+  const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
+  const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
+  const [programCampaigns, setProgramCampaigns] = useState<Record<string, Campaign[]>>({});
+  const [campaignMissions, setCampaignMissions] = useState<Record<string, Mission[]>>({});
+  const [loadingCampaigns, setLoadingCampaigns] = useState<string | null>(null);
   const [loadingMissions, setLoadingMissions] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,54 +62,59 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
       });
   }, [companyId]);
 
-  const toggleExpand = async (program: Program) => {
-    if (expandedId === program.id) {
-      setExpandedId(null);
+  const toggleProgram = async (program: Program) => {
+    if (expandedProgram === program.id) {
+      setExpandedProgram(null);
       return;
     }
-    setExpandedId(program.id);
+    setExpandedProgram(program.id);
+    setExpandedCampaign(null);
 
-    if (missions[program.id]) return;
+    if (programCampaigns[program.id]) return;
 
-    setLoadingMissions(program.id);
-
-    // Try linked missions first
-    const { data: pmData } = await supabase
-      .from("program_missions")
-      .select("mission_id, sort_order")
+    setLoadingCampaigns(program.id);
+    const { data } = await supabase
+      .from("campaigns")
+      .select("id, title, emoji, description, starts_at, ends_at, bonus_points")
       .eq("program_id", program.id)
+      .eq("active", true)
+      .order("starts_at", { ascending: false });
+
+    setProgramCampaigns(prev => ({ ...prev, [program.id]: (data as Campaign[]) || [] }));
+    setLoadingCampaigns(null);
+  };
+
+  const toggleCampaign = async (campaign: Campaign) => {
+    if (expandedCampaign === campaign.id) {
+      setExpandedCampaign(null);
+      return;
+    }
+    setExpandedCampaign(campaign.id);
+
+    if (campaignMissions[campaign.id]) return;
+
+    setLoadingMissions(campaign.id);
+    const { data: cmData } = await supabase
+      .from("campaign_missions")
+      .select("mission_id, sort_order")
+      .eq("campaign_id", campaign.id)
       .order("sort_order");
 
-    if (pmData && pmData.length > 0) {
-      const missionIds = pmData.map((pm: any) => pm.mission_id);
+    if (cmData && cmData.length > 0) {
+      const missionIds = cmData.map((cm: any) => cm.mission_id);
       const { data: missionData } = await supabase
         .from("missions")
         .select("id, title, emoji, points, tag")
         .in("id", missionIds)
         .eq("active", true);
 
-      // Sort by original sort_order
       const sorted = missionIds
         .map(id => (missionData as Mission[] || []).find(m => m.id === id))
         .filter(Boolean) as Mission[];
 
-      setMissions(prev => ({ ...prev, [program.id]: sorted }));
+      setCampaignMissions(prev => ({ ...prev, [campaign.id]: sorted }));
     } else {
-      // Fallback: filter by category tags
-      const tags = CATEGORY_TAG_MAP[program.category] || [];
-      if (tags.length > 0) {
-        const { data: missionData } = await supabase
-          .from("missions")
-          .select("id, title, emoji, points, tag")
-          .eq("active", true);
-
-        const filtered = (missionData as Mission[] || []).filter(m =>
-          tags.some(t => m.tag.toLowerCase().includes(t))
-        );
-        setMissions(prev => ({ ...prev, [program.id]: filtered }));
-      } else {
-        setMissions(prev => ({ ...prev, [program.id]: [] }));
-      }
+      setCampaignMissions(prev => ({ ...prev, [campaign.id]: [] }));
     }
     setLoadingMissions(null);
   };
@@ -118,16 +136,16 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
     <div className="space-y-3">
       <h3 className="text-lg font-bold text-foreground">Programas de Bem-estar</h3>
       {programs.map(p => {
-        const isExpanded = expandedId === p.id;
-        const programMissions = missions[p.id];
-        const isLoading = loadingMissions === p.id;
+        const isExpanded = expandedProgram === p.id;
+        const campaigns = programCampaigns[p.id];
+        const isLoadingCampaigns = loadingCampaigns === p.id;
 
         return (
           <Card key={p.id} className="overflow-hidden">
             <CardContent className="p-0">
               <button
                 className="w-full p-4 flex items-start gap-3 text-left"
-                onClick={() => toggleExpand(p)}
+                onClick={() => toggleProgram(p)}
               >
                 <span className="text-2xl">{p.emoji}</span>
                 <div className="flex-1 min-w-0">
@@ -149,20 +167,55 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
 
               {isExpanded && (
                 <div className="px-4 pb-4 border-t pt-3 space-y-2">
-                  {isLoading ? (
-                    <p className="text-xs text-muted-foreground">Carregando missões...</p>
-                  ) : !programMissions || programMissions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhuma missão vinculada a este programa.</p>
+                  {isLoadingCampaigns ? (
+                    <p className="text-xs text-muted-foreground">Carregando campanhas...</p>
+                  ) : !campaigns || campaigns.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma campanha vinculada a este programa.</p>
                   ) : (
-                    programMissions.map(m => (
-                      <div key={m.id} className="flex items-center gap-2 bg-secondary/30 rounded-md p-2">
-                        <span className="text-sm">{m.emoji || "🎯"}</span>
-                        <span className="flex-1 text-sm text-foreground">{m.title}</span>
-                        {m.points ? (
-                          <Badge variant="outline" className="text-[10px]">{m.points} pts</Badge>
-                        ) : null}
-                      </div>
-                    ))
+                    campaigns.map(c => {
+                      const isCampaignExpanded = expandedCampaign === c.id;
+                      const missions = campaignMissions[c.id];
+                      const isLoadingMissions = loadingMissions === c.id;
+
+                      return (
+                        <div key={c.id} className="border rounded-lg overflow-hidden">
+                          <button
+                            className="w-full p-3 flex items-center gap-2 text-left bg-secondary/20 hover:bg-secondary/40 transition"
+                            onClick={() => toggleCampaign(c)}
+                          >
+                            <span className="text-lg">{c.emoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">{c.title}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {new Date(c.starts_at).toLocaleDateString("pt-BR")} — {new Date(c.ends_at).toLocaleDateString("pt-BR")}
+                                {c.bonus_points > 0 && ` · +${c.bonus_points} pts bônus`}
+                              </p>
+                            </div>
+                            <ChevronRight className={`h-3 w-3 text-muted-foreground transition-transform ${isCampaignExpanded ? "rotate-90" : ""}`} />
+                          </button>
+
+                          {isCampaignExpanded && (
+                            <div className="p-3 space-y-1.5 bg-background">
+                              {isLoadingMissions ? (
+                                <p className="text-xs text-muted-foreground">Carregando missões...</p>
+                              ) : !missions || missions.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">Nenhuma missão nesta campanha.</p>
+                              ) : (
+                                missions.map(m => (
+                                  <div key={m.id} className="flex items-center gap-2 bg-secondary/30 rounded-md p-2">
+                                    <span className="text-sm">{m.emoji || "🎯"}</span>
+                                    <span className="flex-1 text-sm text-foreground">{m.title}</span>
+                                    {m.points ? (
+                                      <Badge variant="outline" className="text-[10px]">{m.points} pts</Badge>
+                                    ) : null}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               )}

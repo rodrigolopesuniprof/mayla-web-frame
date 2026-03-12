@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 interface Mission {
   id: string;
@@ -41,6 +43,7 @@ export function AdminMissions() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Mission | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Mission | null>(null);
   const [form, setForm] = useState({
     title: "", description: "", tag: "saude", emoji: "🎯",
     points: "50", frequency: "monthly", validation_type: "self_report", priority: "0",
@@ -77,10 +80,12 @@ export function AdminMissions() {
       validation_type: form.validation_type, priority: parseInt(form.priority) || 0,
     };
     if (editing) {
-      await supabase.from("missions").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("missions").update(payload).eq("id", editing.id);
+      if (error) { toast.error("Erro: " + error.message); return; }
       toast.success("Missão atualizada.");
     } else {
-      await supabase.from("missions").insert(payload);
+      const { error } = await supabase.from("missions").insert(payload);
+      if (error) { toast.error("Erro: " + error.message); return; }
       toast.success("Missão criada.");
     }
     setShowForm(false);
@@ -89,6 +94,15 @@ export function AdminMissions() {
 
   const toggle = async (m: Mission) => {
     await supabase.from("missions").update({ active: !m.active }).eq("id", m.id);
+    load();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("missions").delete().eq("id", deleteTarget.id);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    toast.success("Missão excluída.");
+    setDeleteTarget(null);
     load();
   };
 
@@ -114,6 +128,9 @@ export function AdminMissions() {
                 <Badge variant={m.active ? "default" : "secondary"}>{m.active ? "Ativa" : "Inativa"}</Badge>
                 <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); toggle(m); }}>
                   {m.active ? "Desativar" : "Ativar"}
+                </Button>
+                <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={e => { e.stopPropagation(); setDeleteTarget(m); }}>
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>
@@ -173,6 +190,21 @@ export function AdminMissions() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir missão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir "{deleteTarget?.title}"? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
