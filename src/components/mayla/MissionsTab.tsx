@@ -91,6 +91,7 @@ export function MissionsTab() {
       ]);
 
       const hasMeasurementToday = (measurementsRes.data?.length ?? 0) > 0;
+      const hasCheckinThisWeek = (checkinsRes.data?.length ?? 0) > 0;
       const profileData = profileRes.data;
 
       if (missionsRes.data) {
