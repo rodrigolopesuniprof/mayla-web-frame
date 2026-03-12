@@ -15,23 +15,24 @@ import { EsfLinkScreen } from "./EsfLinkScreen";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-type AppPhase = "splash" | "onboarding" | "survey" | "main";
+type AppPhase = "loading" | "splash" | "onboarding" | "survey" | "main";
 
 export function MaylaApp() {
   const { user } = useAuth();
-  const [phase, setPhase] = useState<AppPhase>("splash");
+  const [phase, setPhase] = useState<AppPhase>("loading");
   const [activeTab, setActiveTab] = useState<TabId>("inicio");
-  const [surveyChecked, setSurveyChecked] = useState(false);
   const [isRetake, setIsRetake] = useState(false);
   const [showTelemedicine, setShowTelemedicine] = useState(false);
   const [showAppointment, setShowAppointment] = useState(false);
   const [showEsfLink, setShowEsfLink] = useState(false);
 
+  // On mount, check if user already completed the survey — skip splash/onboarding if so
   useEffect(() => {
-    if (!user || phase !== "survey" || isRetake) {
-      if (isRetake) setSurveyChecked(true);
+    if (!user) {
+      setPhase("splash");
       return;
     }
+
     supabase
       .from("profiles")
       .select("health_survey_completed")
@@ -40,10 +41,11 @@ export function MaylaApp() {
       .then(({ data }) => {
         if ((data as any)?.health_survey_completed) {
           setPhase("main");
+        } else {
+          setPhase("splash");
         }
-        setSurveyChecked(true);
       });
-  }, [user, phase, isRetake]);
+  }, [user]);
 
   const handleOnboardingDone = () => setPhase("survey");
   const handleSurveyDone = () => { setIsRetake(false); setPhase("main"); };
@@ -53,7 +55,6 @@ export function MaylaApp() {
       await supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", user.id);
     }
     setIsRetake(true);
-    setSurveyChecked(true);
     setPhase("survey");
   };
 
@@ -70,9 +71,14 @@ export function MaylaApp() {
           boxShadow: "0 25px 80px rgba(42,30,26,.15), 0 8px 24px rgba(42,30,26,.1)",
         }}
       >
+        {phase === "loading" && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+          </div>
+        )}
         {phase === "splash" && <SplashScreen onDone={() => setPhase("onboarding")} />}
         {phase === "onboarding" && <OnboardingScreen onDone={handleOnboardingDone} />}
-        {phase === "survey" && surveyChecked && <HealthSurvey onDone={handleSurveyDone} />}
+        {phase === "survey" && <HealthSurvey onDone={handleSurveyDone} />}
         {phase === "main" && (
           <>
             {showTelemedicine ? (

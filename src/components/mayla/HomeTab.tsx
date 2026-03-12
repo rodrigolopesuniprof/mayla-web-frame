@@ -25,37 +25,22 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
   useEffect(() => {
     if (!user) return;
-    supabase.
-    from("profiles").
-    select("full_name").
-    eq("user_id", user.id).
-    maybeSingle().
-    then(({ data }) => {
+    supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data?.full_name) setProfileName(data.full_name);
     });
 
-    supabase.
-    from("notifications").
-    select("id, title, body, emoji, color, external_url, scope").
-    order("priority", { ascending: false }).
-    order("created_at", { ascending: false }).
-    then(({ data }) => {
+    supabase.from("notifications").select("id, title, body, emoji, color, external_url, scope").order("priority", { ascending: false }).order("created_at", { ascending: false }).then(({ data }) => {
       if (data) setAlerts(data);
     });
   }, [user]);
 
   const [profilePoints, setProfilePoints] = useState(0);
   const [profileLevel, setProfileLevel] = useState("Colaborador");
-  const [hasEsf, setHasEsf] = useState(true); // default true to avoid flash
+  const [hasEsf, setHasEsf] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    supabase.
-    from("profiles").
-    select("points, level, esf_team_id").
-    eq("user_id", user.id).
-    maybeSingle().
-    then(({ data }) => {
+    supabase.from("profiles").select("points, level, esf_team_id").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setProfilePoints(data.points);
         setProfileLevel(data.level);
@@ -72,7 +57,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   return (
     <div className="animate-fade-up flex-1 overflow-y-auto pb-4">
       {/* Header */}
-      <div className="px-[22px] py-[14px] pb-3 flex items-center justify-between border-b border-border relative overflow-hidden">
+      <div className="px-5 py-4 pb-3 flex items-center justify-between border-b border-border relative overflow-hidden">
         <div
           className="absolute animate-morph"
           style={{
@@ -87,200 +72,167 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       </div>
 
       {/* Greeting */}
-      <div className="px-[22px] pt-5 pb-3.5">
-        <p className="font-display text-[26px] font-medium text-foreground leading-[1.25]">
+      <div className="px-5 pt-5 pb-4">
+        <p className="font-display text-3xl font-medium text-foreground leading-[1.25]">
           Olá, <em className="italic text-accent">{firstName}</em> 👋
         </p>
-        <p className="text-[13px] text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-1.5">
           {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
       {/* Municipality linking warning */}
       {isDefault &&
-      <div className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 border-2 border-dashed border-accent/40 bg-accent/5">
+      <div className="mx-5 mb-5 rounded-[18px] px-5 py-4 flex items-center gap-4 border-2 border-dashed border-accent/40 bg-accent/5">
           <div
-          className="shrink-0 flex items-center justify-center text-[22px]"
-          style={{ width: 46, height: 46, borderRadius: 14, background: "hsl(var(--accent) / .15)" }}>
-          
+          className="shrink-0 flex items-center justify-center text-2xl"
+          style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--accent) / .15)" }}>
             ⚠️
           </div>
           <div className="flex-1">
-            <div className="text-[13px] font-semibold text-foreground mb-0.5">Vincule-se à sua empresa</div>
-            <div className="text-[11px] text-muted-foreground leading-snug">
+            <div className="text-[15px] font-semibold text-foreground mb-0.5">Vincule-se à sua empresa</div>
+            <div className="text-sm text-muted-foreground leading-snug">
               Preencha seu perfil ou conecte-se à sua equipe de apoio para ser vinculado automaticamente.
             </div>
           </div>
           <span
-          className="text-[11px] text-accent font-semibold cursor-pointer whitespace-nowrap"
+          className="text-sm text-accent font-semibold cursor-pointer whitespace-nowrap"
           onClick={onOpenEsfLink}>
-          
             Vincular →
           </span>
         </div>
       }
 
       {/* Health Score Card */}
-      <div className="mx-[22px] mb-5 bg-secondary rounded-[18px] overflow-hidden">
-        <div className="p-[14px_18px_10px] flex items-center gap-3.5">
-          <div className="relative shrink-0" style={{ width: 52, height: 52 }}>
-            <svg width="52" height="52" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="26" cy="26" r="21" fill="none" stroke="hsl(var(--mayla-sand))" strokeWidth="4.5" />
+      <div className="mx-5 mb-5 bg-secondary rounded-[18px] overflow-hidden">
+        <div className="p-4 flex items-center gap-4">
+          <div className="relative shrink-0" style={{ width: 56, height: 56 }}>
+            <svg width="56" height="56" style={{ transform: "rotate(-90deg)" }}>
+              <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--mayla-sand))" strokeWidth="5" />
               <circle
-                cx="26" cy="26" r="21" fill="none"
-                stroke="hsl(var(--mayla-green))" strokeWidth="4.5"
-                strokeDasharray={`${2 * Math.PI * 21}`}
-                strokeDashoffset={`${2 * Math.PI * 21 * (1 - healthScore / 100)}`}
+                cx="28" cy="28" r="22" fill="none"
+                stroke="hsl(var(--mayla-green))" strokeWidth="5"
+                strokeDasharray={`${2 * Math.PI * 22}`}
+                strokeDashoffset={`${2 * Math.PI * 22 * (1 - healthScore / 100)}`}
                 strokeLinecap="round" />
-              
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center font-display text-sm font-bold text-foreground">
+            <div className="absolute inset-0 flex items-center justify-center font-display text-base font-bold text-foreground">
               {healthScore}
             </div>
           </div>
           <div className="flex-1">
-            <div className="text-[11px] text-muted-foreground tracking-[.07em] uppercase mb-0.5">Saúde hoje</div>
-            <div className="font-display text-[17px] text-foreground font-medium">Muito bem! 💪</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">Medição de ontem · 87 bpm</div>
+            <div className="text-xs text-muted-foreground tracking-[.07em] uppercase mb-0.5">Saúde hoje</div>
+            <div className="font-display text-lg text-foreground font-medium">Muito bem! 💪</div>
+            <div className="text-sm text-muted-foreground mt-0.5">Medição de ontem · 87 bpm</div>
           </div>
           <button
             onClick={() => setTab("bemestar")}
-            className="border-none rounded-xl px-3 py-2 text-accent-foreground text-[11px] font-semibold cursor-pointer"
+            className="border-none rounded-xl px-4 py-2.5 text-accent-foreground text-sm font-semibold cursor-pointer"
             style={{ background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))" }}>
-            
             Medir →
           </button>
         </div>
-        <div className="border-t border-foreground/10 px-[18px] py-2.5 flex items-center gap-2">
-          <span className="text-sm">⭐</span>
-          <span className="text-xs font-semibold text-secondary-foreground">{points.toLocaleString()} pontos</span>
-          <span className="text-[11px] text-muted-foreground ml-0.5">· nível {profileLevel}</span>
+        <div className="border-t border-foreground/10 px-5 py-3 flex items-center gap-2">
+          <span className="text-base">⭐</span>
+          <span className="text-sm font-semibold text-secondary-foreground">{points.toLocaleString()} pontos</span>
+          <span className="text-sm text-muted-foreground ml-0.5">· nível {profileLevel}</span>
           <span
-            className="ml-auto text-[11px] text-accent font-medium cursor-pointer"
+            className="ml-auto text-sm text-accent font-medium cursor-pointer"
             onClick={() => setTab("missoes")}>
-            
             Ver missões →
           </span>
         </div>
       </div>
 
       {/* Telemedicina & Agendamento Cards */}
-      <div className="mx-[22px] mb-5 grid grid-cols-2 gap-3">
+      <div className="mx-5 mb-5 grid grid-cols-2 gap-3">
         <div
-          className="rounded-[18px] p-4 cursor-pointer active:scale-[.97] transition-transform"
+          className="rounded-[18px] p-5 cursor-pointer active:scale-[.97] transition-transform"
           style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
           onClick={onOpenTelemedicine}>
-          
-          <span className="text-2xl block mb-2">📹</span>
-          <span className="text-[13px] font-semibold text-primary-foreground block">Telemedicina</span>
-          <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Consulta online</span>
+          <span className="text-3xl block mb-2">📹</span>
+          <span className="text-[15px] font-semibold text-primary-foreground block">Telemedicina</span>
+          <span className="text-sm block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Consulta online</span>
         </div>
         <div
-          className="rounded-[18px] p-4 cursor-pointer active:scale-[.97] transition-transform"
+          className="rounded-[18px] p-5 cursor-pointer active:scale-[.97] transition-transform"
           style={{ background: "linear-gradient(135deg, hsl(var(--mayla-teal)), #2A9A94)" }}
           onClick={onOpenAppointment}>
-          
-          <span className="text-2xl block mb-2">📋</span>
-          <span className="text-[13px] font-semibold text-primary-foreground block">Agendar Consulta</span>
-          <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Presencial</span>
+          <span className="text-3xl block mb-2">📋</span>
+          <span className="text-[15px] font-semibold text-primary-foreground block">Agendar Consulta</span>
+          <span className="text-sm block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Presencial</span>
         </div>
       </div>
 
       {/* ESF Link CTA */}
       {!hasEsf &&
       <div
-        className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 cursor-pointer active:scale-[.97] transition-transform border-2 border-dashed border-primary/30 bg-primary/5"
+        className="mx-5 mb-5 rounded-[18px] px-5 py-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform border-2 border-dashed border-primary/30 bg-primary/5"
         onClick={onOpenEsfLink}>
-        
           <div
-          className="shrink-0 flex items-center justify-center text-[22px]"
-          style={{ width: 46, height: 46, borderRadius: 14, background: "hsl(var(--primary) / .15)" }}>
-          
+          className="shrink-0 flex items-center justify-center text-2xl"
+          style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--primary) / .15)" }}>
             🏥
           </div>
           <div className="flex-1">
-            <div className="text-[13px] font-semibold text-foreground mb-0.5">Conecte-se à sua equipe</div>
-            <div className="text-[11px] text-muted-foreground leading-snug">
+            <div className="text-[15px] font-semibold text-foreground mb-0.5">Conecte-se à sua equipe</div>
+            <div className="text-sm text-muted-foreground leading-snug">
               Escaneie o QR Code na unidade · ganhe +500 pts
             </div>
           </div>
-          <span className="text-lg text-primary font-bold">›</span>
+          <span className="text-xl text-primary font-bold">›</span>
         </div>
       }
 
       {/* rPPG CTA */}
       <div
-        className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 relative overflow-hidden cursor-pointer"
+        className="mx-5 mb-5 rounded-[18px] px-5 py-4 flex items-center gap-4 relative overflow-hidden cursor-pointer"
         style={{ background: "linear-gradient(135deg, hsl(var(--mayla-ink)), #3D2820)" }}
         onClick={() => setTab("bemestar")}>
-        
         <div className="absolute rounded-full" style={{ top: -20, right: -20, width: 90, height: 90, background: "rgba(255,255,255,.04)" }} />
         <div
-          className="shrink-0 flex items-center justify-center text-[22px]"
+          className="shrink-0 flex items-center justify-center text-2xl"
           style={{
-            width: 46, height: 46, borderRadius: 14,
+            width: 50, height: 50, borderRadius: 14,
             background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))"
           }}>
-          
           📷
         </div>
         <div className="flex-1">
-          <div className="text-[13px] font-semibold text-primary-foreground mb-0.5">Fazer medição de hoje</div>
-          <div className="text-[11px] leading-snug" style={{ color: "rgba(255,255,255,.55)" }}>
+          <div className="text-[15px] font-semibold text-primary-foreground mb-0.5">Fazer medição de hoje</div>
+          <div className="text-sm leading-snug" style={{ color: "rgba(255,255,255,.55)" }}>
             30 segundos · câmera rPPG · ganhe +50 pts
           </div>
         </div>
-        <span style={{ fontSize: 18, color: "rgba(255,255,255,.4)" }}>›</span>
+        <span style={{ fontSize: 20, color: "rgba(255,255,255,.4)" }}>›</span>
       </div>
-
-      {/* Next Appointment */}
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
 
       {/* Alerts */}
       {alerts.length > 0 &&
-      <div className="px-[22px]">
-          <p className="text-[11px] font-medium text-muted-foreground tracking-[.1em] uppercase mb-3.5">
+      <div className="px-5">
+          <p className="text-xs font-medium text-muted-foreground tracking-[.1em] uppercase mb-3.5">
             Informações importantes
           </p>
           <div className="flex flex-col gap-2.5">
             {alerts.map((alert) =>
           <div
             key={alert.id}
-            className="bg-secondary rounded-2xl p-[13px_15px] flex items-start gap-3 cursor-pointer active:opacity-80 transition-opacity"
+            className="bg-secondary rounded-2xl p-4 flex items-start gap-3 cursor-pointer active:opacity-80 transition-opacity"
             style={{ borderLeft: `3px solid hsl(${alert.color})` }}
             onClick={() => setSelectedAlert(alert)}>
-            
-                <span className="text-lg shrink-0 mt-0.5">{alert.emoji}</span>
+                <span className="text-xl shrink-0 mt-0.5">{alert.emoji}</span>
                 <div className="flex-1">
-                  <div className="flex items-center gap-[7px] flex-wrap mb-0.5">
-                    <span className="text-[13px] font-semibold text-foreground">{alert.title}</span>
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="text-[15px] font-semibold text-foreground">{alert.title}</span>
                     <span
-                  className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase"
+                  className="text-[10px] font-semibold rounded-md px-2 py-px tracking-[.06em] uppercase"
                   style={{ color: `hsl(${alert.color})`, background: `hsl(${alert.color} / .1)` }}>
-                  
                       {alert.scope === "company" ? "Empresa" : alert.scope === "municipal" ? "Município" : "Você"}
                     </span>
                   </div>
-                  {alert.body && <div className="text-[11px] text-muted-foreground leading-snug">{alert.body}</div>}
+                  {alert.body && <div className="text-sm text-muted-foreground leading-snug">{alert.body}</div>}
                 </div>
-                <span className="text-lg text-muted-foreground mt-0.5">›</span>
+                <span className="text-xl text-muted-foreground mt-0.5">›</span>
               </div>
           )}
           </div>
@@ -292,21 +244,20 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="text-xl">{selectedAlert?.emoji}</span>
+              <span className="text-2xl">{selectedAlert?.emoji}</span>
               <span>{selectedAlert?.title}</span>
             </DialogTitle>
           </DialogHeader>
           {selectedAlert?.body &&
-          <p className="text-sm text-muted-foreground">{selectedAlert.body}</p>
+          <p className="text-base text-muted-foreground">{selectedAlert.body}</p>
           }
           <div className="flex items-center gap-2">
             <span
-              className="text-[10px] font-semibold rounded-md px-2 py-0.5 tracking-[.06em] uppercase"
+              className="text-xs font-semibold rounded-md px-2 py-0.5 tracking-[.06em] uppercase"
               style={{
                 color: selectedAlert ? `hsl(${selectedAlert.color})` : undefined,
                 background: selectedAlert ? `hsl(${selectedAlert.color} / .1)` : undefined
               }}>
-              
               {selectedAlert?.scope === "company" ? "Empresa" : selectedAlert?.scope === "municipal" ? "Município" : "Você"}
             </span>
           </div>
@@ -315,13 +266,12 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             href={selectedAlert.external_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            
+            className="inline-flex items-center gap-1.5 text-base font-medium text-accent hover:underline">
               Abrir link externo →
             </a>
           }
         </DialogContent>
       </Dialog>
-    </div>);
-
+    </div>
+  );
 }
