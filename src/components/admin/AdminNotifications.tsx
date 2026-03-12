@@ -185,9 +185,10 @@ export function AdminNotifications() {
 
   const filtered = filterMunicipality === "all"
     ? notifications
-    : notifications.filter(n => n.municipality_id === filterMunicipality || n.scope === "personal");
+    : notifications.filter(n => n.municipality_id === filterMunicipality || (n as any).company_id === filterMunicipality || n.scope === "personal");
 
   const getMunName = (id: string | null) => municipalities.find(m => m.id === id)?.name || "—";
+  const getCompanyName = (id: string | null) => companies.find(c => c.id === id)?.name || "—";
   const getUserName = (id: string | null) => {
     const u = users.find(u => u.user_id === id);
     return u ? (u.full_name || u.cpf || u.user_id.slice(0, 8)) : "—";
