@@ -510,7 +510,7 @@ export function AdminPrograms() {
           )}
           <div className="space-y-4">
             <div className="space-y-1"><Label>Nome da missão</Label><Input value={missionForm.title} onChange={e => setMissionForm(f => ({ ...f, title: e.target.value }))} /></div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Pontos</Label><Input type="number" value={missionForm.points} onChange={e => setMissionForm(f => ({ ...f, points: e.target.value }))} /></div>
               <div className="space-y-1">
                 <Label>Frequência</Label>
@@ -519,11 +519,20 @@ export function AdminPrograms() {
                   <SelectContent>{FREQ_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Categoria</Label>
                 <Select value={missionForm.tag} onValueChange={v => setMissionForm(f => ({ ...f, tag: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{TAG_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Validação</Label>
+                <Select value={missionForm.validation_type} onValueChange={v => setMissionForm(f => ({ ...f, validation_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{VALIDATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
