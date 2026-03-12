@@ -112,11 +112,11 @@ export function MissionsTab() {
         const toComplete: string[] = [];
         for (const m of sorted) {
           if (m.status !== "pending") continue;
-          for (const [keyword, check] of Object.entries(AUTO_COMPLETE_CHECKS)) {
-            if (m.mission.title.includes(keyword) && check({ hasMeasurementToday, profile: profileData })) {
-              toComplete.push(m.id);
-              m.status = "completed";
-            }
+          const vType = m.mission.validation_type || "self_report";
+          const autoCheck = AUTO_CHECKS[vType];
+          if (autoCheck && autoCheck({ hasMeasurementToday, profile: profileData, hasCheckinThisWeek })) {
+            toComplete.push(m.id);
+            m.status = "completed";
           }
         }
 
