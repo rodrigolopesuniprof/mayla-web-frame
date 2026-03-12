@@ -115,6 +115,7 @@ export function AdminNotifications() {
       external_url: n.external_url || "",
       scope: n.scope,
       municipality_id: n.municipality_id || "",
+      company_id: (n as any).company_id || "",
       target_user_id: n.target_user_id || "",
       priority: n.priority,
       active: n.active,
