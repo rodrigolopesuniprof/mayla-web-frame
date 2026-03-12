@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { X, Plus, Sparkles } from "lucide-react";
+import { X, Plus, Sparkles, Trash2 } from "lucide-react";
 import { CATEGORIES, CATEGORY_TAG_MAP } from "@/lib/program-categories";
 
 interface Program {
@@ -26,10 +27,7 @@ interface Program {
   created_at: string;
 }
 
-interface Company {
-  id: string;
-  name: string;
-}
+interface Company { id: string; name: string; }
 
 interface Mission {
   id: string;
@@ -44,17 +42,25 @@ interface LinkedMission extends Mission {
   sort_order: number;
 }
 
+interface Campaign {
+  id: string;
+  title: string;
+  emoji: string;
+  active: boolean;
+}
+
 export function AdminPrograms() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Program | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
   const [form, setForm] = useState({ title: "", description: "", category: "general", emoji: "🌿", company_id: "", starts_at: "", ends_at: "" });
 
-  // Mission linking state
   const [linkedMissions, setLinkedMissions] = useState<LinkedMission[]>([]);
   const [allMissions, setAllMissions] = useState<Mission[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(false);
+  const [linkedCampaigns, setLinkedCampaigns] = useState<Campaign[]>([]);
 
   useEffect(() => { load(); }, []);
 
@@ -69,17 +75,15 @@ export function AdminPrograms() {
 
   const loadMissions = async (programId: string) => {
     setLoadingMissions(true);
-    const [linked, all] = await Promise.all([
-      supabase
-        .from("program_missions")
-        .select("id, mission_id, sort_order")
-        .eq("program_id", programId)
-        .order("sort_order"),
+    const [linked, all, camps] = await Promise.all([
+      supabase.from("program_missions").select("id, mission_id, sort_order").eq("program_id", programId).order("sort_order"),
       supabase.from("missions").select("id, title, emoji, tag, points").eq("active", true).order("title"),
+      supabase.from("campaigns").select("id, title, emoji, active").eq("program_id", programId).order("created_at", { ascending: false }),
     ]);
 
     const allMissionsData = (all.data as Mission[]) || [];
     setAllMissions(allMissionsData);
+    setLinkedCampaigns((camps.data as Campaign[]) || []);
 
     const linkedData = (linked.data || []).map((pm: any) => {
       const mission = allMissionsData.find(m => m.id === pm.mission_id);
@@ -94,6 +98,7 @@ export function AdminPrograms() {
     setEditing(null);
     setLinkedMissions([]);
     setAllMissions([]);
+    setLinkedCampaigns([]);
     setForm({ title: "", description: "", category: "general", emoji: "🌿", company_id: companies[0]?.id || "", starts_at: "", ends_at: "" });
     setShowForm(true);
   };
@@ -108,21 +113,17 @@ export function AdminPrograms() {
   const save = async () => {
     if (!form.title || !form.company_id) { toast.error("Preencha título e empresa."); return; }
     const payload = {
-      title: form.title,
-      description: form.description || null,
-      category: form.category,
-      emoji: form.emoji,
-      company_id: form.company_id,
-      starts_at: form.starts_at || null,
-      ends_at: form.ends_at || null,
+      title: form.title, description: form.description || null, category: form.category,
+      emoji: form.emoji, company_id: form.company_id,
+      starts_at: form.starts_at || null, ends_at: form.ends_at || null,
     };
     if (editing) {
       const { error } = await supabase.from("wellbeing_programs").update(payload).eq("id", editing.id);
-      if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
+      if (error) { toast.error("Erro: " + error.message); return; }
       toast.success("Programa atualizado.");
     } else {
       const { error } = await supabase.from("wellbeing_programs").insert(payload);
-      if (error) { toast.error("Erro ao criar: " + error.message); return; }
+      if (error) { toast.error("Erro: " + error.message); return; }
       toast.success("Programa criado.");
     }
     setShowForm(false);
@@ -134,13 +135,19 @@ export function AdminPrograms() {
     load();
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("wellbeing_programs").delete().eq("id", deleteTarget.id);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    toast.success("Programa excluído.");
+    setDeleteTarget(null);
+    load();
+  };
+
   const addMission = async (missionId: string) => {
     if (!editing) return;
-    const nextOrder = linkedMissions.length;
     const { error } = await supabase.from("program_missions").insert({
-      program_id: editing.id,
-      mission_id: missionId,
-      sort_order: nextOrder,
+      program_id: editing.id, mission_id: missionId, sort_order: linkedMissions.length,
     });
     if (error) { toast.error("Erro ao vincular missão."); return; }
     toast.success("Missão vinculada.");
@@ -187,6 +194,9 @@ export function AdminPrograms() {
                 <Badge variant="outline">{CATEGORIES.find(c => c.value === p.category)?.label || p.category}</Badge>
                 <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); toggle(p); }}>
                   {p.active ? "Desativar" : "Ativar"}
+                </Button>
+                <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={e => { e.stopPropagation(); setDeleteTarget(p); }}>
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>
@@ -240,18 +250,33 @@ export function AdminPrograms() {
             </div>
             <Button onClick={save} className="w-full">{editing ? "Salvar" : "Criar Programa"}</Button>
 
-            {/* Mission linking section - only when editing */}
             {editing && (
               <>
+                {/* Campanhas vinculadas */}
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground">Campanhas vinculadas</h4>
+                  {linkedCampaigns.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma campanha vinculada a este programa.</p>
+                  ) : (
+                    linkedCampaigns.map(c => (
+                      <div key={c.id} className="flex items-center gap-2 bg-secondary/50 rounded-md p-2">
+                        <span>{c.emoji}</span>
+                        <span className="flex-1 text-sm font-medium text-foreground">{c.title}</span>
+                        <Badge variant={c.active ? "default" : "secondary"} className="text-[10px]">{c.active ? "Ativa" : "Inativa"}</Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Missões do programa */}
                 <Separator />
                 <div className="space-y-3">
                   <h4 className="font-semibold text-foreground">Missões do Programa</h4>
-
                   {loadingMissions ? (
                     <p className="text-sm text-muted-foreground">Carregando missões...</p>
                   ) : (
                     <>
-                      {/* Linked missions */}
                       {linkedMissions.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Nenhuma missão vinculada a este programa.</p>
                       ) : (
@@ -269,7 +294,6 @@ export function AdminPrograms() {
                         </div>
                       )}
 
-                      {/* Suggested missions by category */}
                       {suggestedMissions.length > 0 && (
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -288,7 +312,6 @@ export function AdminPrograms() {
                         </div>
                       )}
 
-                      {/* Other available missions */}
                       {otherMissions.length > 0 && (
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground">Outras missões disponíveis</p>
@@ -312,6 +335,21 @@ export function AdminPrograms() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir programa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir "{deleteTarget?.title}"? Missões vinculadas serão desvinculadas automaticamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
