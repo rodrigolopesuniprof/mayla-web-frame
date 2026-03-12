@@ -72,6 +72,7 @@ export function AdminNotifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
