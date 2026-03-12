@@ -49,6 +49,7 @@ interface CampaignMission {
   points: number | null;
   frequency: string | null;
   tag: string;
+  validation_type: string | null;
 }
 
 // ── Frequency helpers ──────────────────────────────────
