@@ -32,6 +32,11 @@ interface Municipality {
   name: string;
 }
 
+interface Company {
+  id: string;
+  name: string;
+}
+
 interface UserProfile {
   user_id: string;
   full_name: string | null;
@@ -54,8 +59,9 @@ const emptyForm = {
   emoji: "📢",
   color: "204 67% 32%",
   external_url: "",
-  scope: "municipal",
+  scope: "company",
   municipality_id: "",
+  company_id: "",
   target_user_id: "",
   priority: 0,
   active: true,
@@ -66,6 +72,7 @@ export function AdminNotifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,13 +86,15 @@ export function AdminNotifications() {
 
   async function loadData() {
     setLoading(true);
-    const [notifRes, munRes, usersRes] = await Promise.all([
+    const [notifRes, munRes, compRes, usersRes] = await Promise.all([
       supabase.from("notifications").select("*").order("priority", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("municipalities").select("id, name").order("name"),
+      supabase.from("companies").select("id, name").order("name"),
       supabase.from("profiles").select("user_id, full_name, cpf"),
     ]);
     if (notifRes.data) setNotifications(notifRes.data);
     if (munRes.data) setMunicipalities(munRes.data);
+    if (compRes.data) setCompanies(compRes.data);
     if (usersRes.data) setUsers(usersRes.data);
     setLoading(false);
   }
@@ -106,6 +115,7 @@ export function AdminNotifications() {
       external_url: n.external_url || "",
       scope: n.scope,
       municipality_id: n.municipality_id || "",
+      company_id: (n as any).company_id || "",
       target_user_id: n.target_user_id || "",
       priority: n.priority,
       active: n.active,
@@ -123,6 +133,10 @@ export function AdminNotifications() {
       toast.error("Selecione um município");
       return;
     }
+    if (form.scope === "company" && !form.company_id) {
+      toast.error("Selecione uma empresa");
+      return;
+    }
     if (form.scope === "personal" && !form.target_user_id) {
       toast.error("Selecione um usuário alvo");
       return;
@@ -136,6 +150,7 @@ export function AdminNotifications() {
       external_url: form.external_url.trim() || null,
       scope: form.scope,
       municipality_id: form.scope === "municipal" ? form.municipality_id : null,
+      company_id: form.scope === "company" ? form.company_id : null,
       target_user_id: form.scope === "personal" ? form.target_user_id : null,
       priority: form.priority,
       active: form.active,
@@ -170,9 +185,10 @@ export function AdminNotifications() {
 
   const filtered = filterMunicipality === "all"
     ? notifications
-    : notifications.filter(n => n.municipality_id === filterMunicipality || n.scope === "personal");
+    : notifications.filter(n => n.municipality_id === filterMunicipality || (n as any).company_id === filterMunicipality || n.scope === "personal");
 
   const getMunName = (id: string | null) => municipalities.find(m => m.id === id)?.name || "—";
+  const getCompanyName = (id: string | null) => companies.find(c => c.id === id)?.name || "—";
   const getUserName = (id: string | null) => {
     const u = users.find(u => u.user_id === id);
     return u ? (u.full_name || u.cpf || u.user_id.slice(0, 8)) : "—";
@@ -187,12 +203,15 @@ export function AdminNotifications() {
           <h2 className="font-display text-lg font-medium text-foreground">Avisos / Informações</h2>
           <Select value={filterMunicipality} onValueChange={setFilterMunicipality}>
             <SelectTrigger className="w-[200px] h-9 text-sm">
-              <SelectValue placeholder="Filtrar município" />
+              <SelectValue placeholder="Filtrar" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os municípios</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
+              {companies.map(c => (
+                <SelectItem key={c.id} value={c.id}>🏢 {c.name}</SelectItem>
+              ))}
               {municipalities.map(m => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                <SelectItem key={m.id} value={m.id}>🏛 {m.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -218,7 +237,7 @@ export function AdminNotifications() {
                     {n.active ? "Ativo" : "Inativo"}
                   </span>
                   <span className="text-[10px] rounded px-1.5 py-0.5 bg-secondary text-secondary-foreground">
-                    {n.scope === "municipal" ? `🏛 ${getMunName(n.municipality_id)}` : `👤 ${getUserName(n.target_user_id)}`}
+                    {n.scope === "municipal" ? `🏛 ${getMunName(n.municipality_id)}` : n.scope === "company" ? `🏢 ${getCompanyName((n as any).company_id)}` : `👤 ${getUserName(n.target_user_id)}`}
                   </span>
                 </div>
                 {n.body && <p className="text-xs text-muted-foreground mb-1">{n.body}</p>}
@@ -297,14 +316,28 @@ export function AdminNotifications() {
             </div>
             <div>
               <Label>Escopo</Label>
-              <Select value={form.scope} onValueChange={v => setForm({ ...form, scope: v, target_user_id: "", municipality_id: "" })}>
+              <Select value={form.scope} onValueChange={v => setForm({ ...form, scope: v, target_user_id: "", municipality_id: "", company_id: "" })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="company">🏢 Empresa (todos da empresa)</SelectItem>
                   <SelectItem value="municipal">🏛 Municipal (todos do município)</SelectItem>
                   <SelectItem value="personal">👤 Pessoal (usuário específico)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {form.scope === "company" && (
+              <div>
+                <Label>Empresa *</Label>
+                <Select value={form.company_id} onValueChange={v => setForm({ ...form, company_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {companies.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {form.scope === "municipal" && (
               <div>
                 <Label>Município *</Label>
