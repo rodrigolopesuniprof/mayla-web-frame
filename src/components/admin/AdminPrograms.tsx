@@ -117,10 +117,12 @@ export function AdminPrograms() {
       ends_at: form.ends_at || null,
     };
     if (editing) {
-      await supabase.from("wellbeing_programs").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("wellbeing_programs").update(payload).eq("id", editing.id);
+      if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
       toast.success("Programa atualizado.");
     } else {
-      await supabase.from("wellbeing_programs").insert(payload);
+      const { error } = await supabase.from("wellbeing_programs").insert(payload);
+      if (error) { toast.error("Erro ao criar: " + error.message); return; }
       toast.success("Programa criado.");
     }
     setShowForm(false);
