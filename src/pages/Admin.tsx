@@ -59,8 +59,6 @@ export default function Admin() {
     { id: "empresas", label: "🏢 Empresas" },
     { id: "usuarios", label: "👤 Colaboradores" },
     { id: "programas", label: "🌿 Programas" },
-    { id: "missoes", label: "🎯 Missões" },
-    { id: "campanhas", label: "🏆 Campanhas" },
     { id: "avisos", label: "📢 Notificações" },
     { id: "equipes", label: "👥 Equipes" },
     { id: "locais", label: "📍 Locais" },
