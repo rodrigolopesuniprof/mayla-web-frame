@@ -203,12 +203,15 @@ export function AdminNotifications() {
           <h2 className="font-display text-lg font-medium text-foreground">Avisos / Informações</h2>
           <Select value={filterMunicipality} onValueChange={setFilterMunicipality}>
             <SelectTrigger className="w-[200px] h-9 text-sm">
-              <SelectValue placeholder="Filtrar município" />
+              <SelectValue placeholder="Filtrar" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os municípios</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
+              {companies.map(c => (
+                <SelectItem key={c.id} value={c.id}>🏢 {c.name}</SelectItem>
+              ))}
               {municipalities.map(m => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                <SelectItem key={m.id} value={m.id}>🏛 {m.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
