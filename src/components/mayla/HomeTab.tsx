@@ -275,7 +275,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
                   className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase"
                   style={{ color: `hsl(${alert.color})`, background: `hsl(${alert.color} / .1)` }}>
                   
-                      {alert.scope === "municipal" ? "Empresa" : "Você"}
+                      {alert.scope === "company" ? "Empresa" : alert.scope === "municipal" ? "Município" : "Você"}
                     </span>
                   </div>
                   {alert.body && <div className="text-[11px] text-muted-foreground leading-snug">{alert.body}</div>}
