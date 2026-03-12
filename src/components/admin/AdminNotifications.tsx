@@ -32,6 +32,11 @@ interface Municipality {
   name: string;
 }
 
+interface Company {
+  id: string;
+  name: string;
+}
+
 interface UserProfile {
   user_id: string;
   full_name: string | null;
