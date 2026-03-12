@@ -16,7 +16,7 @@ interface NotificationItem {
   scope: string;
 }
 
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink }: { setTab: (id: TabId) => void; onOpenTelemedicine: () => void; onOpenAppointment: () => void; onOpenEsfLink: () => void }) {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink }: {setTab: (id: TabId) => void;onOpenTelemedicine: () => void;onOpenAppointment: () => void;onOpenEsfLink: () => void;}) {
   const { isDefault } = useCompany();
   const { user } = useAuth();
   const [profileName, setProfileName] = useState<string | null>(null);
@@ -25,23 +25,23 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.full_name) setProfileName(data.full_name);
-      });
+    supabase.
+    from("profiles").
+    select("full_name").
+    eq("user_id", user.id).
+    maybeSingle().
+    then(({ data }) => {
+      if (data?.full_name) setProfileName(data.full_name);
+    });
 
-    supabase
-      .from("notifications")
-      .select("id, title, body, emoji, color, external_url, scope")
-      .order("priority", { ascending: false })
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (data) setAlerts(data);
-      });
+    supabase.
+    from("notifications").
+    select("id, title, body, emoji, color, external_url, scope").
+    order("priority", { ascending: false }).
+    order("created_at", { ascending: false }).
+    then(({ data }) => {
+      if (data) setAlerts(data);
+    });
   }, [user]);
 
   const [profilePoints, setProfilePoints] = useState(0);
@@ -50,18 +50,18 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("points, level, esf_team_id")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setProfilePoints(data.points);
-          setProfileLevel(data.level);
-          setHasEsf(!!(data as any).esf_team_id);
-        }
-      });
+    supabase.
+    from("profiles").
+    select("points, level, esf_team_id").
+    eq("user_id", user.id).
+    maybeSingle().
+    then(({ data }) => {
+      if (data) {
+        setProfilePoints(data.points);
+        setProfileLevel(data.level);
+        setHasEsf(!!(data as any).esf_team_id);
+      }
+    });
   }, [user]);
 
   const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
@@ -79,9 +79,9 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             top: -50, right: -50, width: 160, height: 160,
             background: "radial-gradient(circle at 40% 40%, hsl(var(--mayla-pref-lt)), hsl(var(--mayla-pref)))",
             borderRadius: "60% 40% 55% 45% / 50% 60% 40% 50%",
-            opacity: 0.09, zIndex: 0,
-          }}
-        />
+            opacity: 0.09, zIndex: 0
+          }} />
+        
         <div className="relative z-[1]"><BrandBadge height={38} /></div>
         <Avatar />
       </div>
@@ -97,12 +97,12 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       </div>
 
       {/* Municipality linking warning */}
-      {isDefault && (
-        <div className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 border-2 border-dashed border-accent/40 bg-accent/5">
+      {isDefault &&
+      <div className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 border-2 border-dashed border-accent/40 bg-accent/5">
           <div
-            className="shrink-0 flex items-center justify-center text-[22px]"
-            style={{ width: 46, height: 46, borderRadius: 14, background: "hsl(var(--accent) / .15)" }}
-          >
+          className="shrink-0 flex items-center justify-center text-[22px]"
+          style={{ width: 46, height: 46, borderRadius: 14, background: "hsl(var(--accent) / .15)" }}>
+          
             ⚠️
           </div>
           <div className="flex-1">
@@ -112,13 +112,13 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             </div>
           </div>
           <span
-            className="text-[11px] text-accent font-semibold cursor-pointer whitespace-nowrap"
-            onClick={onOpenEsfLink}
-          >
+          className="text-[11px] text-accent font-semibold cursor-pointer whitespace-nowrap"
+          onClick={onOpenEsfLink}>
+          
             Vincular →
           </span>
         </div>
-      )}
+      }
 
       {/* Health Score Card */}
       <div className="mx-[22px] mb-5 bg-secondary rounded-[18px] overflow-hidden">
@@ -131,8 +131,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
                 stroke="hsl(var(--mayla-green))" strokeWidth="4.5"
                 strokeDasharray={`${2 * Math.PI * 21}`}
                 strokeDashoffset={`${2 * Math.PI * 21 * (1 - healthScore / 100)}`}
-                strokeLinecap="round"
-              />
+                strokeLinecap="round" />
+              
             </svg>
             <div className="absolute inset-0 flex items-center justify-center font-display text-sm font-bold text-foreground">
               {healthScore}
@@ -146,8 +146,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
           <button
             onClick={() => setTab("bemestar")}
             className="border-none rounded-xl px-3 py-2 text-accent-foreground text-[11px] font-semibold cursor-pointer"
-            style={{ background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))" }}
-          >
+            style={{ background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))" }}>
+            
             Medir →
           </button>
         </div>
@@ -157,8 +157,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
           <span className="text-[11px] text-muted-foreground ml-0.5">· nível {profileLevel}</span>
           <span
             className="ml-auto text-[11px] text-accent font-medium cursor-pointer"
-            onClick={() => setTab("missoes")}
-          >
+            onClick={() => setTab("missoes")}>
+            
             Ver missões →
           </span>
         </div>
@@ -169,8 +169,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <div
           className="rounded-[18px] p-4 cursor-pointer active:scale-[.97] transition-transform"
           style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
-          onClick={onOpenTelemedicine}
-        >
+          onClick={onOpenTelemedicine}>
+          
           <span className="text-2xl block mb-2">📹</span>
           <span className="text-[13px] font-semibold text-primary-foreground block">Telemedicina</span>
           <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Consulta online</span>
@@ -178,8 +178,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <div
           className="rounded-[18px] p-4 cursor-pointer active:scale-[.97] transition-transform"
           style={{ background: "linear-gradient(135deg, hsl(var(--mayla-teal)), #2A9A94)" }}
-          onClick={onOpenAppointment}
-        >
+          onClick={onOpenAppointment}>
+          
           <span className="text-2xl block mb-2">📋</span>
           <span className="text-[13px] font-semibold text-primary-foreground block">Agendar Consulta</span>
           <span className="text-[10px] block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Presencial</span>
@@ -187,15 +187,15 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       </div>
 
       {/* ESF Link CTA */}
-      {!hasEsf && (
-        <div
-          className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 cursor-pointer active:scale-[.97] transition-transform border-2 border-dashed border-primary/30 bg-primary/5"
-          onClick={onOpenEsfLink}
-        >
+      {!hasEsf &&
+      <div
+        className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 cursor-pointer active:scale-[.97] transition-transform border-2 border-dashed border-primary/30 bg-primary/5"
+        onClick={onOpenEsfLink}>
+        
           <div
-            className="shrink-0 flex items-center justify-center text-[22px]"
-            style={{ width: 46, height: 46, borderRadius: 14, background: "hsl(var(--primary) / .15)" }}
-          >
+          className="shrink-0 flex items-center justify-center text-[22px]"
+          style={{ width: 46, height: 46, borderRadius: 14, background: "hsl(var(--primary) / .15)" }}>
+          
             🏥
           </div>
           <div className="flex-1">
@@ -206,22 +206,22 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
           </div>
           <span className="text-lg text-primary font-bold">›</span>
         </div>
-      )}
+      }
 
       {/* rPPG CTA */}
       <div
         className="mx-[22px] mb-5 rounded-[18px] px-[18px] py-4 flex items-center gap-3.5 relative overflow-hidden cursor-pointer"
         style={{ background: "linear-gradient(135deg, hsl(var(--mayla-ink)), #3D2820)" }}
-        onClick={() => setTab("bemestar")}
-      >
+        onClick={() => setTab("bemestar")}>
+        
         <div className="absolute rounded-full" style={{ top: -20, right: -20, width: 90, height: 90, background: "rgba(255,255,255,.04)" }} />
         <div
           className="shrink-0 flex items-center justify-center text-[22px]"
           style={{
             width: 46, height: 46, borderRadius: 14,
-            background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))",
-          }}
-        >
+            background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))"
+          }}>
+          
           📷
         </div>
         <div className="flex-1">
@@ -234,47 +234,47 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       </div>
 
       {/* Next Appointment */}
-      <div className="mx-[22px] mb-5 bg-card rounded-[18px] p-[14px_16px] flex items-center gap-3.5 border border-border">
-        <div
-          className="shrink-0 flex flex-col items-center justify-center"
-          style={{
-            width: 44, height: 44, borderRadius: 14,
-            background: "linear-gradient(135deg, hsl(var(--mayla-teal)), #2A9A94)",
-          }}
-        >
-          <span className="text-[9px] uppercase" style={{ color: "rgba(255,255,255,.7)" }}>MAR</span>
-          <span className="font-display text-lg font-bold leading-none" style={{ color: "#fff" }}>05</span>
-        </div>
-        <div className="flex-1">
-          <div className="text-[11px] text-muted-foreground mb-0.5">Próxima consulta</div>
-          <div className="text-[13px] font-semibold text-foreground">Clínica Geral — Dr. Farias</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">10h30</div>
-        </div>
-        <span className="text-lg text-muted-foreground">›</span>
-      </div>
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
 
       {/* Alerts */}
-      {alerts.length > 0 && (
-        <div className="px-[22px]">
+      {alerts.length > 0 &&
+      <div className="px-[22px]">
           <p className="text-[11px] font-medium text-muted-foreground tracking-[.1em] uppercase mb-3.5">
             Informações importantes
           </p>
           <div className="flex flex-col gap-2.5">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="bg-secondary rounded-2xl p-[13px_15px] flex items-start gap-3 cursor-pointer active:opacity-80 transition-opacity"
-                style={{ borderLeft: `3px solid hsl(${alert.color})` }}
-                onClick={() => setSelectedAlert(alert)}
-              >
+            {alerts.map((alert) =>
+          <div
+            key={alert.id}
+            className="bg-secondary rounded-2xl p-[13px_15px] flex items-start gap-3 cursor-pointer active:opacity-80 transition-opacity"
+            style={{ borderLeft: `3px solid hsl(${alert.color})` }}
+            onClick={() => setSelectedAlert(alert)}>
+            
                 <span className="text-lg shrink-0 mt-0.5">{alert.emoji}</span>
                 <div className="flex-1">
                   <div className="flex items-center gap-[7px] flex-wrap mb-0.5">
                     <span className="text-[13px] font-semibold text-foreground">{alert.title}</span>
                     <span
-                      className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase"
-                      style={{ color: `hsl(${alert.color})`, background: `hsl(${alert.color} / .1)` }}
-                    >
+                  className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase"
+                  style={{ color: `hsl(${alert.color})`, background: `hsl(${alert.color} / .1)` }}>
+                  
                       {alert.scope === "municipal" ? "Empresa" : "Você"}
                     </span>
                   </div>
@@ -282,10 +282,10 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
                 </div>
                 <span className="text-lg text-muted-foreground mt-0.5">›</span>
               </div>
-            ))}
+          )}
           </div>
         </div>
-      )}
+      }
 
       {/* Alert Detail Dialog */}
       <Dialog open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
@@ -296,32 +296,32 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
               <span>{selectedAlert?.title}</span>
             </DialogTitle>
           </DialogHeader>
-          {selectedAlert?.body && (
-            <p className="text-sm text-muted-foreground">{selectedAlert.body}</p>
-          )}
+          {selectedAlert?.body &&
+          <p className="text-sm text-muted-foreground">{selectedAlert.body}</p>
+          }
           <div className="flex items-center gap-2">
             <span
               className="text-[10px] font-semibold rounded-md px-2 py-0.5 tracking-[.06em] uppercase"
               style={{
                 color: selectedAlert ? `hsl(${selectedAlert.color})` : undefined,
-                background: selectedAlert ? `hsl(${selectedAlert.color} / .1)` : undefined,
-              }}
-            >
+                background: selectedAlert ? `hsl(${selectedAlert.color} / .1)` : undefined
+              }}>
+              
               {selectedAlert?.scope === "municipal" ? "Empresa" : "Você"}
             </span>
           </div>
-          {selectedAlert?.external_url && (
-            <a
-              href={selectedAlert.external_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
-            >
+          {selectedAlert?.external_url &&
+          <a
+            href={selectedAlert.external_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
+            
               Abrir link externo →
             </a>
-          )}
+          }
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
