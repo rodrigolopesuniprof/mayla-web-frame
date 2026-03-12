@@ -166,7 +166,7 @@ export function AdminPrograms() {
       return;
     }
     const missionIds = data.map((d: any) => d.mission_id);
-    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag").in("id", missionIds);
+    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag, validation_type").in("id", missionIds);
     const missionsMap = new Map((missions || []).map((m: any) => [m.id, m]));
     const result: CampaignMission[] = data.map((d: any) => {
       const m = missionsMap.get(d.mission_id);
