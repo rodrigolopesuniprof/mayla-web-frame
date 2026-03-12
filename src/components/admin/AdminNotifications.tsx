@@ -313,14 +313,28 @@ export function AdminNotifications() {
             </div>
             <div>
               <Label>Escopo</Label>
-              <Select value={form.scope} onValueChange={v => setForm({ ...form, scope: v, target_user_id: "", municipality_id: "" })}>
+              <Select value={form.scope} onValueChange={v => setForm({ ...form, scope: v, target_user_id: "", municipality_id: "", company_id: "" })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="company">🏢 Empresa (todos da empresa)</SelectItem>
                   <SelectItem value="municipal">🏛 Municipal (todos do município)</SelectItem>
                   <SelectItem value="personal">👤 Pessoal (usuário específico)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {form.scope === "company" && (
+              <div>
+                <Label>Empresa *</Label>
+                <Select value={form.company_id} onValueChange={v => setForm({ ...form, company_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {companies.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {form.scope === "municipal" && (
               <div>
                 <Label>Município *</Label>
