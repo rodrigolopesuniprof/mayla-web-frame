@@ -133,6 +133,10 @@ export function AdminNotifications() {
       toast.error("Selecione um município");
       return;
     }
+    if (form.scope === "company" && !form.company_id) {
+      toast.error("Selecione uma empresa");
+      return;
+    }
     if (form.scope === "personal" && !form.target_user_id) {
       toast.error("Selecione um usuário alvo");
       return;
@@ -146,6 +150,7 @@ export function AdminNotifications() {
       external_url: form.external_url.trim() || null,
       scope: form.scope,
       municipality_id: form.scope === "municipal" ? form.municipality_id : null,
+      company_id: form.scope === "company" ? form.company_id : null,
       target_user_id: form.scope === "personal" ? form.target_user_id : null,
       priority: form.priority,
       active: form.active,
