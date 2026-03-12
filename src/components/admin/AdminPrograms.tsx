@@ -170,7 +170,7 @@ export function AdminPrograms() {
     const missionsMap = new Map((missions || []).map((m: any) => [m.id, m]));
     const result: CampaignMission[] = data.map((d: any) => {
       const m = missionsMap.get(d.mission_id);
-      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag } : null;
+      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag, validation_type: m.validation_type } : null;
     }).filter(Boolean) as CampaignMission[];
     setMissionsByCampaign(prev => ({ ...prev, [campaignId]: result }));
   };
