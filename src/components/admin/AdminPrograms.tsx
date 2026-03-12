@@ -49,6 +49,7 @@ interface CampaignMission {
   points: number | null;
   frequency: string | null;
   tag: string;
+  validation_type: string | null;
 }
 
 // ── Frequency helpers ──────────────────────────────────
@@ -68,6 +69,17 @@ const TAG_OPTIONS = [
   { value: "saude_mental", label: "Saúde Mental" },
   { value: "geral", label: "Geral" },
 ];
+
+const VALIDATION_OPTIONS = [
+  { value: "self_report", label: "Auto-relato", badge: "✅ Auto-relato" },
+  { value: "qr_code", label: "QR Code", badge: "📱 QR" },
+  { value: "photo_proof", label: "Foto comprovante", badge: "📷 Foto" },
+  { value: "auto_rppg", label: "Automática: Medição rPPG", badge: "🤖 rPPG" },
+  { value: "auto_survey", label: "Automática: Questionário", badge: "🤖 Questionário" },
+  { value: "auto_checkin", label: "Automática: Check-in", badge: "🤖 Check-in" },
+];
+
+const VALIDATION_BADGE: Record<string, string> = Object.fromEntries(VALIDATION_OPTIONS.map(o => [o.value, o.badge]));
 
 // ── Component ──────────────────────────────────────────
 export function AdminPrograms() {
@@ -99,7 +111,7 @@ export function AdminPrograms() {
   const [showMissionForm, setShowMissionForm] = useState(false);
   const [missionParentCampaign, setMissionParentCampaign] = useState<Campaign | null>(null);
   const [missionParentProgram, setMissionParentProgram] = useState<Program | null>(null);
-  const [missionForm, setMissionForm] = useState({ title: "", points: "10", frequency: "daily", tag: "geral" });
+  const [missionForm, setMissionForm] = useState({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
 
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<{ type: "program" | "campaign" | "mission"; id: string; title: string; campaignId?: string } | null>(null);
@@ -154,11 +166,11 @@ export function AdminPrograms() {
       return;
     }
     const missionIds = data.map((d: any) => d.mission_id);
-    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag").in("id", missionIds);
+    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag, validation_type").in("id", missionIds);
     const missionsMap = new Map((missions || []).map((m: any) => [m.id, m]));
     const result: CampaignMission[] = data.map((d: any) => {
       const m = missionsMap.get(d.mission_id);
-      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag } : null;
+      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag, validation_type: m.validation_type } : null;
     }).filter(Boolean) as CampaignMission[];
     setMissionsByCampaign(prev => ({ ...prev, [campaignId]: result }));
   };
@@ -258,7 +270,7 @@ export function AdminPrograms() {
   const openNewMission = (campaign: Campaign, program: Program) => {
     setMissionParentCampaign(campaign);
     setMissionParentProgram(program);
-    setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral" });
+    setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
     setShowMissionForm(true);
   };
 
@@ -266,7 +278,7 @@ export function AdminPrograms() {
     if (!missionForm.title || !missionParentCampaign) { toast.error("Preencha o nome da missão."); return; }
     const { data: mission, error } = await supabase.from("missions").insert({
       title: missionForm.title, points: parseInt(missionForm.points) || 0, frequency: missionForm.frequency,
-      tag: missionForm.tag, emoji: "🎯", active: true,
+      tag: missionForm.tag, emoji: "🎯", active: true, validation_type: missionForm.validation_type,
     }).select("id").single();
     if (error || !mission) { toast.error("Erro ao criar missão: " + (error?.message || "")); return; }
     const { error: linkError } = await supabase.from("campaign_missions").insert({
@@ -387,6 +399,7 @@ export function AdminPrograms() {
                                       <span className="flex-1 text-sm text-foreground">{m.title}</span>
                                       <Badge variant="outline" className="text-[10px]">{m.points || 0} pts</Badge>
                                       <Badge variant="outline" className="text-[10px]">{FREQ_LABELS[m.frequency || ""] || m.frequency}</Badge>
+                                      <Badge variant="secondary" className="text-[10px]">{VALIDATION_BADGE[m.validation_type || "self_report"] || "✅"}</Badge>
                                       <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setDeleteTarget({ type: "mission", id: m.campaign_mission_id, title: m.title, campaignId: missionParentCampaign?.id || camp.id })}>
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
@@ -497,7 +510,7 @@ export function AdminPrograms() {
           )}
           <div className="space-y-4">
             <div className="space-y-1"><Label>Nome da missão</Label><Input value={missionForm.title} onChange={e => setMissionForm(f => ({ ...f, title: e.target.value }))} /></div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Pontos</Label><Input type="number" value={missionForm.points} onChange={e => setMissionForm(f => ({ ...f, points: e.target.value }))} /></div>
               <div className="space-y-1">
                 <Label>Frequência</Label>
@@ -506,11 +519,20 @@ export function AdminPrograms() {
                   <SelectContent>{FREQ_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Categoria</Label>
                 <Select value={missionForm.tag} onValueChange={v => setMissionForm(f => ({ ...f, tag: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{TAG_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Validação</Label>
+                <Select value={missionForm.validation_type} onValueChange={v => setMissionForm(f => ({ ...f, validation_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{VALIDATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

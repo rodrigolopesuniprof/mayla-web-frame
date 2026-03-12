@@ -36,11 +36,21 @@ const VALIDATION_LABELS: Record<string, { label: string; icon: string }> = {
   self_report: { label: "Registrar ✓", icon: "" },
   qr_code: { label: "Escanear QR", icon: "📱 " },
   photo_proof: { label: "Enviar foto", icon: "📷 " },
+  auto_rppg: { label: "Automática", icon: "🤖 " },
+  auto_survey: { label: "Automática", icon: "🤖 " },
+  auto_checkin: { label: "Automática", icon: "🤖 " },
 };
 
-const AUTO_COMPLETE_CHECKS: Record<string, (ctx: { hasMeasurementToday: boolean; profile: any }) => boolean> = {
-  "Medição rPPG": ({ hasMeasurementToday }) => hasMeasurementToday,
-  "Dados Certos": ({ profile }) => !!profile?.health_survey_completed,
+const AUTO_CHECKS: Record<string, (ctx: { hasMeasurementToday: boolean; profile: any; hasCheckinThisWeek: boolean }) => boolean> = {
+  auto_rppg: ({ hasMeasurementToday }) => hasMeasurementToday,
+  auto_survey: ({ profile }) => !!profile?.health_survey_completed,
+  auto_checkin: ({ hasCheckinThisWeek }) => hasCheckinThisWeek,
+};
+
+const getWeekStart = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().split("T")[0];
 };
 
 export function MissionsTab() {
@@ -55,7 +65,7 @@ export function MissionsTab() {
     if (!user) return;
 
     const fetchData = async () => {
-      const [missionsRes, profileRes, measurementsRes] = await Promise.all([
+      const [missionsRes, profileRes, measurementsRes, checkinsRes] = await Promise.all([
         supabase
           .from("user_missions")
           .select("id, status, created_at, mission_id, mission:missions(title, description, emoji, points, tag, priority, validation_type, frequency)")
@@ -72,9 +82,16 @@ export function MissionsTab() {
           .eq("user_id", user.id)
           .gte("measured_at", new Date().toISOString().split("T")[0])
           .limit(1),
+        supabase
+          .from("wellbeing_checkins")
+          .select("id")
+          .eq("user_id", user.id)
+          .gte("week_start", getWeekStart())
+          .limit(1),
       ]);
 
       const hasMeasurementToday = (measurementsRes.data?.length ?? 0) > 0;
+      const hasCheckinThisWeek = (checkinsRes.data?.length ?? 0) > 0;
       const profileData = profileRes.data;
 
       if (missionsRes.data) {
@@ -95,11 +112,11 @@ export function MissionsTab() {
         const toComplete: string[] = [];
         for (const m of sorted) {
           if (m.status !== "pending") continue;
-          for (const [keyword, check] of Object.entries(AUTO_COMPLETE_CHECKS)) {
-            if (m.mission.title.includes(keyword) && check({ hasMeasurementToday, profile: profileData })) {
-              toComplete.push(m.id);
-              m.status = "completed";
-            }
+          const vType = m.mission.validation_type || "self_report";
+          const autoCheck = AUTO_CHECKS[vType];
+          if (autoCheck && autoCheck({ hasMeasurementToday, profile: profileData, hasCheckinThisWeek })) {
+            toComplete.push(m.id);
+            m.status = "completed";
           }
         }
 
@@ -253,6 +270,7 @@ export function MissionsTab() {
           {pendingMissions.map((m) => {
             const vType = m.mission.validation_type || "self_report";
             const vLabel = VALIDATION_LABELS[vType] || VALIDATION_LABELS.self_report;
+            const isAuto = vType.startsWith("auto_");
             return (
               <div key={m.id} className="bg-card rounded-2xl p-4 border border-border">
                 <div className="flex items-start gap-3">
@@ -269,13 +287,19 @@ export function MissionsTab() {
                       <span className="text-[9px] font-semibold rounded-md px-[7px] py-px tracking-[.06em] uppercase bg-accent/10 text-accent">
                         {TAG_LABELS[m.mission.tag] || m.mission.tag}
                       </span>
-                      <button
-                        onClick={() => handleAction(m)}
-                        className="text-[11px] font-semibold text-accent-foreground px-3 py-1 rounded-lg border-none cursor-pointer"
-                        style={{ background: "linear-gradient(135deg, hsl(var(--mayla-green)), hsl(var(--mayla-teal)))" }}
-                      >
-                        {vLabel.icon}{vLabel.label}
-                      </button>
+                      {isAuto ? (
+                        <span className="text-[11px] font-semibold text-muted-foreground px-3 py-1 rounded-lg bg-secondary">
+                          🤖 Aguardando ação no app
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleAction(m)}
+                          className="text-[11px] font-semibold text-accent-foreground px-3 py-1 rounded-lg border-none cursor-pointer"
+                          style={{ background: "linear-gradient(135deg, hsl(var(--mayla-green)), hsl(var(--mayla-teal)))" }}
+                        >
+                          {vLabel.icon}{vLabel.label}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
