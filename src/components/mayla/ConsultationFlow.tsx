@@ -280,11 +280,18 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     }).sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
   }, [doctors, doctorLocations, userPos]);
 
-  // Doctor availability slots
+  // Doctor/clinic availability slots - for clinics, filter by selected specialty
   const doctorSlots = useMemo(() => {
     if (!selectedDoctor) return [];
-    return availability.filter((a) => a.partner_id === selectedDoctor.id);
-  }, [selectedDoctor, availability]);
+    const partnerSlots = availability.filter((a) => a.partner_id === selectedDoctor.id);
+    // For clinics, only show slots matching the selected specialty
+    if (selectedDoctor.partner_type === "clinic" && selectedSpecialty) {
+      const specLower = selectedSpecialty.toLowerCase();
+      const filtered = partnerSlots.filter(s => s.specialty && s.specialty.toLowerCase().includes(specLower));
+      return filtered.length > 0 ? filtered : partnerSlots; // fallback to all if no specialty-tagged slots
+    }
+    return partnerSlots;
+  }, [selectedDoctor, availability, selectedSpecialty]);
 
   // Available weekdays for calendar highlighting
   const availableWeekdays = useMemo(() => new Set(doctorSlots.map((s) => s.weekday)), [doctorSlots]);
