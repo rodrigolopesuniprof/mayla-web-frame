@@ -109,6 +109,15 @@ export function DoctorAvailabilityEditor({ partnerId, partnerType }: Props) {
       {slots.length === 0 && <p className="text-xs text-muted-foreground">Nenhum horário cadastrado.</p>}
       {slots.map((slot, idx) => (
         <div key={idx} className="border border-border rounded-xl p-4 flex flex-wrap items-end gap-3">
+          {partnerType === "clinic" && (
+            <div className="space-y-1 w-44">
+              <Label className="text-xs">Especialidade</Label>
+              <Select value={slot.specialty || ""} onValueChange={v => updateSlot(idx, "specialty", v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1 w-32">
             <Label className="text-xs">Dia</Label>
             <Select value={String(slot.weekday)} onValueChange={v => updateSlot(idx, "weekday", Number(v))}>
