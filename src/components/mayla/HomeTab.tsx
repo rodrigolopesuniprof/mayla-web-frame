@@ -253,17 +253,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       </div>
 
-      {/* ESF Link CTA */}
-      {!hasEsf &&
-        <div className="mx-5 mb-5 rounded-[18px] px-5 py-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform border-2 border-dashed border-primary/30 bg-primary/5" onClick={onOpenEsfLink}>
-          <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--primary) / .15)" }}>🏥</div>
-          <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground mb-0.5">Conecte-se à sua equipe</div>
-            <div className="text-sm text-muted-foreground leading-snug">Escaneie o QR Code na unidade · ganhe +500 pts</div>
-          </div>
-          <span className="text-xl text-primary font-bold">›</span>
-        </div>
-      }
 
       {/* rPPG CTA */}
       <div
