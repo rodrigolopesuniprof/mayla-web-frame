@@ -42,6 +42,7 @@ interface Mission {
 interface Props {
   companyId: string;
   primaryColor?: string;
+  onNavigate?: (tab: string) => void;
 }
 
 export function WellbeingPrograms({ companyId, primaryColor }: Props) {
