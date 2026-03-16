@@ -1,0 +1,1 @@
+ALTER TABLE public.company_features ADD CONSTRAINT company_features_company_id_feature_key_unique UNIQUE (company_id, feature_key);
