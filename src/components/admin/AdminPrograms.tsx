@@ -184,11 +184,11 @@ export function AdminPrograms() {
       return;
     }
     const missionIds = data.map((d: any) => d.mission_id);
-    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag, validation_type").in("id", missionIds);
+    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag, validation_type, questionnaire_id").in("id", missionIds);
     const missionsMap = new Map((missions || []).map((m: any) => [m.id, m]));
     const result: CampaignMission[] = data.map((d: any) => {
       const m = missionsMap.get(d.mission_id);
-      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag, validation_type: m.validation_type } : null;
+      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag, validation_type: m.validation_type, questionnaire_id: m.questionnaire_id } : null;
     }).filter(Boolean) as CampaignMission[];
     setMissionsByCampaign(prev => ({ ...prev, [campaignId]: result }));
   };
