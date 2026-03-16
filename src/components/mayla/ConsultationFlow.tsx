@@ -62,6 +62,7 @@ interface AvailSlot {
   consultation_mode: string;
   is_active: boolean;
   slot_duration_minutes: number;
+  specialty: string | null;
 }
 
 interface DoctorLocation {
