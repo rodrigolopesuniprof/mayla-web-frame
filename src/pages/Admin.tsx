@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { AdminCompanies } from "@/components/admin/AdminCompanies";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminNotifications } from "@/components/admin/AdminNotifications";
-import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
+import { AdminPartners } from "@/components/admin/AdminPartners";
 import { AdminAppointments } from "@/components/admin/AdminAppointments";
 import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
 import { AdminPrograms } from "@/components/admin/AdminPrograms";
@@ -14,7 +14,7 @@ import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashbo
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
-type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "avisos" | "especialistas" | "agendamentos" | "equipes";
+type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "avisos" | "parceiros" | "agendamentos" | "equipes";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
@@ -60,7 +60,7 @@ export default function Admin() {
     { id: "programas", label: "🌿 Programas" },
     { id: "avisos", label: "📢 Notificações" },
     { id: "equipes", label: "🏃 Times" },
-    { id: "especialistas", label: "🩺 Especialistas" },
+    { id: "parceiros", label: "🏥 Parceiros" },
     { id: "agendamentos", label: "📋 Agendamentos" },
   ];
 
@@ -103,7 +103,7 @@ export default function Admin() {
         {activeTab === "programas" && <AdminPrograms />}
         {activeTab === "avisos" && <AdminNotifications />}
         {activeTab === "equipes" && <AdminSupportTeams />}
-        {activeTab === "especialistas" && <AdminSpecialties />}
+        {activeTab === "parceiros" && <AdminPartners />}
         {activeTab === "agendamentos" && <AdminAppointments />}
       </div>
     </div>

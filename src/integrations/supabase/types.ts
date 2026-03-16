@@ -558,6 +558,47 @@ export type Database = {
           },
         ]
       }
+      doctor_availability: {
+        Row: {
+          consultation_mode: string | null
+          created_at: string | null
+          end_time: string
+          id: string
+          is_active: boolean | null
+          partner_id: string
+          start_time: string
+          weekday: number
+        }
+        Insert: {
+          consultation_mode?: string | null
+          created_at?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          partner_id: string
+          start_time: string
+          weekday: number
+        }
+        Update: {
+          consultation_mode?: string | null
+          created_at?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          partner_id?: string
+          start_time?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_availability_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -1063,6 +1104,225 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      partner_doctor_links: {
+        Row: {
+          clinic_id: string
+          created_at: string | null
+          doctor_id: string
+          id: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string | null
+          doctor_id: string
+          id?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string | null
+          doctor_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_doctor_links_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_doctor_links_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_locations: {
+        Row: {
+          city: string | null
+          created_at: string | null
+          full_address: string | null
+          id: string
+          is_main: boolean | null
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
+          partner_id: string
+          state: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string | null
+          full_address?: string | null
+          id?: string
+          is_main?: boolean | null
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          partner_id: string
+          state?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string | null
+          full_address?: string | null
+          id?: string
+          is_main?: boolean | null
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          partner_id?: string
+          state?: string | null
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_locations_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partners: {
+        Row: {
+          accepted_payments: Json | null
+          active: boolean | null
+          appointment_only: boolean | null
+          approval_status: Database["public"]["Enums"]["approval_status"] | null
+          booking_link: string | null
+          city: string | null
+          collection_methods: Json | null
+          consultation_price: number | null
+          consultation_type: string | null
+          contact_link: string | null
+          created_at: string | null
+          crm: string | null
+          crm_state: string | null
+          delivery_available: boolean | null
+          description: string | null
+          email: string | null
+          exam_types: Json | null
+          full_address: string | null
+          id: string
+          is_partner_gym: boolean | null
+          latitude: number | null
+          logo_url: string | null
+          longitude: number | null
+          name: string
+          notification_email: string | null
+          online_consultation_enabled: boolean | null
+          opening_hours: Json | null
+          partner_type: Database["public"]["Enums"]["partner_type"]
+          phone: string | null
+          scheduling_link: string | null
+          service_mode: string | null
+          service_notes: string | null
+          services_offered: Json | null
+          specialties_offered: Json | null
+          specialty: string | null
+          state: string | null
+          sub_specialty: string | null
+          updated_at: string | null
+          wellness_activities: Json | null
+          zip_code: string | null
+        }
+        Insert: {
+          accepted_payments?: Json | null
+          active?: boolean | null
+          appointment_only?: boolean | null
+          approval_status?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          booking_link?: string | null
+          city?: string | null
+          collection_methods?: Json | null
+          consultation_price?: number | null
+          consultation_type?: string | null
+          contact_link?: string | null
+          created_at?: string | null
+          crm?: string | null
+          crm_state?: string | null
+          delivery_available?: boolean | null
+          description?: string | null
+          email?: string | null
+          exam_types?: Json | null
+          full_address?: string | null
+          id?: string
+          is_partner_gym?: boolean | null
+          latitude?: number | null
+          logo_url?: string | null
+          longitude?: number | null
+          name: string
+          notification_email?: string | null
+          online_consultation_enabled?: boolean | null
+          opening_hours?: Json | null
+          partner_type: Database["public"]["Enums"]["partner_type"]
+          phone?: string | null
+          scheduling_link?: string | null
+          service_mode?: string | null
+          service_notes?: string | null
+          services_offered?: Json | null
+          specialties_offered?: Json | null
+          specialty?: string | null
+          state?: string | null
+          sub_specialty?: string | null
+          updated_at?: string | null
+          wellness_activities?: Json | null
+          zip_code?: string | null
+        }
+        Update: {
+          accepted_payments?: Json | null
+          active?: boolean | null
+          appointment_only?: boolean | null
+          approval_status?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          booking_link?: string | null
+          city?: string | null
+          collection_methods?: Json | null
+          consultation_price?: number | null
+          consultation_type?: string | null
+          contact_link?: string | null
+          created_at?: string | null
+          crm?: string | null
+          crm_state?: string | null
+          delivery_available?: boolean | null
+          description?: string | null
+          email?: string | null
+          exam_types?: Json | null
+          full_address?: string | null
+          id?: string
+          is_partner_gym?: boolean | null
+          latitude?: number | null
+          logo_url?: string | null
+          longitude?: number | null
+          name?: string
+          notification_email?: string | null
+          online_consultation_enabled?: boolean | null
+          opening_hours?: Json | null
+          partner_type?: Database["public"]["Enums"]["partner_type"]
+          phone?: string | null
+          scheduling_link?: string | null
+          service_mode?: string | null
+          service_notes?: string | null
+          services_offered?: Json | null
+          specialties_offered?: Json | null
+          specialty?: string | null
+          state?: string | null
+          sub_specialty?: string | null
+          updated_at?: string | null
+          wellness_activities?: Json | null
+          zip_code?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1905,6 +2165,8 @@ export type Database = {
         | "hr_manager"
         | "wellbeing_manager"
         | "employee"
+      approval_status: "pending" | "approved" | "blocked"
+      partner_type: "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2041,6 +2303,8 @@ export const Constants = {
         "wellbeing_manager",
         "employee",
       ],
+      approval_status: ["pending", "approved", "blocked"],
+      partner_type: ["doctor", "clinic", "gym", "laboratory", "pharmacy"],
     },
   },
 } as const

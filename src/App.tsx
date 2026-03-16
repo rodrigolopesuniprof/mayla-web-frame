@@ -14,6 +14,7 @@ import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import CompanyLanding from "./pages/CompanyLanding.tsx";
 import CompanyDashboard from "./pages/CompanyDashboard.tsx";
+import PartnerRegistration from "./pages/PartnerRegistration.tsx";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <CompanyProvider>
             <Routes>
               <Route path="/empresa/:slug" element={<CompanyLanding />} />
+              <Route path="/cadastro-parceiro" element={<PartnerRegistration />} />
               {/* Backward compat */}
               <Route path="/cidade/:slug" element={<CompanyLanding />} />
               <Route path="/painel/:slug" element={<CompanyDashboard />} />
