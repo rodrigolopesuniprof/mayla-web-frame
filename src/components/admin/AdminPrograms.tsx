@@ -50,6 +50,17 @@ interface CampaignMission {
   frequency: string | null;
   tag: string;
   validation_type: string | null;
+  questionnaire_id: string | null;
+}
+
+interface QuestionDraft {
+  category: string;
+  question_text: string;
+}
+
+interface ExistingQuestionnaire {
+  id: string;
+  title: string;
 }
 
 // ── Frequency helpers ──────────────────────────────────
