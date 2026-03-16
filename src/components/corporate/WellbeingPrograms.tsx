@@ -268,6 +268,28 @@ export function WellbeingPrograms({ companyId, primaryColor, onNavigate }: Props
     }
   };
 
+  const getAutoLabel = (vType: string) => {
+    switch (vType) {
+      case "auto_rppg": return "💓 Medir sinais";
+      case "auto_checkin": return "📋 Fazer check-in";
+      case "auto_survey": return "📝 Questionário";
+      default: return "🤖 Ir";
+    }
+  };
+
+  const handleAutoNavigate = (vType: string) => {
+    if (!onNavigate) return;
+    switch (vType) {
+      case "auto_rppg":
+      case "auto_checkin":
+        onNavigate("bemestar");
+        break;
+      case "auto_survey":
+        onNavigate("perfil");
+        break;
+    }
+  };
+
   if (loading) return <p className="text-sm text-muted-foreground text-center py-6">Carregando programas...</p>;
 
   if (programs.length === 0) {
