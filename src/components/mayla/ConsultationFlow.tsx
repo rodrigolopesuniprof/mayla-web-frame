@@ -329,7 +329,18 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     setSelectedDate(null);
     setSelectedSlotTime(null);
     setCurrentMonth(new Date());
-    setStep("schedule");
+    // Toggle expansion inline instead of going to schedule step
+    setExpandedDoctorId(prev => prev === d.id ? null : d.id);
+    setMapSelectedId(d.id);
+  };
+
+  /** Pick a time slot from the inline expanded card → go directly to confirm */
+  const handleInlineSlotSelect = (doctor: Doctor, tw: TimeWindow, weekday: number) => {
+    setSelectedDoctor(doctor);
+    const nextDate = getNextDateForWeekday(weekday);
+    setSelectedDate(nextDate);
+    setSelectedSlotTime(`${tw.start} – ${tw.end}`);
+    setStep("confirm");
   };
 
   const handleSelectDate = (day: Date) => {
