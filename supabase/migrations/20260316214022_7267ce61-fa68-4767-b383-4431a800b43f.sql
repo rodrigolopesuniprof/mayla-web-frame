@@ -1,0 +1,1 @@
+ALTER TABLE public.doctor_availability ADD COLUMN IF NOT EXISTS specialty text DEFAULT NULL;

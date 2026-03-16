@@ -567,6 +567,7 @@ export type Database = {
           is_active: boolean | null
           partner_id: string
           slot_duration_minutes: number
+          specialty: string | null
           start_time: string
           weekday: number
         }
@@ -578,6 +579,7 @@ export type Database = {
           is_active?: boolean | null
           partner_id: string
           slot_duration_minutes?: number
+          specialty?: string | null
           start_time: string
           weekday: number
         }
@@ -589,6 +591,7 @@ export type Database = {
           is_active?: boolean | null
           partner_id?: string
           slot_duration_minutes?: number
+          specialty?: string | null
           start_time?: string
           weekday?: number
         }
