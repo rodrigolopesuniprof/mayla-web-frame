@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
 interface Slot {
   id?: string;
@@ -17,6 +18,7 @@ interface Slot {
   end_time: string;
   consultation_mode: string;
   is_active: boolean;
+  slot_duration_minutes: number;
 }
 
 interface Props {
@@ -50,6 +52,7 @@ export function DoctorAvailabilityEditor({ partnerId }: Props) {
       end_time: "12:00",
       consultation_mode: "both",
       is_active: true,
+      slot_duration_minutes: 30,
     }]);
   };
 
@@ -66,6 +69,7 @@ export function DoctorAvailabilityEditor({ partnerId }: Props) {
       end_time: slot.end_time,
       consultation_mode: slot.consultation_mode,
       is_active: slot.is_active,
+      slot_duration_minutes: slot.slot_duration_minutes,
     };
 
     if (slot.id) {
@@ -109,6 +113,15 @@ export function DoctorAvailabilityEditor({ partnerId }: Props) {
           <div className="space-y-1 w-28">
             <Label className="text-xs">Fim</Label>
             <Input type="time" value={slot.end_time} onChange={e => updateSlot(idx, "end_time", e.target.value)} />
+          </div>
+          <div className="space-y-1 w-28">
+            <Label className="text-xs">Duração (min)</Label>
+            <Select value={String(slot.slot_duration_minutes)} onValueChange={v => updateSlot(idx, "slot_duration_minutes", Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {DURATION_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{d} min</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1 w-32">
             <Label className="text-xs">Modo</Label>

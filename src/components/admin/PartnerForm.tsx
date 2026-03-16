@@ -582,6 +582,8 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
 }
 
 // --- Reusable availability row ---
+const DURATION_OPTIONS = [15, 20, 30, 45, 60];
+
 function AvailabilityRow({ slot, idx, onUpdate, onRemove, compact }: {
   slot: AvailabilitySlot;
   idx: number;
@@ -605,6 +607,15 @@ function AvailabilityRow({ slot, idx, onUpdate, onRemove, compact }: {
       <div className="space-y-1 w-24">
         <Label className="text-xs">Fim</Label>
         <Input className="h-8 text-xs" type="time" value={slot.end_time} onChange={e => onUpdate(idx, "end_time", e.target.value)} />
+      </div>
+      <div className="space-y-1 w-24">
+        <Label className="text-xs">Duração</Label>
+        <Select value={String(slot.slot_duration_minutes || 30)} onValueChange={v => onUpdate(idx, "slot_duration_minutes", Number(v))}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {DURATION_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{d} min</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-1 w-28">
         <Label className="text-xs">Modo</Label>
