@@ -538,11 +538,14 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                             {d.distance != null && d.distance < Infinity && (
                               <span className="text-[10px] text-muted-foreground">📏 {formatDist(d.distance)}</span>
                             )}
+                            {d.distance === Infinity && d.city && (
+                              <span className="text-[10px] text-muted-foreground">📍 {d.city}/{d.state}</span>
+                            )}
                             {d.consultation_price != null && (
                               <span className="text-xs font-semibold text-foreground">R$ {d.consultation_price.toFixed(0)}</span>
                             )}
                             {d.online_consultation_enabled && (
-                              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Online</span>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Online</Badge>
                             )}
                           </div>
                         </div>
