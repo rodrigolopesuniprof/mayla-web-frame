@@ -73,7 +73,9 @@ export function AdminSupportTeams() {
         ? await supabase.from("profiles").select("user_id, points").in("user_id", userIds)
         : { data: [] };
 
-      const pointsMap = new Map(profiles?.map(p => [p.user_id, p.points]) || []);
+      const pointsMap = new Map<string, number>(
+        (profiles || []).map(p => [p.user_id, p.points] as [string, number])
+      );
 
       const enriched: CollaborativeTeam[] = teamsData.map(t => {
         const teamMembers = members?.filter(m => m.team_id === t.id) || [];

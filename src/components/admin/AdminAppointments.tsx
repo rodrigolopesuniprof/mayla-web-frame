@@ -108,19 +108,19 @@ export function AdminAppointments() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{byStatus["confirmed"] || 0}</div>
+            <div className="text-2xl font-bold text-primary">{byStatus["confirmed"] || 0}</div>
             <div className="text-xs text-muted-foreground mt-1">Confirmados</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">{byStatus["pending"] || 0}</div>
+            <div className="text-2xl font-bold text-accent">{byStatus["pending"] || 0}</div>
             <div className="text-xs text-muted-foreground mt-1">Pendentes</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{byStatus["cancelled"] || 0}</div>
+            <div className="text-2xl font-bold text-destructive">{byStatus["cancelled"] || 0}</div>
             <div className="text-xs text-muted-foreground mt-1">Cancelados</div>
           </CardContent>
         </Card>
