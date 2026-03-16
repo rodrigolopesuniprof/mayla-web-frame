@@ -562,7 +562,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
                 {/* Doctor list */}
                 <div className="px-4 py-3 space-y-2">
-                  <p className="text-xs text-muted-foreground">{enrichedDoctors.length} médico(s) encontrado(s)</p>
+                  <p className="text-xs text-muted-foreground">{enrichedDoctors.length} profissional(is) encontrado(s)</p>
                   {enrichedDoctors.map((d) => (
                     <button
                       key={d.id}
@@ -575,10 +575,14 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">🩺</div>
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
+                          {d.partner_type === "clinic" ? "🏥" : "🩺"}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-foreground truncate">{d.name}</div>
-                          <div className="text-xs text-muted-foreground">{d.specialty}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {d.partner_type === "clinic" ? "Clínica" : d.specialty}
+                          </div>
                           <div className="flex items-center gap-3 mt-1 flex-wrap">
                             {d.crm && <span className="text-[10px] text-muted-foreground">CRM {d.crm}/{d.crm_state}</span>}
                             {d.distance != null && d.distance < Infinity && (
