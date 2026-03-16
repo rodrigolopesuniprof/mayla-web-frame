@@ -123,6 +123,14 @@ export function AdminPrograms() {
   const [editingMission, setEditingMission] = useState<CampaignMission | null>(null);
   const [missionForm, setMissionForm] = useState({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
 
+  // Questionnaire state
+  const [surveyMode, setSurveyMode] = useState<"new" | "existing">("new");
+  const [surveyQuestionnaireId, setSurveyQuestionnaireId] = useState("");
+  const [surveyTitle, setSurveyTitle] = useState("");
+  const [surveyQuestions, setSurveyQuestions] = useState<QuestionDraft[]>([{ category: "Geral", question_text: "" }]);
+  const [existingQuestionnaires, setExistingQuestionnaires] = useState<ExistingQuestionnaire[]>([]);
+  const [loadedSurveyQuestions, setLoadedSurveyQuestions] = useState<QuestionDraft[]>([]);
+
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<{ type: "program" | "campaign" | "mission"; id: string; title: string; campaignId?: string } | null>(null);
 
