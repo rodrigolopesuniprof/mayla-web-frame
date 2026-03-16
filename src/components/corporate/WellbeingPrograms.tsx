@@ -45,7 +45,7 @@ interface Props {
   onNavigate?: (tab: string) => void;
 }
 
-export function WellbeingPrograms({ companyId, primaryColor }: Props) {
+export function WellbeingPrograms({ companyId, primaryColor, onNavigate }: Props) {
   const { user } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
