@@ -285,11 +285,31 @@ export function AdminPrograms() {
   };
 
   // ── Mission CRUD ──────────────────────────────────────
+  const loadExistingQuestionnaires = async () => {
+    const { data } = await supabase.from("questionnaires").select("id, title");
+    setExistingQuestionnaires((data || []) as ExistingQuestionnaire[]);
+  };
+
+  const loadSurveyQuestions = async (qId: string) => {
+    const { data } = await supabase.from("questionnaire_questions").select("category, question_text").eq("questionnaire_id", qId).order("sort_order");
+    setLoadedSurveyQuestions((data || []) as QuestionDraft[]);
+  };
+
+  const resetSurveyState = () => {
+    setSurveyMode("new");
+    setSurveyQuestionnaireId("");
+    setSurveyTitle("");
+    setSurveyQuestions([{ category: "Geral", question_text: "" }]);
+    setLoadedSurveyQuestions([]);
+  };
+
   const openNewMission = (campaign: Campaign, program: Program) => {
     setMissionParentCampaign(campaign);
     setMissionParentProgram(program);
     setEditingMission(null);
     setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
+    resetSurveyState();
+    loadExistingQuestionnaires();
     setShowMissionForm(true);
   };
 
@@ -298,14 +318,48 @@ export function AdminPrograms() {
     setMissionParentProgram(program);
     setEditingMission(m);
     setMissionForm({ title: m.title, points: String(m.points || 0), frequency: m.frequency || "daily", tag: m.tag, validation_type: m.validation_type || "self_report" });
+    resetSurveyState();
+    loadExistingQuestionnaires();
+    if (m.questionnaire_id) {
+      setSurveyMode("existing");
+      setSurveyQuestionnaireId(m.questionnaire_id);
+      loadSurveyQuestions(m.questionnaire_id);
+    }
     setShowMissionForm(true);
+  };
+
+  const createQuestionnaireIfNeeded = async (): Promise<string | null> => {
+    if (missionForm.validation_type !== "auto_survey") return null;
+    if (surveyMode === "existing") return surveyQuestionnaireId || null;
+    // Create new questionnaire
+    if (!surveyTitle.trim()) { toast.error("Preencha o título do questionário."); return undefined as any; }
+    const validQs = surveyQuestions.filter(q => q.question_text.trim());
+    if (validQs.length === 0) { toast.error("Adicione pelo menos uma pergunta."); return undefined as any; }
+    const { data: q, error } = await supabase.from("questionnaires").insert({ title: surveyTitle.trim() }).select("id").single();
+    if (error || !q) { toast.error("Erro ao criar questionário: " + (error?.message || "")); return undefined as any; }
+    const questionsToInsert = validQs.map((qq, i) => ({
+      questionnaire_id: q.id, category: qq.category || "Geral", question_text: qq.question_text, sort_order: i,
+    }));
+    const { error: qErr } = await supabase.from("questionnaire_questions").insert(questionsToInsert);
+    if (qErr) { toast.error("Erro ao salvar perguntas."); return undefined as any; }
+    return q.id;
   };
 
   const saveMission = async () => {
     if (!missionForm.title || !missionParentCampaign) { toast.error("Preencha o nome da missão."); return; }
-    const payload = {
+
+    // Handle questionnaire
+    let questionnaireId: string | null = null;
+    if (missionForm.validation_type === "auto_survey") {
+      const result = await createQuestionnaireIfNeeded();
+      if (result === undefined) return; // error occurred
+      questionnaireId = result;
+    }
+
+    const payload: any = {
       title: missionForm.title, points: parseInt(missionForm.points) || 0, frequency: missionForm.frequency,
       tag: missionForm.tag, validation_type: missionForm.validation_type,
+      questionnaire_id: questionnaireId,
     };
     if (editingMission) {
       const { error } = await supabase.from("missions").update(payload).eq("id", editingMission.mission_id);
