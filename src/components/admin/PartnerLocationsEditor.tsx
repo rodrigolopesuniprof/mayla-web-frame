@@ -18,6 +18,7 @@ interface Location {
   latitude: number | null;
   longitude: number | null;
   is_main: boolean;
+  _google_maps_url?: string;
 }
 
 interface Props {
