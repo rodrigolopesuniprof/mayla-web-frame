@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/program-categories";
+import { QrScanner } from "@/components/mayla/QrScanner";
+import { PhotoCapture } from "@/components/mayla/PhotoCapture";
+import { toast } from "sonner";
 
 interface Program {
   id: string;
@@ -32,6 +36,7 @@ interface Mission {
   emoji: string | null;
   points: number | null;
   tag: string;
+  validation_type: string | null;
 }
 
 interface Props {
@@ -40,6 +45,7 @@ interface Props {
 }
 
 export function WellbeingPrograms({ companyId, primaryColor }: Props) {
+  const { user } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
@@ -49,7 +55,23 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
   const [loadingCampaigns, setLoadingCampaigns] = useState<string | null>(null);
   const [loadingMissions, setLoadingMissions] = useState<string | null>(null);
 
+  // User mission status
+  const [userMissionStatus, setUserMissionStatus] = useState<Record<string, { userMissionId: string; status: string }>>({});
+  const [scanningMissionId, setScanningMissionId] = useState<string | null>(null);
+  const [scanningUserMissionId, setScanningUserMissionId] = useState<string | null>(null);
+  const [photoMissionId, setPhotoMissionId] = useState<string | null>(null);
+  const [photoUserMissionId, setPhotoUserMissionId] = useState<string | null>(null);
+
+  // Reset cache when companyId changes
   useEffect(() => {
+    setProgramCampaigns({});
+    setCampaignMissions({});
+    setExpandedProgram(null);
+    setExpandedCampaign(null);
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
     let query = supabase
       .from("wellbeing_programs")
       .select("*")
@@ -65,6 +87,26 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
       setLoading(false);
     });
   }, [companyId]);
+
+  // Fetch user mission statuses
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("user_missions")
+      .select("id, mission_id, status")
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        if (!data) return;
+        const map: Record<string, { userMissionId: string; status: string }> = {};
+        for (const um of data) {
+          // Keep the latest (or completed) status per mission
+          if (!map[um.mission_id] || um.status === "completed") {
+            map[um.mission_id] = { userMissionId: um.id, status: um.status || "pending" };
+          }
+        }
+        setUserMissionStatus(map);
+      });
+  }, [user]);
 
   const toggleProgram = async (program: Program) => {
     if (expandedProgram === program.id) {
@@ -108,7 +150,7 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
       const missionIds = cmData.map((cm: any) => cm.mission_id);
       const { data: missionData } = await supabase
         .from("missions")
-        .select("id, title, emoji, points, tag")
+        .select("id, title, emoji, points, tag, validation_type")
         .in("id", missionIds)
         .eq("active", true);
 
@@ -121,6 +163,108 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
       setCampaignMissions(prev => ({ ...prev, [campaign.id]: [] }));
     }
     setLoadingMissions(null);
+  };
+
+  const handleMissionAction = async (mission: Mission) => {
+    if (!user) return;
+    const existing = userMissionStatus[mission.id];
+    const vType = mission.validation_type || "self_report";
+
+    // If no user_mission exists, create one
+    let userMissionId = existing?.userMissionId;
+    if (!userMissionId) {
+      const { data, error } = await supabase
+        .from("user_missions")
+        .insert({ user_id: user.id, mission_id: mission.id, status: "pending" })
+        .select("id")
+        .single();
+      if (error || !data) {
+        toast.error("Erro ao registrar missão.");
+        return;
+      }
+      userMissionId = data.id;
+      setUserMissionStatus(prev => ({ ...prev, [mission.id]: { userMissionId: data.id, status: "pending" } }));
+    }
+
+    switch (vType) {
+      case "qr_code":
+        setScanningMissionId(mission.id);
+        setScanningUserMissionId(userMissionId);
+        break;
+      case "photo_proof":
+        setPhotoMissionId(mission.id);
+        setPhotoUserMissionId(userMissionId);
+        break;
+      default:
+        await completeMission(mission.id, userMissionId);
+    }
+  };
+
+  const completeMission = async (missionId: string, userMissionId: string) => {
+    await supabase
+      .from("user_missions")
+      .update({ status: "completed", completed_at: new Date().toISOString() } as any)
+      .eq("id", userMissionId);
+    setUserMissionStatus(prev => ({ ...prev, [missionId]: { userMissionId, status: "completed" } }));
+    toast.success("Missão concluída! 🎉");
+  };
+
+  const handleQrScan = useCallback(async (code: string) => {
+    if (!user || !scanningUserMissionId || !scanningMissionId) return;
+    const { data: unit } = await supabase
+      .from("health_units")
+      .select("id, name")
+      .eq("qr_code", code)
+      .eq("active", true)
+      .maybeSingle();
+
+    setScanningMissionId(null);
+
+    if (!unit) {
+      toast.error("QR Code inválido");
+      return;
+    }
+
+    await supabase.from("mission_validations").insert({
+      user_mission_id: scanningUserMissionId,
+      user_id: user.id,
+      validation_type: "qr_code",
+      health_unit_id: unit.id,
+      status: "approved",
+      validated_at: new Date().toISOString(),
+    } as any);
+
+    await completeMission(scanningMissionId, scanningUserMissionId);
+    setScanningUserMissionId(null);
+  }, [user, scanningMissionId, scanningUserMissionId]);
+
+  const handlePhotoCaptured = useCallback(async (photoUrl: string) => {
+    if (!user || !photoUserMissionId || !photoMissionId) return;
+    await supabase.from("mission_validations").insert({
+      user_mission_id: photoUserMissionId,
+      user_id: user.id,
+      validation_type: "photo_proof",
+      photo_url: photoUrl,
+      status: "pending",
+    } as any);
+
+    await supabase
+      .from("user_missions")
+      .update({ status: "pending_review" } as any)
+      .eq("id", photoUserMissionId);
+
+    setUserMissionStatus(prev => ({ ...prev, [photoMissionId]: { userMissionId: photoUserMissionId, status: "pending_review" } }));
+    setPhotoMissionId(null);
+    setPhotoUserMissionId(null);
+    toast.success("Comprovante enviado! 📷 Aguardando validação.");
+  }, [user, photoMissionId, photoUserMissionId]);
+
+  const getActionLabel = (vType: string) => {
+    switch (vType) {
+      case "qr_code": return "📱 Escanear QR";
+      case "photo_proof": return "📷 Enviar foto";
+      default: return "Completar ✓";
+    }
   };
 
   if (loading) return <p className="text-sm text-muted-foreground text-center py-6">Carregando programas...</p>;
@@ -205,15 +349,38 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
                               ) : !missions || missions.length === 0 ? (
                                 <p className="text-xs text-muted-foreground">Nenhuma missão nesta campanha.</p>
                               ) : (
-                                missions.map(m => (
-                                  <div key={m.id} className="flex items-center gap-2 bg-secondary/30 rounded-md p-2">
-                                    <span className="text-sm">{m.emoji || "🎯"}</span>
-                                    <span className="flex-1 text-sm text-foreground">{m.title}</span>
-                                    {m.points ? (
-                                      <Badge variant="outline" className="text-[10px]">{m.points} pts</Badge>
-                                    ) : null}
-                                  </div>
-                                ))
+                                missions.map(m => {
+                                  const status = userMissionStatus[m.id];
+                                  const isCompleted = status?.status === "completed";
+                                  const isPendingReview = status?.status === "pending_review";
+                                  const vType = m.validation_type || "self_report";
+                                  const isAuto = vType.startsWith("auto_");
+
+                                  return (
+                                    <div key={m.id} className={`flex items-center gap-2 rounded-md p-2 ${isCompleted ? "bg-green-500/10" : "bg-secondary/30"}`}>
+                                      <span className="text-sm">{m.emoji || "🎯"}</span>
+                                      <span className={`flex-1 text-sm ${isCompleted ? "text-muted-foreground line-through" : "text-foreground"}`}>{m.title}</span>
+                                      {m.points ? (
+                                        <Badge variant="outline" className="text-[10px] shrink-0">{m.points} pts</Badge>
+                                      ) : null}
+                                      {isCompleted ? (
+                                        <span className="text-xs text-green-600 font-semibold shrink-0">✅</span>
+                                      ) : isPendingReview ? (
+                                        <span className="text-[10px] text-primary font-semibold shrink-0">⏳ Análise</span>
+                                      ) : isAuto ? (
+                                        <span className="text-[10px] text-muted-foreground shrink-0">🤖 Auto</span>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleMissionAction(m)}
+                                          className="text-[10px] font-semibold px-2 py-1 rounded-md text-accent-foreground shrink-0"
+                                          style={{ background: "hsl(var(--accent))" }}
+                                        >
+                                          {getActionLabel(vType)}
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })
                               )}
                             </div>
                           )}
@@ -227,6 +394,14 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
           </Card>
         );
       })}
+
+      {scanningMissionId && (
+        <QrScanner onScan={handleQrScan} onClose={() => { setScanningMissionId(null); setScanningUserMissionId(null); }} />
+      )}
+
+      {photoMissionId && user && (
+        <PhotoCapture userId={user.id} onCapture={handlePhotoCaptured} onClose={() => { setPhotoMissionId(null); setPhotoUserMissionId(null); }} />
+      )}
     </div>
   );
 }

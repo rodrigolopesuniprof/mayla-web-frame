@@ -39,7 +39,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [selectedAlert, setSelectedAlert] = useState<NotificationItem | null>(null);
   const [profilePoints, setProfilePoints] = useState(0);
   const [profileLevel, setProfileLevel] = useState("Colaborador");
-  const [hasEsf, setHasEsf] = useState(true);
+  
 
   // Team state
   const [myTeam, setMyTeam] = useState<TeamInfo | null>(null);
@@ -54,8 +54,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [showConsultHistory, setShowConsultHistory] = useState(false);
   const [consultHistory, setConsultHistory] = useState<any[]>([]);
 
-  // Binah
-  const [binahEnabled, setBinahEnabled] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -66,7 +64,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         setProfileName(data.full_name);
         setProfilePoints(data.points);
         setProfileLevel(data.level);
-        setHasEsf(!!(data as any).esf_team_id);
       }
     });
 
@@ -79,13 +76,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
     fetchMyTeam();
   }, [user]);
 
-  // Binah feature check
-  useEffect(() => {
-    if (!companyId) return;
-    supabase.from("company_features").select("enabled").eq("company_id", companyId).eq("feature_key", "binah_special_measurement").maybeSingle().then(({ data }) => {
-      if (data?.enabled) setBinahEnabled(true);
-    });
-  }, [companyId]);
 
   const fetchMyTeam = async () => {
     if (!user) return;
@@ -263,17 +253,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       </div>
 
-      {/* ESF Link CTA */}
-      {!hasEsf &&
-        <div className="mx-5 mb-5 rounded-[18px] px-5 py-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform border-2 border-dashed border-primary/30 bg-primary/5" onClick={onOpenEsfLink}>
-          <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--primary) / .15)" }}>🏥</div>
-          <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground mb-0.5">Conecte-se à sua equipe</div>
-            <div className="text-sm text-muted-foreground leading-snug">Escaneie o QR Code na unidade · ganhe +500 pts</div>
-          </div>
-          <span className="text-xl text-primary font-bold">›</span>
-        </div>
-      }
 
       {/* rPPG CTA */}
       <div
@@ -290,22 +269,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <span style={{ fontSize: 20, color: "rgba(255,255,255,.4)" }}>›</span>
       </div>
 
-      {/* Binah Special Health Assessment CTA */}
-      {binahEnabled && (
-        <div
-          className="mx-5 mb-5 rounded-[18px] px-5 py-4 flex items-center gap-4 relative overflow-hidden cursor-pointer"
-          style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))" }}
-          onClick={() => setTab("bemestar")}
-        >
-          <div className="absolute rounded-full" style={{ top: -20, right: -20, width: 90, height: 90, background: "rgba(255,255,255,.04)" }} />
-          <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,.2)" }}>🔬</div>
-          <div className="flex-1">
-            <div className="text-[15px] font-semibold text-primary-foreground mb-0.5">Avaliação de Saúde Especial</div>
-            <div className="text-sm leading-snug" style={{ color: "rgba(255,255,255,.55)" }}>PA, hemoglobina, HRV · análise completa</div>
-          </div>
-          <span style={{ fontSize: 20, color: "rgba(255,255,255,.4)" }}>›</span>
-        </div>
-      )}
 
       {/* Alerts */}
       {alerts.length > 0 &&
