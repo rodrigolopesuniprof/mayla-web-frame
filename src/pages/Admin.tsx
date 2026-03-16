@@ -103,8 +103,7 @@ export default function Admin() {
         {activeTab === "programas" && <AdminPrograms />}
         {activeTab === "avisos" && <AdminNotifications />}
         {activeTab === "equipes" && <AdminSupportTeams />}
-        {activeTab === "locais" && <AdminLocations />}
-        {activeTab === "especialidades" && <AdminSpecialties />}
+        {activeTab === "especialistas" && <AdminSpecialties />}
         {activeTab === "agendamentos" && <AdminAppointments />}
       </div>
     </div>
