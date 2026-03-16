@@ -120,9 +120,17 @@ export default function PartnerRegistration() {
           <img src={maylaLogo} alt="Mayla" className="w-16 h-16 rounded-2xl mx-auto mb-6" />
           <div className="text-5xl mb-4">✅</div>
           <h1 className="font-display text-2xl font-bold text-foreground mb-2">Cadastro recebido!</h1>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-4">
             Sua solicitação foi enviada com sucesso. Nossa equipe irá analisar e entrar em contato em breve.
           </p>
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 text-left">
+            <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-1">⏳ Próximos passos</p>
+            <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
+              <li>Seu cadastro será analisado pela nossa equipe</li>
+              <li>Após aprovação, você aparecerá no marketplace e nas consultas</li>
+              <li>Você receberá um e-mail quando for aprovado</li>
+            </ul>
+          </div>
           <Button variant="outline" onClick={() => { setSuccess(false); setSelectedType(null); }}>
             Novo cadastro
           </Button>
