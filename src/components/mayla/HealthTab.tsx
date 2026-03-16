@@ -214,8 +214,8 @@ export function HealthTab() {
           <div className="flex items-center gap-4">
             <div className="text-5xl">🔬</div>
             <div>
-              <div className="text-lg font-semibold" style={{ color: "#fff" }}>
-                Medição Especial
+                <div className="text-lg font-semibold" style={{ color: "#fff" }}>
+                Avaliação de Saúde Especial
               </div>
               <div className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,.8)" }}>
                 Análise completa · PA, hemoglobina, HRV · +100 pts

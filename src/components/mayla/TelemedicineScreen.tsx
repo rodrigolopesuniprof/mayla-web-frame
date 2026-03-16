@@ -15,14 +15,20 @@ export function TelemedicineScreen({ onBack }: { onBack: () => void }) {
           >
             ← Voltar
           </button>
-          <span className="font-display text-base font-medium text-foreground">Telemedicina</span>
+          <span className="font-display text-base font-medium text-foreground">Consulta Online</span>
         </div>
         <div className="flex-1 flex items-center justify-center px-8">
-          <div className="text-center">
-            <span className="text-4xl mb-3 block">📹</span>
-            <p className="text-sm text-muted-foreground">
-              Telemedicina ainda não está disponível para o seu município.
+          <div className="text-center max-w-xs">
+            <span className="text-5xl mb-4 block">👨‍⚕️</span>
+            <h3 className="font-display text-lg font-semibold text-foreground mb-2">Em breve: Marketplace de Especialistas</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              Conecte-se com médicos e especialistas de saúde para teleconsultas via vídeo, com agendamento integrado e prontuário digital.
             </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {["📹 Telechamada", "📋 Prontuário", "💳 Pagamento"].map((item, i) => (
+                <span key={i} className="text-[11px] font-medium rounded-full px-3 py-1.5 bg-primary/10 text-primary">{item}</span>
+              ))}
+            </div>
           </div>
         </div>
       </div>

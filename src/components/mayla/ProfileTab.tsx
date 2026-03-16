@@ -50,7 +50,7 @@ interface HealthProfile {
   has_child_under_12: boolean | null;
 }
 
-type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes";
+type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime";
 
 export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } = {}) {
   const { user, signOut } = useAuth();
@@ -102,6 +102,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
           {subView === "autoavaliacao" && <AutoAvaliacao userId={user?.id} onRetakeSurvey={onRetakeSurvey} />}
           {subView === "medicoes" && <HistoricoMedicoes userId={user?.id} />}
           {subView === "consultas" && <ConsultasAgendadas userId={user?.id} />}
+          {subView === "meutime" && <MeuTime userId={user?.id} />}
           {(subView === "medicamentos" || subView === "exames" || subView === "notificacoes" || subView === "configuracoes") && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <span className="text-4xl">🚧</span>
@@ -150,6 +151,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
           { key: "autoavaliacao" as SubView, emoji: "🩺", label: "Auto avaliação" },
           { key: "medicoes" as SubView, emoji: "📊", label: "Histórico de medições" },
           { key: "consultas" as SubView, emoji: "📅", label: "Consultas agendadas" },
+          { key: "meutime" as SubView, emoji: "👥", label: "Meu Time" },
           { key: "medicamentos" as SubView, emoji: "💊", label: "Medicamentos" },
           { key: "exames" as SubView, emoji: "📄", label: "Exames e resultados" },
           { key: "notificacoes" as SubView, emoji: "🔔", label: "Notificações" },
@@ -523,6 +525,170 @@ function ConsultasAgendadas({ userId }: { userId?: string }) {
           {a.clinic_name && <div className="text-[11px] text-muted-foreground">🏥 {a.clinic_name}</div>}
         </div>
       ))}
+    </div>
+  );
+}
+
+// Meu Time sub-view
+function MeuTime({ userId }: { userId?: string }) {
+  const [myTeam, setMyTeam] = useState<{ id: string; name: string; emoji: string | null; is_default: boolean | null } | null>(null);
+  const [members, setMembers] = useState<{ user_id: string; full_name: string | null; points: number }[]>([]);
+  const [availableTeams, setAvailableTeams] = useState<{ id: string; name: string; emoji: string | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmoji, setNewEmoji] = useState("🏃");
+
+  const fetchData = async () => {
+    if (!userId) return;
+    setLoading(true);
+
+    // Get user's team
+    const { data: membership } = await supabase
+      .from("team_members")
+      .select("team_id, collaborative_teams(id, name, emoji, is_default, company_id)")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (membership && (membership as any).collaborative_teams) {
+      const t = (membership as any).collaborative_teams;
+      setMyTeam(t);
+
+      // Get team members with points
+      const { data: teamMembers } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", t.id);
+
+      if (teamMembers) {
+        const userIds = teamMembers.map((m: any) => m.user_id);
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, points")
+          .in("user_id", userIds)
+          .order("points", { ascending: false });
+        setMembers((profiles || []) as any);
+      }
+
+      // Available teams from same company
+      const { data: teams } = await supabase
+        .from("collaborative_teams")
+        .select("id, name, emoji")
+        .eq("company_id", t.company_id)
+        .order("name");
+      setAvailableTeams((teams || []) as any);
+    } else {
+      // Fetch available teams via profile company
+      const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", userId).maybeSingle();
+      if (profile?.company_id) {
+        const { data: teams } = await supabase.from("collaborative_teams").select("id, name, emoji").eq("company_id", profile.company_id).order("name");
+        setAvailableTeams((teams || []) as any);
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, [userId]);
+
+  const handleJoin = async (teamId: string) => {
+    if (!userId) return;
+    await supabase.from("team_members").delete().eq("user_id", userId);
+    const { error } = await supabase.from("team_members").insert({ team_id: teamId, user_id: userId });
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Time atualizado! 🎉" });
+      fetchData();
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!userId || !newName.trim()) return;
+    const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", userId).maybeSingle();
+    if (!profile?.company_id) return;
+    const { data, error } = await supabase.from("collaborative_teams").insert({
+      company_id: profile.company_id,
+      name: newName.trim(),
+      emoji: newEmoji || "🏃",
+      created_by: userId,
+    }).select("id").single();
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else if (data) {
+      await handleJoin(data.id);
+      setNewName("");
+      setShowCreate(false);
+    }
+  };
+
+  if (loading) return <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>;
+
+  return (
+    <div className="space-y-5">
+      <h3 className="font-display text-lg font-medium text-foreground">Meu Time</h3>
+
+      {myTeam ? (
+        <>
+          <div className="bg-accent/10 rounded-2xl p-4 border border-accent/20 flex items-center gap-3">
+            <span className="text-3xl">{myTeam.emoji}</span>
+            <div>
+              <div className="text-base font-semibold text-foreground">{myTeam.name}</div>
+              <div className="text-xs text-muted-foreground">{members.length} membro{members.length !== 1 ? "s" : ""}</div>
+            </div>
+          </div>
+
+          {members.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Ranking do time</p>
+              <div className="space-y-2">
+                {members.map((m, i) => (
+                  <div key={m.user_id} className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-3">
+                    <span className="text-sm font-bold text-muted-foreground w-6 text-center">{i + 1}º</span>
+                    <span className="text-sm font-medium text-foreground flex-1">{m.full_name || "Usuário"}</span>
+                    <span className="text-xs font-semibold text-accent">⭐ {m.points.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-center py-6">
+          <span className="text-4xl block mb-2">👥</span>
+          <p className="text-sm text-muted-foreground">Você ainda não está em nenhum time.</p>
+        </div>
+      )}
+
+      <div>
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Times disponíveis</p>
+        <div className="space-y-2">
+          {availableTeams.map((team) => (
+            <div key={team.id} className="bg-secondary rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleJoin(team.id)}>
+              <span className="text-xl">{team.emoji}</span>
+              <span className="text-sm font-medium text-foreground flex-1">{team.name}</span>
+              {myTeam?.id === team.id ? <span className="text-xs text-accent font-semibold">Atual</span> : <span className="text-xs text-primary font-medium">Entrar</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {!showCreate ? (
+        <Button variant="outline" className="w-full" onClick={() => setShowCreate(true)}>✨ Criar novo time</Button>
+      ) : (
+        <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do time" />
+          <div className="flex gap-2 flex-wrap">
+            {["🏃", "💪", "🧘", "🚴", "⚡", "🌟", "🎯", "🔥"].map((e) => (
+              <button key={e} onClick={() => setNewEmoji(e)} className={`text-2xl p-2 rounded-xl cursor-pointer transition-colors ${newEmoji === e ? "bg-accent/20 ring-2 ring-accent" : "bg-secondary"}`}>{e}</button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setShowCreate(false)}>Cancelar</Button>
+            <Button className="flex-1" onClick={handleCreate} disabled={!newName.trim()}>Criar</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
