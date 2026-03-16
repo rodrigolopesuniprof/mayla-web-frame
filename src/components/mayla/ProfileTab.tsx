@@ -151,6 +151,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
           { key: "autoavaliacao" as SubView, emoji: "🩺", label: "Auto avaliação" },
           { key: "medicoes" as SubView, emoji: "📊", label: "Histórico de medições" },
           { key: "consultas" as SubView, emoji: "📅", label: "Consultas agendadas" },
+          { key: "meutime" as SubView, emoji: "👥", label: "Meu Time" },
           { key: "medicamentos" as SubView, emoji: "💊", label: "Medicamentos" },
           { key: "exames" as SubView, emoji: "📄", label: "Exames e resultados" },
           { key: "notificacoes" as SubView, emoji: "🔔", label: "Notificações" },
