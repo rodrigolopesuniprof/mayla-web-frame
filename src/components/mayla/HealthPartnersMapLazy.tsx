@@ -17,8 +17,10 @@ export default function HealthPartnersMapContent({ center, userPos, partners, se
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
 
+  // Initialize map
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    if (!containerRef.current) return;
+    if (mapRef.current) return;
 
     const map = L.map(containerRef.current, {
       zoomControl: false,
@@ -32,6 +34,11 @@ export default function HealthPartnersMapContent({ center, userPos, partners, se
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
+    // Force recalculation after render
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
     return () => {
       markersRef.current?.clearLayers();
       map.remove();
@@ -40,11 +47,14 @@ export default function HealthPartnersMapContent({ center, userPos, partners, se
     };
   }, []);
 
+  // Pan to new center
   useEffect(() => {
     if (!mapRef.current) return;
     mapRef.current.setView(center, 13);
+    mapRef.current.invalidateSize();
   }, [center]);
 
+  // Update markers
   useEffect(() => {
     const map = mapRef.current;
     const markers = markersRef.current;
@@ -55,21 +65,32 @@ export default function HealthPartnersMapContent({ center, userPos, partners, se
     L.marker(userPos, { icon: userLocationIcon }).bindPopup("Você está aqui").addTo(markers);
 
     partners
-      .filter((partner) => typeof partner.display_lat === "number" && typeof partner.display_lng === "number")
+      .filter((p) => typeof p.display_lat === "number" && typeof p.display_lng === "number")
       .forEach((partner) => {
         const marker = L.marker([partner.display_lat!, partner.display_lng!], {
           icon: createPartnerIcon(partner.partner_type, selectedId === partner.id),
         });
 
-        const distanceLabel = partner.distance != null
+        const distLabel = partner.distance != null
           ? `<br />📏 ${partner.distance < 1 ? `${Math.round(partner.distance * 1000)} m` : `${partner.distance.toFixed(1)} km`}`
           : "";
 
-        marker.bindPopup(`<div class=\"text-xs\"><strong>${partner.name}</strong><br />${partner.specialty || partner.partner_type}${distanceLabel}</div>`);
+        marker.bindPopup(`<div style="font-size:12px"><strong>${partner.name}</strong><br />${partner.specialty || partner.partner_type}${distLabel}</div>`);
         marker.on("click", () => onPinClick(partner.id));
         marker.addTo(markers);
       });
+
+    // Fit bounds if we have partners
+    if (partners.length > 0) {
+      const lats = [userPos[0], ...partners.filter(p => p.display_lat).map(p => p.display_lat!)];
+      const lngs = [userPos[1], ...partners.filter(p => p.display_lng).map(p => p.display_lng!)];
+      const bounds = L.latLngBounds(
+        [Math.min(...lats), Math.min(...lngs)],
+        [Math.max(...lats), Math.max(...lngs)]
+      );
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+    }
   }, [onPinClick, partners, selectedId, userPos]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return <div ref={containerRef} style={{ height: "100%", width: "100%", minHeight: "220px" }} />;
 }
