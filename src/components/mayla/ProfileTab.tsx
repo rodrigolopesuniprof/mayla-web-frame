@@ -50,7 +50,7 @@ interface HealthProfile {
   has_child_under_12: boolean | null;
 }
 
-type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes";
+type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime";
 
 export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } = {}) {
   const { user, signOut } = useAuth();
