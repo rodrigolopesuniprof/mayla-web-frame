@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { TopBar } from "./TopBar";
 import { TelemedicineScreen } from "./TelemedicineScreen";
 import { AppointmentBooking } from "./AppointmentBooking";
+import { HealthPartnersMap } from "./HealthPartnersMap";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-type SubView = "menu" | "telemedicine" | "appointment" | "history";
+type SubView = "menu" | "telemedicine" | "appointment" | "history" | "partners";
 
 interface Appointment {
   id: string;
