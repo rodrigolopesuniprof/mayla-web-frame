@@ -47,6 +47,10 @@ export function ServicosTab() {
     return <AppointmentBooking onBack={() => setSubView("menu")} />;
   }
 
+  if (subView === "partners") {
+    return <HealthPartnersMap onBack={() => setSubView("menu")} />;
+  }
+
   if (subView === "history") {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
