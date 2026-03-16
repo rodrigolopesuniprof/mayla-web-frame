@@ -10,6 +10,12 @@ import { toast } from "@/hooks/use-toast";
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
+const SPECIALTIES = [
+  "Clínico Geral", "Cardiologia", "Dermatologia", "Endocrinologia", "Gastroenterologia",
+  "Ginecologia e Obstetrícia", "Neurologia", "Nutrição", "Oftalmologia", "Ortopedia",
+  "Pediatria", "Psiquiatria", "Urologia", "Cirurgia Geral",
+];
+
 interface Slot {
   id?: string;
   partner_id: string;
@@ -19,13 +25,15 @@ interface Slot {
   consultation_mode: string;
   is_active: boolean;
   slot_duration_minutes: number;
+  specialty: string | null;
 }
 
 interface Props {
   partnerId: string;
+  partnerType?: string;
 }
 
-export function DoctorAvailabilityEditor({ partnerId }: Props) {
+export function DoctorAvailabilityEditor({ partnerId, partnerType }: Props) {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,6 +61,7 @@ export function DoctorAvailabilityEditor({ partnerId }: Props) {
       consultation_mode: "both",
       is_active: true,
       slot_duration_minutes: 30,
+      specialty: null,
     }]);
   };
 
@@ -70,6 +79,7 @@ export function DoctorAvailabilityEditor({ partnerId }: Props) {
       consultation_mode: slot.consultation_mode,
       is_active: slot.is_active,
       slot_duration_minutes: slot.slot_duration_minutes,
+      specialty: slot.specialty || null,
     };
 
     if (slot.id) {
@@ -99,6 +109,15 @@ export function DoctorAvailabilityEditor({ partnerId }: Props) {
       {slots.length === 0 && <p className="text-xs text-muted-foreground">Nenhum horário cadastrado.</p>}
       {slots.map((slot, idx) => (
         <div key={idx} className="border border-border rounded-xl p-4 flex flex-wrap items-end gap-3">
+          {partnerType === "clinic" && (
+            <div className="space-y-1 w-44">
+              <Label className="text-xs">Especialidade</Label>
+              <Select value={slot.specialty || ""} onValueChange={v => updateSlot(idx, "specialty", v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1 w-32">
             <Label className="text-xs">Dia</Label>
             <Select value={String(slot.weekday)} onValueChange={v => updateSlot(idx, "weekday", Number(v))}>

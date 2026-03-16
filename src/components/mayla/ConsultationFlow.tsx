@@ -28,6 +28,7 @@ import { ptBR } from "date-fns/locale";
 interface Doctor {
   id: string;
   name: string;
+  partner_type: string;
   specialty: string | null;
   consultation_type: string | null;
   consultation_price: number | null;
@@ -43,6 +44,9 @@ interface Doctor {
   phone: string | null;
   description: string | null;
   logo_url: string | null;
+  notification_email: string | null;
+  email: string | null;
+  specialties_offered: string[] | null;
   // computed
   distance?: number;
   display_lat?: number;
@@ -58,6 +62,7 @@ interface AvailSlot {
   consultation_mode: string;
   is_active: boolean;
   slot_duration_minutes: number;
+  specialty: string | null;
 }
 
 interface DoctorLocation {
@@ -206,7 +211,8 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     setLoading(true);
 
     const fetchData = async () => {
-      let q = supabase
+      // Fetch doctors matching specialty
+      let qDoctors = supabase
         .from("partners")
         .select("*")
         .eq("partner_type", "doctor")
@@ -215,16 +221,38 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
         .ilike("specialty", `%${selectedSpecialty}%`);
 
       if (consultMode === "online") {
-        q = q.eq("online_consultation_enabled", true);
+        qDoctors = qDoctors.eq("online_consultation_enabled", true);
       }
 
-      const [{ data: docs }, { data: locs }, { data: avail }] = await Promise.all([
-        q,
+      // Fetch clinics that offer this specialty (via specialties_offered or availability)
+      const qClinics = supabase
+        .from("partners")
+        .select("*")
+        .eq("partner_type", "clinic")
+        .eq("active", true)
+        .eq("approval_status", "approved");
+
+      const [{ data: docs }, { data: clinics }, { data: locs }, { data: avail }] = await Promise.all([
+        qDoctors,
+        qClinics,
         supabase.from("partner_locations").select("*"),
         supabase.from("doctor_availability").select("*").eq("is_active", true),
       ]);
 
-      setDoctors((docs as Doctor[]) || []);
+      // Filter clinics: those with availability for the selected specialty
+      const clinicIds = new Set((avail || [])
+        .filter(a => a.specialty && a.specialty.toLowerCase().includes(selectedSpecialty!.toLowerCase()))
+        .map(a => a.partner_id));
+      
+      // Also include clinics that have the specialty in specialties_offered
+      const matchingClinics = (clinics || []).filter(c => {
+        if (clinicIds.has(c.id)) return true;
+        const offered = c.specialties_offered as string[] | null;
+        return offered?.some(s => s.toLowerCase().includes(selectedSpecialty!.toLowerCase()));
+      });
+
+      const allProviders = [...(docs || []), ...matchingClinics];
+      setDoctors(allProviders as Doctor[]);
       setDoctorLocations((locs as DoctorLocation[]) || []);
       setAvailability((avail as AvailSlot[]) || []);
       setLoading(false);
@@ -252,11 +280,18 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     }).sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
   }, [doctors, doctorLocations, userPos]);
 
-  // Doctor availability slots
+  // Doctor/clinic availability slots - for clinics, filter by selected specialty
   const doctorSlots = useMemo(() => {
     if (!selectedDoctor) return [];
-    return availability.filter((a) => a.partner_id === selectedDoctor.id);
-  }, [selectedDoctor, availability]);
+    const partnerSlots = availability.filter((a) => a.partner_id === selectedDoctor.id);
+    // For clinics, only show slots matching the selected specialty
+    if (selectedDoctor.partner_type === "clinic" && selectedSpecialty) {
+      const specLower = selectedSpecialty.toLowerCase();
+      const filtered = partnerSlots.filter(s => s.specialty && s.specialty.toLowerCase().includes(specLower));
+      return filtered.length > 0 ? filtered : partnerSlots; // fallback to all if no specialty-tagged slots
+    }
+    return partnerSlots;
+  }, [selectedDoctor, availability, selectedSpecialty]);
 
   // Available weekdays for calendar highlighting
   const availableWeekdays = useMemo(() => new Set(doctorSlots.map((s) => s.weekday)), [doctorSlots]);
@@ -342,16 +377,20 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       ? `${format(selectedDate, "yyyy-MM-dd")}T${selectedSlotTime.split(" – ")[0]}:00`
       : format(selectedDate, "yyyy-MM-dd'T'09:00:00");
 
-    const { error } = await supabase.from("appointments").insert({
+    const clinicLabel = selectedDoctor.partner_type === "clinic"
+      ? selectedDoctor.name
+      : selectedDoctor.city ? `${selectedDoctor.city} - ${selectedDoctor.state}` : null;
+
+    const { data: apptData, error } = await supabase.from("appointments").insert({
       user_id: user.id,
       specialty: selectedSpecialty,
       appointment_date: appointmentDate,
       doctor_name: selectedDoctor.name,
-      clinic_name: selectedDoctor.city ? `${selectedDoctor.city} - ${selectedDoctor.state}` : null,
+      clinic_name: clinicLabel,
       company_id: (company as any)?.id || null,
       notes: patientNotes || null,
       status: "scheduled",
-    });
+    }).select("id").single();
 
     setBooking(false);
     if (error) {
@@ -359,6 +398,13 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     } else {
       toast({ title: "Consulta agendada! ✅" });
       setStep("done");
+
+      // Send email notification to doctor/clinic (fire and forget)
+      if (apptData?.id) {
+        supabase.functions.invoke("notify-appointment", {
+          body: { appointment_id: apptData.id },
+        }).catch(err => console.warn("Email notification failed:", err));
+      }
     }
   };
 
@@ -516,7 +562,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
                 {/* Doctor list */}
                 <div className="px-4 py-3 space-y-2">
-                  <p className="text-xs text-muted-foreground">{enrichedDoctors.length} médico(s) encontrado(s)</p>
+                  <p className="text-xs text-muted-foreground">{enrichedDoctors.length} profissional(is) encontrado(s)</p>
                   {enrichedDoctors.map((d) => (
                     <button
                       key={d.id}
@@ -529,10 +575,14 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">🩺</div>
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
+                          {d.partner_type === "clinic" ? "🏥" : "🩺"}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-foreground truncate">{d.name}</div>
-                          <div className="text-xs text-muted-foreground">{d.specialty}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {d.partner_type === "clinic" ? "Clínica" : d.specialty}
+                          </div>
                           <div className="flex items-center gap-3 mt-1 flex-wrap">
                             {d.crm && <span className="text-[10px] text-muted-foreground">CRM {d.crm}/{d.crm_state}</span>}
                             {d.distance != null && d.distance < Infinity && (
