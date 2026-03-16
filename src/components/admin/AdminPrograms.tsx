@@ -523,7 +523,7 @@ export function AdminPrograms() {
       {/* ── Modal: Mission ─────────────────────────────── */}
       <Dialog open={showMissionForm} onOpenChange={setShowMissionForm}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Nova Missão</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingMission ? "Editar Missão" : "Nova Missão"}</DialogTitle></DialogHeader>
           {missionParentProgram && missionParentCampaign && (
             <div className="bg-secondary/50 rounded-md px-3 py-2 text-xs text-muted-foreground">
               Dentro de › <span className="font-medium text-foreground">{missionParentProgram.emoji} {missionParentProgram.title}</span> › <span className="font-medium text-foreground">{missionParentCampaign.emoji || "🏆"} {missionParentCampaign.title}</span>
