@@ -18,6 +18,7 @@ interface Location {
   latitude: number | null;
   longitude: number | null;
   is_main: boolean;
+  _google_maps_url?: string;
 }
 
 interface Props {
@@ -62,7 +63,10 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
 
   const saveRow = async (idx: number) => {
     const loc = locations[idx];
-    const mapsCoordinates = extractCoordinatesFromGoogleMapsUrl(loc.full_address);
+    // Try to extract coords from dedicated Google Maps URL field first, then from address
+    const mapsCoordinates =
+      extractCoordinatesFromGoogleMapsUrl(loc._google_maps_url) ??
+      extractCoordinatesFromGoogleMapsUrl(loc.full_address);
     const payload = {
       partner_id: loc.partner_id,
       location_name: loc.location_name,
@@ -75,13 +79,28 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
       is_main: loc.is_main,
     };
 
+    if (mapsCoordinates) {
+      // Update local state so user sees the resolved coords
+      updateRow(idx, "latitude", mapsCoordinates.latitude);
+      updateRow(idx, "longitude", mapsCoordinates.longitude);
+    }
+
     if (loc.id) {
       await supabase.from("partner_locations").update(payload).eq("id", loc.id);
     } else {
       const { data } = await supabase.from("partner_locations").insert(payload).select().single();
       if (data) updateRow(idx, "id", data.id);
     }
-    toast({ title: "Local salvo" });
+
+    // Also sync coordinates to the partners table if this is the main location
+    if (loc.is_main && (payload.latitude != null || payload.longitude != null)) {
+      await supabase.from("partners").update({
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+      }).eq("id", loc.partner_id);
+    }
+
+    toast({ title: mapsCoordinates ? "Local salvo ✅ Coordenadas extraídas!" : "Local salvo" });
   };
 
   const deleteRow = async (idx: number) => {
@@ -123,6 +142,21 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
               <Label className="text-xs">CEP</Label>
               <Input value={loc.zip_code} onChange={e => updateRow(idx, "zip_code", e.target.value)} />
             </div>
+          </div>
+          {/* Google Maps URL field */}
+          <div className="space-y-1">
+            <Label className="text-xs">🔗 Link do Google Maps (para extrair coordenadas)</Label>
+            <Input
+              value={loc._google_maps_url || ""}
+              onChange={e => updateRow(idx, "_google_maps_url", e.target.value)}
+              placeholder="Cole aqui o link do Google Maps"
+            />
+            {loc.latitude != null && loc.longitude != null && (
+              <p className="text-[10px] text-muted-foreground">📍 Coordenadas: {loc.latitude}, {loc.longitude}</p>
+            )}
+            {!loc.latitude && !loc.longitude && (
+              <p className="text-[10px] text-orange-500">⚠️ Sem coordenadas — cole um link do Google Maps e salve</p>
+            )}
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
