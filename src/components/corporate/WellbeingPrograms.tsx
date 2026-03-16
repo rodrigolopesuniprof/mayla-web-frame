@@ -391,7 +391,12 @@ export function WellbeingPrograms({ companyId, primaryColor, onNavigate }: Props
                                       ) : isPendingReview ? (
                                         <span className="text-[10px] text-primary font-semibold shrink-0">⏳ Análise</span>
                                       ) : isAuto ? (
-                                        <span className="text-[10px] text-muted-foreground shrink-0">🤖 Auto</span>
+                                        <button
+                                          onClick={() => handleAutoNavigate(vType)}
+                                          className="text-[10px] font-semibold px-2 py-1 rounded-md shrink-0 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition"
+                                        >
+                                          {getAutoLabel(vType)}
+                                        </button>
                                       ) : (
                                         <button
                                           onClick={() => handleMissionAction(m)}
