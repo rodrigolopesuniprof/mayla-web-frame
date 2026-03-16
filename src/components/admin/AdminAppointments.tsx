@@ -1,128 +1,149 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface Appointment {
-  id: string;
-  specialty: string;
-  appointment_date: string;
-  status: string;
-  created_at: string;
-  user_id: string;
-  municipality_id: string | null;
-  profile_name?: string;
-  profile_cpf?: string;
-}
-
-interface Municipality {
+interface Company {
   id: string;
   name: string;
 }
 
-export function AdminAppointments() {
-  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
-  const [selectedMuni, setSelectedMuni] = useState("");
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "cancelled">("pending");
+interface AppointmentRow {
+  id: string;
+  specialty: string;
+  appointment_date: string;
+  status: string;
+  doctor_name: string | null;
+  company_id: string | null;
+  company_name?: string;
+}
 
-  useEffect(() => {
-    supabase.from("municipalities").select("id, name").order("name").then(({ data }) => {
-      if (data) {
-        setMunicipalities(data);
-        if (data.length > 0 && !selectedMuni) setSelectedMuni(data[0].id);
-      }
-    });
-  }, []);
+export function AdminAppointments() {
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState("all");
+  const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!selectedMuni) return;
     setLoading(true);
+
+    const { data: companiesData } = await supabase
+      .from("companies")
+      .select("id, name")
+      .order("name");
+    if (companiesData) setCompanies(companiesData);
 
     let query = supabase
       .from("appointments")
-      .select("*")
-      .eq("municipality_id", selectedMuni)
-      .order("appointment_date", { ascending: true });
+      .select("id, specialty, appointment_date, status, doctor_name, company_id")
+      .order("appointment_date", { ascending: false })
+      .limit(200);
 
-    if (filter !== "all") {
-      query = query.eq("status", filter);
+    if (selectedCompany !== "all") {
+      query = query.eq("company_id", selectedCompany);
     }
 
     const { data } = await query;
 
-    if (data) {
-      // Fetch profile names for these appointments
-      const userIds = [...new Set(data.map(a => a.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, cpf")
-        .in("user_id", userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-
+    if (data && companiesData) {
+      const companyMap = new Map(companiesData.map(c => [c.id, c.name]));
       setAppointments(data.map(a => ({
         ...a,
-        profile_name: profileMap.get(a.user_id)?.full_name || "—",
-        profile_cpf: profileMap.get(a.user_id)?.cpf || "—",
+        company_name: a.company_id ? companyMap.get(a.company_id) || "—" : "—",
       })));
     }
 
     setLoading(false);
-  }, [selectedMuni, filter]);
+  }, [selectedCompany]);
 
   useEffect(() => { load(); }, [load]);
-
-  const updateStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else { toast({ title: `Status atualizado para "${status}"` }); load(); }
-  };
 
   const statusLabel: Record<string, { text: string; color: string }> = {
     pending: { text: "Pendente", color: "bg-amber-100 text-amber-800" },
     confirmed: { text: "Confirmado", color: "bg-green-100 text-green-800" },
     scheduled: { text: "Agendado", color: "bg-blue-100 text-blue-800" },
     cancelled: { text: "Cancelado", color: "bg-red-100 text-red-800" },
+    completed: { text: "Concluído", color: "bg-emerald-100 text-emerald-800" },
   };
+
+  // Stats
+  const total = appointments.length;
+  const byStatus = appointments.reduce<Record<string, number>>((acc, a) => {
+    acc[a.status] = (acc[a.status] || 0) + 1;
+    return acc;
+  }, {});
+  const bySpecialty = appointments.reduce<Record<string, number>>((acc, a) => {
+    acc[a.specialty] = (acc[a.specialty] || 0) + 1;
+    return acc;
+  }, {});
+  const topSpecialties = Object.entries(bySpecialty).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-2xl text-foreground">Agendamentos</h2>
-      </div>
-
-      <div className="flex items-end gap-4 mb-4">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <Label className="text-sm">Município</Label>
-          <select
-            value={selectedMuni}
-            onChange={e => setSelectedMuni(e.target.value)}
-            className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
-          >
-            {municipalities.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
+          <h2 className="font-display text-2xl text-foreground">Relatório de Agendamentos</h2>
+          <p className="text-sm text-muted-foreground mt-1">Visão geral das consultas realizadas</p>
         </div>
-        <div className="flex gap-1">
-          {(["all", "pending", "confirmed", "cancelled"] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-2 text-xs rounded-lg border-none cursor-pointer font-medium transition-colors ${
-                filter === f ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {f === "all" ? "Todos" : statusLabel[f]?.text || f}
-            </button>
-          ))}
-        </div>
+        <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+          <SelectTrigger className="w-[220px] h-9 text-sm">
+            <SelectValue placeholder="Filtrar por empresa" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as empresas</SelectItem>
+            {companies.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-foreground">{total}</div>
+            <div className="text-xs text-muted-foreground mt-1">Total</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{byStatus["confirmed"] || 0}</div>
+            <div className="text-xs text-muted-foreground mt-1">Confirmados</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-amber-600">{byStatus["pending"] || 0}</div>
+            <div className="text-xs text-muted-foreground mt-1">Pendentes</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-red-600">{byStatus["cancelled"] || 0}</div>
+            <div className="text-xs text-muted-foreground mt-1">Cancelados</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Specialties */}
+      {topSpecialties.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Top Especialidades</h3>
+          <div className="flex flex-wrap gap-2">
+            {topSpecialties.map(([spec, count]) => (
+              <span key={spec} className="text-xs bg-secondary text-secondary-foreground rounded-lg px-3 py-1.5 font-medium">
+                {spec} · {count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Appointments Table */}
       {loading ? (
         <div className="flex flex-col gap-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-16 bg-secondary rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-14 bg-secondary rounded-xl animate-pulse" />)}
         </div>
       ) : appointments.length === 0 ? (
         <p className="text-muted-foreground text-sm text-center py-8">Nenhum agendamento encontrado.</p>
@@ -131,29 +152,19 @@ export function AdminAppointments() {
           {appointments.map(a => {
             const st = statusLabel[a.status] || statusLabel.pending;
             return (
-              <div key={a.id} className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl">
+              <div key={a.id} className="flex items-center gap-4 p-3 bg-card border border-border rounded-xl">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">{a.profile_name}</div>
+                  <div className="text-sm font-medium text-foreground">{a.specialty}</div>
                   <div className="text-xs text-muted-foreground">
-                    CPF: {a.profile_cpf} · {a.specialty}
+                    {a.company_name} {a.doctor_name ? `· Dr(a). ${a.doctor_name}` : ""}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    📅 {new Date(a.appointment_date).toLocaleString("pt-BR")}
-                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground whitespace-nowrap">
+                  {new Date(a.appointment_date).toLocaleDateString("pt-BR")}
                 </div>
                 <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${st.color}`}>
                   {st.text}
                 </span>
-                {a.status === "pending" && (
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus(a.id, "confirmed")}>
-                      ✅ Confirmar
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => updateStatus(a.id, "cancelled")}>
-                      ✕
-                    </Button>
-                  </div>
-                )}
               </div>
             );
           })}
