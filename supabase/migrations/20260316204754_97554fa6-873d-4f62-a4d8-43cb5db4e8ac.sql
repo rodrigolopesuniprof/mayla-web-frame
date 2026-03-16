@@ -1,0 +1,1 @@
+ALTER TABLE public.doctor_availability ADD COLUMN slot_duration_minutes integer NOT NULL DEFAULT 30;

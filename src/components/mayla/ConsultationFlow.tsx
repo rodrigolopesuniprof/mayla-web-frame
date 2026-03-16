@@ -1,15 +1,28 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { TopBar } from "./TopBar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+/** Future: integrate with electronic medical records API */
+// interface MedicalRecord {
+//   appointment_id: string;
+//   patient_id: string;
+//   doctor_id: string;
+//   diagnosis: string;
+//   prescription: string;
+//   notes: string;
+//   created_at: string;
+// }
 
 /* ─── types ─── */
 interface Doctor {
@@ -44,6 +57,7 @@ interface AvailSlot {
   end_time: string;
   consultation_mode: string;
   is_active: boolean;
+  slot_duration_minutes: number;
 }
 
 interface DoctorLocation {
@@ -55,6 +69,15 @@ interface DoctorLocation {
   latitude: number | null;
   longitude: number | null;
   is_main: boolean | null;
+}
+
+/** A computed individual time window from an availability block */
+interface TimeWindow {
+  slotId: string;
+  start: string; // "08:00"
+  end: string;   // "08:30"
+  consultation_mode: string;
+  duration: number;
 }
 
 type Step = "specialty" | "mode" | "doctors" | "schedule" | "confirm" | "done";
@@ -90,6 +113,31 @@ function formatDist(km: number) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
+/** Split an availability block into individual time windows */
+function splitIntoWindows(slot: AvailSlot): TimeWindow[] {
+  const duration = slot.slot_duration_minutes || 30;
+  const [startH, startM] = slot.start_time.split(":").map(Number);
+  const [endH, endM] = slot.end_time.split(":").map(Number);
+  const startMin = startH * 60 + startM;
+  const endMin = endH * 60 + endM;
+  const windows: TimeWindow[] = [];
+
+  for (let t = startMin; t + duration <= endMin; t += duration) {
+    const sh = String(Math.floor(t / 60)).padStart(2, "0");
+    const sm = String(t % 60).padStart(2, "0");
+    const eh = String(Math.floor((t + duration) / 60)).padStart(2, "0");
+    const em = String((t + duration) % 60).padStart(2, "0");
+    windows.push({
+      slotId: slot.id,
+      start: `${sh}:${sm}`,
+      end: `${eh}:${em}`,
+      consultation_mode: slot.consultation_mode || "both",
+      duration,
+    });
+  }
+  return windows;
+}
+
 function createDoctorIcon(selected: boolean) {
   const size = selected ? 40 : 30;
   return L.divIcon({
@@ -107,12 +155,6 @@ const userIcon = L.divIcon({
   html: `<div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 3px rgba(59,130,246,.3);"></div>`,
 });
 
-function RecenterMap({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => { map.setView(center, 13); }, [center]);
-  return null;
-}
-
 /* ─── Next available date for a weekday ─── */
 function getNextDateForWeekday(weekday: number, fromDate: Date = new Date()): Date {
   const d = new Date(fromDate);
@@ -120,6 +162,9 @@ function getNextDateForWeekday(weekday: number, fromDate: Date = new Date()): Da
   d.setDate(d.getDate() + (diff === 0 ? 7 : diff));
   return d;
 }
+
+/* ─── Lazy-loaded Map component ─── */
+const LazyMap = lazy(() => import("./ConsultationMap"));
 
 /* ─── Main Component ─── */
 export function ConsultationFlow({ onBack }: { onBack: () => void }) {
@@ -135,6 +180,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlotTime, setSelectedSlotTime] = useState<string | null>(null);
+  const [patientNotes, setPatientNotes] = useState("");
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState(false);
@@ -160,7 +206,6 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     setLoading(true);
 
     const fetchData = async () => {
-      // Build query for doctors matching specialty
       let q = supabase
         .from("partners")
         .select("*")
@@ -225,11 +270,12 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     return { days, startPad: monthStart.getDay() };
   }, [currentMonth]);
 
-  // Slots for selected date
-  const slotsForDate = useMemo(() => {
+  // Time windows for selected date (split by duration)
+  const windowsForDate = useMemo(() => {
     if (!selectedDate) return [];
     const weekday = selectedDate.getDay();
-    return doctorSlots.filter((s) => s.weekday === weekday);
+    const slotsForDay = doctorSlots.filter((s) => s.weekday === weekday);
+    return slotsForDay.flatMap(splitIntoWindows);
   }, [selectedDate, doctorSlots]);
 
   /* ─── Handlers ─── */
@@ -240,12 +286,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
   const handleSelectMode = (mode: ConsultMode) => {
     setConsultMode(mode);
-    if (mode === "first_available") {
-      // Auto-select first available doctor
-      setStep("doctors");
-    } else {
-      setStep("doctors");
-    }
+    setStep("doctors");
   };
 
   const handleSelectDoctor = (d: Doctor) => {
@@ -263,30 +304,30 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     setSelectedSlotTime(null);
   };
 
-  const handleSelectTime = (slot: AvailSlot) => {
-    setSelectedSlotTime(`${slot.start_time.slice(0, 5)} – ${slot.end_time.slice(0, 5)}`);
+  const handleSelectTime = (tw: TimeWindow) => {
+    setSelectedSlotTime(`${tw.start} – ${tw.end}`);
     setStep("confirm");
   };
 
   const handleFirstAvailable = () => {
-    // Pick first doctor with earliest available slot
     const now = new Date();
     const todayWeekday = now.getDay();
     
     for (const doc of enrichedDoctors) {
       const docSlots = availability.filter((a) => a.partner_id === doc.id);
       if (docSlots.length > 0) {
-        // Find closest weekday slot
         const sorted = [...docSlots].sort((a, b) => {
           const diffA = (a.weekday - todayWeekday + 7) % 7;
           const diffB = (b.weekday - todayWeekday + 7) % 7;
           return diffA - diffB;
         });
         const best = sorted[0];
+        const windows = splitIntoWindows(best);
+        const firstWindow = windows[0];
         setSelectedDoctor(doc);
         const nextDate = getNextDateForWeekday(best.weekday);
         setSelectedDate(nextDate);
-        setSelectedSlotTime(`${best.start_time.slice(0, 5)} – ${best.end_time.slice(0, 5)}`);
+        setSelectedSlotTime(firstWindow ? `${firstWindow.start} – ${firstWindow.end}` : `${best.start_time.slice(0, 5)} – ${best.end_time.slice(0, 5)}`);
         setStep("confirm");
         return;
       }
@@ -309,6 +350,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       doctor_name: selectedDoctor.name,
       clinic_name: selectedDoctor.city ? `${selectedDoctor.city} - ${selectedDoctor.state}` : null,
       company_id: (company as any)?.id || null,
+      notes: patientNotes || null,
       status: "scheduled",
     });
 
@@ -439,26 +481,20 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                 {/* Map for presencial mode */}
                 {consultMode === "presencial" && userPos && (
                   <div className="h-[35vh] min-h-[200px] shrink-0">
-                    <MapContainer center={mapCenter} zoom={13} className="h-full w-full" zoomControl={false} attributionControl={false}>
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                      <RecenterMap center={mapCenter} />
-                      <Marker position={userPos} icon={userIcon}><Popup>Você</Popup></Marker>
-                      {enrichedDoctors.filter((d) => d.display_lat && d.display_lng).map((d) => (
-                        <Marker
-                          key={d.id}
-                          position={[d.display_lat!, d.display_lng!]}
-                          icon={createDoctorIcon(mapSelectedId === d.id)}
-                          eventHandlers={{
-                            click: () => {
-                              setMapSelectedId(d.id);
-                              document.getElementById(`doc-card-${d.id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                            },
-                          }}
-                        >
-                          <Popup><strong>{d.name}</strong><br />{d.specialty}</Popup>
-                        </Marker>
-                      ))}
-                    </MapContainer>
+                    <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-secondary"><p className="text-xs text-muted-foreground">Carregando mapa...</p></div>}>
+                      <LazyMap
+                        center={mapCenter}
+                        userPos={userPos}
+                        userIcon={userIcon}
+                        doctors={enrichedDoctors}
+                        mapSelectedId={mapSelectedId}
+                        createDoctorIcon={createDoctorIcon}
+                        onPinClick={(id) => {
+                          setMapSelectedId(id);
+                          document.getElementById(`doc-card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                        }}
+                      />
+                    </Suspense>
                   </div>
                 )}
 
@@ -593,29 +629,29 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
 
-                {/* Time slots */}
+                {/* Time windows */}
                 {selectedDate && (
                   <div>
                     <p className="text-[12px] font-semibold text-foreground mb-2">
                       📅 {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
                     </p>
-                    {slotsForDate.length === 0 ? (
+                    {windowsForDate.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Sem horários neste dia.</p>
                     ) : (
-                      <div className="flex flex-col gap-2">
-                        {slotsForDate.map((slot) => (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {windowsForDate.map((tw, i) => (
                           <button
-                            key={slot.id}
-                            onClick={() => handleSelectTime(slot)}
-                            className="flex items-center gap-3 p-3 bg-card rounded-2xl border border-border hover:border-primary/40 transition-colors cursor-pointer text-left w-full"
+                            key={i}
+                            onClick={() => handleSelectTime(tw)}
+                            className="flex flex-col items-center p-3 bg-card rounded-xl border border-border hover:border-primary/40 transition-colors cursor-pointer"
                           >
                             <span className="text-[13px] font-semibold text-foreground">
-                              🕐 {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                              {tw.start} – {tw.end}
                             </span>
-                            <Badge variant="outline" className="text-[10px] ml-auto">
-                              {slot.consultation_mode === "online" ? "Online" : slot.consultation_mode === "presencial" ? "Presencial" : "Ambos"}
+                            <span className="text-[10px] text-muted-foreground mt-0.5">{tw.duration} min</span>
+                            <Badge variant="outline" className="text-[9px] mt-1">
+                              {tw.consultation_mode === "online" ? "Online" : tw.consultation_mode === "presencial" ? "Presencial" : "Ambos"}
                             </Badge>
-                            <span className="text-muted-foreground text-xs">Reservar ›</span>
                           </button>
                         ))}
                       </div>
@@ -669,6 +705,18 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
               </div>
             </div>
 
+            {/* Patient notes */}
+            <div className="mb-4 space-y-1">
+              <Label className="text-xs text-muted-foreground">📝 Descreva seus sintomas (opcional)</Label>
+              <Textarea
+                value={patientNotes}
+                onChange={(e) => setPatientNotes(e.target.value)}
+                placeholder="Ex: Dor de cabeça há 3 dias, febre baixa..."
+                rows={3}
+                className="text-sm"
+              />
+            </div>
+
             <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 mb-4">
               <p className="text-[11px] text-foreground leading-relaxed">
                 {consultMode === "online"
@@ -698,10 +746,14 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
               Sua consulta com <strong>{selectedDoctor?.name}</strong> em <strong>{selectedSpecialty}</strong> foi registrada.
             </p>
             {consultMode === "online" && (
-              <p className="text-xs text-muted-foreground mb-4">
+              <p className="text-xs text-muted-foreground mb-2">
                 📹 O link da teleconsulta será enviado antes do horário agendado.
               </p>
             )}
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-4 mx-auto max-w-sm text-left">
+              <p className="text-[11px] text-foreground font-medium mb-1">📋 Prontuário digital</p>
+              <p className="text-[10px] text-muted-foreground">O registro desta consulta ficará disponível no seu histórico de saúde após o atendimento.</p>
+            </div>
             <button onClick={onBack} className="px-6 py-2.5 rounded-xl border-none bg-primary text-primary-foreground text-[13px] font-semibold cursor-pointer">
               Voltar ao início
             </button>

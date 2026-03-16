@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { TopBar } from "./TopBar";
@@ -14,16 +13,9 @@ import {
   DEFAULT_CENTER,
   enrichPartners,
   applyFilters,
-  createPartnerIcon,
-  userLocationIcon,
 } from "@/lib/partner-helpers";
 
-/* ─── Map recenter ─── */
-function RecenterMap({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap();
-  useEffect(() => { map.setView(center, zoom); }, [center, zoom]);
-  return null;
-}
+const LazyMapContent = lazy(() => import("./HealthPartnersMapLazy"));
 
 /* ─── Main Component ─── */
 interface Props {
@@ -131,29 +123,19 @@ export function HealthPartnersMap({ onBack }: Props) {
             <p className="text-xs text-muted-foreground">{loading ? "Carregando parceiros..." : "Obtendo localização..."}</p>
           </div>
         ) : (
-          <MapContainer center={mapCenter} zoom={13} className="h-full w-full" zoomControl={false} attributionControl={false}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <RecenterMap center={mapCenter} zoom={13} />
-            <Marker position={userPos} icon={userLocationIcon}>
-              <Popup>Você está aqui</Popup>
-            </Marker>
-            {filtered.map((p) => (
-              <Marker
-                key={p.id}
-                position={[p.display_lat!, p.display_lng!]}
-                icon={createPartnerIcon(p.partner_type, selectedId === p.id)}
-                eventHandlers={{ click: () => handlePinClick(p.id) }}
-              >
-                <Popup>
-                  <div className="text-xs">
-                    <strong>{p.name}</strong><br />
-                    {p.specialty || p.partner_type}
-                    {p.distance != null && <><br />📏 {p.distance < 1 ? `${Math.round(p.distance * 1000)} m` : `${p.distance.toFixed(1)} km`}</>}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+          <Suspense fallback={
+            <div className="h-full w-full flex items-center justify-center bg-secondary">
+              <p className="text-xs text-muted-foreground">Carregando mapa...</p>
+            </div>
+          }>
+            <LazyMapContent
+              center={mapCenter}
+              userPos={userPos}
+              partners={filtered}
+              selectedId={selectedId}
+              onPinClick={handlePinClick}
+            />
+          </Suspense>
         )}
         {geoError && (
           <div className="absolute top-2 left-2 right-2 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 text-xs px-3 py-1.5 rounded-lg z-[1000]">

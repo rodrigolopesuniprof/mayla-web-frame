@@ -29,6 +29,7 @@ export interface AvailabilitySlot {
   end_time: string;
   consultation_mode: string;
   is_active: boolean;
+  slot_duration_minutes: number;
 }
 
 export interface ClinicDoctor {
@@ -162,7 +163,7 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
   // --- Availability helpers ---
   const availability = data._availability || [];
   const addAvailSlot = () => {
-    set("_availability", [...availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true }]);
+    set("_availability", [...availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true, slot_duration_minutes: 30 }]);
   };
   const updateAvailSlot = (idx: number, field: keyof AvailabilitySlot, val: unknown) => {
     set("_availability", availability.map((s, i) => i === idx ? { ...s, [field]: val } : s));
@@ -184,7 +185,7 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
   };
   const addDoctorAvailSlot = (docIdx: number) => {
     const doc = clinicDoctors[docIdx];
-    updateClinicDoctor(docIdx, "availability", [...doc.availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true }]);
+    updateClinicDoctor(docIdx, "availability", [...doc.availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true, slot_duration_minutes: 30 }]);
   };
   const updateDoctorAvailSlot = (docIdx: number, slotIdx: number, field: keyof AvailabilitySlot, val: unknown) => {
     const doc = clinicDoctors[docIdx];
@@ -581,6 +582,8 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
 }
 
 // --- Reusable availability row ---
+const DURATION_OPTIONS = [15, 20, 30, 45, 60];
+
 function AvailabilityRow({ slot, idx, onUpdate, onRemove, compact }: {
   slot: AvailabilitySlot;
   idx: number;
@@ -604,6 +607,15 @@ function AvailabilityRow({ slot, idx, onUpdate, onRemove, compact }: {
       <div className="space-y-1 w-24">
         <Label className="text-xs">Fim</Label>
         <Input className="h-8 text-xs" type="time" value={slot.end_time} onChange={e => onUpdate(idx, "end_time", e.target.value)} />
+      </div>
+      <div className="space-y-1 w-24">
+        <Label className="text-xs">Duração</Label>
+        <Select value={String(slot.slot_duration_minutes || 30)} onValueChange={v => onUpdate(idx, "slot_duration_minutes", Number(v))}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {DURATION_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{d} min</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-1 w-28">
         <Label className="text-xs">Modo</Label>
