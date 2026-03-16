@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { TopBar } from "./TopBar";
-import { TelemedicineScreen } from "./TelemedicineScreen";
+import { ConsultationFlow } from "./ConsultationFlow";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { HealthPartnersMap } from "./HealthPartnersMap";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-type SubView = "menu" | "telemedicine" | "appointment" | "history" | "partners";
+type SubView = "menu" | "consultation" | "appointment_legacy" | "history" | "partners";
 
 interface Appointment {
   id: string;
@@ -39,11 +39,11 @@ export function ServicosTab() {
     }
   }, [subView, user]);
 
-  if (subView === "telemedicine") {
-    return <TelemedicineScreen onBack={() => setSubView("menu")} />;
+  if (subView === "consultation") {
+    return <ConsultationFlow onBack={() => setSubView("menu")} />;
   }
 
-  if (subView === "appointment") {
+  if (subView === "appointment_legacy") {
     return <AppointmentBooking onBack={() => setSubView("menu")} />;
   }
 
@@ -70,6 +70,7 @@ export function ServicosTab() {
                 confirmed: { label: "Confirmada", color: "hsl(var(--mayla-green, 142 71% 45%))" },
                 cancelled: { label: "Cancelada", color: "hsl(var(--destructive))" },
                 completed: { label: "Realizada", color: "hsl(var(--muted-foreground))" },
+                pending: { label: "Pendente", color: "hsl(var(--primary))" },
               };
               const st = statusMap[a.status] || statusMap.scheduled;
               return (
@@ -101,27 +102,15 @@ export function ServicosTab() {
         <h3 className="text-sm font-semibold text-muted-foreground tracking-[.08em] uppercase mb-2">Consultas</h3>
 
         <button
-          onClick={() => setSubView("telemedicine")}
-          className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left"
+          onClick={() => setSubView("consultation")}
+          className="w-full rounded-2xl p-4 border-2 border-primary/20 bg-primary/5 flex items-center gap-4 cursor-pointer text-left"
         >
-          <span className="text-3xl">📹</span>
+          <span className="text-3xl">🩺</span>
           <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground">Consulta Online</div>
-            <div className="text-sm text-muted-foreground">Teleconsulta por vídeo</div>
+            <div className="text-[15px] font-semibold text-foreground">Realizar Consulta</div>
+            <div className="text-sm text-muted-foreground">Online, presencial ou primeiro disponível</div>
           </div>
-          <span className="text-muted-foreground text-lg">›</span>
-        </button>
-
-        <button
-          onClick={() => setSubView("appointment")}
-          className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left"
-        >
-          <span className="text-3xl">🏥</span>
-          <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground">Consulta Presencial</div>
-            <div className="text-sm text-muted-foreground">Agende uma consulta na unidade</div>
-          </div>
-          <span className="text-muted-foreground text-lg">›</span>
+          <span className="text-primary text-lg font-bold">›</span>
         </button>
 
         <button
@@ -145,7 +134,7 @@ export function ServicosTab() {
           <span className="text-3xl">📍</span>
           <div className="flex-1">
             <div className="text-[15px] font-semibold text-foreground">Parceiros de Saúde</div>
-            <div className="text-sm text-muted-foreground">Encontre médicos, clínicas, academias e mais perto de você</div>
+            <div className="text-sm text-muted-foreground">Encontre médicos, clínicas, academias e mais</div>
           </div>
           <span className="text-muted-foreground text-lg">›</span>
         </button>
