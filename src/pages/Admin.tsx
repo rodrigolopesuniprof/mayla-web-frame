@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { AdminCompanies } from "@/components/admin/AdminCompanies";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminNotifications } from "@/components/admin/AdminNotifications";
-import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
+import { AdminPartners } from "@/components/admin/AdminPartners";
 import { AdminAppointments } from "@/components/admin/AdminAppointments";
 import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
 import { AdminPrograms } from "@/components/admin/AdminPrograms";
