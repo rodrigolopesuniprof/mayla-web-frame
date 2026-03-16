@@ -271,22 +271,39 @@ export function AdminPrograms() {
   const openNewMission = (campaign: Campaign, program: Program) => {
     setMissionParentCampaign(campaign);
     setMissionParentProgram(program);
+    setEditingMission(null);
     setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
+    setShowMissionForm(true);
+  };
+
+  const openEditMission = (m: CampaignMission, campaign: Campaign, program: Program) => {
+    setMissionParentCampaign(campaign);
+    setMissionParentProgram(program);
+    setEditingMission(m);
+    setMissionForm({ title: m.title, points: String(m.points || 0), frequency: m.frequency || "daily", tag: m.tag, validation_type: m.validation_type || "self_report" });
     setShowMissionForm(true);
   };
 
   const saveMission = async () => {
     if (!missionForm.title || !missionParentCampaign) { toast.error("Preencha o nome da missão."); return; }
-    const { data: mission, error } = await supabase.from("missions").insert({
+    const payload = {
       title: missionForm.title, points: parseInt(missionForm.points) || 0, frequency: missionForm.frequency,
-      tag: missionForm.tag, emoji: "🎯", active: true, validation_type: missionForm.validation_type,
-    }).select("id").single();
-    if (error || !mission) { toast.error("Erro ao criar missão: " + (error?.message || "")); return; }
-    const { error: linkError } = await supabase.from("campaign_missions").insert({
-      campaign_id: missionParentCampaign.id, mission_id: mission.id, sort_order: 0,
-    });
-    if (linkError) { toast.error("Erro ao vincular missão."); return; }
-    toast.success("Missão criada e vinculada.");
+      tag: missionForm.tag, validation_type: missionForm.validation_type,
+    };
+    if (editingMission) {
+      const { error } = await supabase.from("missions").update(payload).eq("id", editingMission.mission_id);
+      if (error) { toast.error("Erro ao atualizar missão: " + error.message); return; }
+      toast.success("Missão atualizada.");
+    } else {
+      const { data: mission, error } = await supabase.from("missions").insert({
+        ...payload, emoji: "🎯", active: true,
+      }).select("id").single();
+      if (error || !mission) { toast.error("Erro ao criar missão: " + (error?.message || "")); return; }
+      const { error: linkError } = await supabase.from("campaign_missions").insert({
+        campaign_id: missionParentCampaign.id, mission_id: mission.id, sort_order: 0,
+      });
+      if (linkError) { toast.error("Erro ao vincular missão."); return; }
+    }
     setShowMissionForm(false);
     loadMissions(missionParentCampaign.id);
     load();
