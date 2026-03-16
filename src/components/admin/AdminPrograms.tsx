@@ -111,6 +111,7 @@ export function AdminPrograms() {
   const [showMissionForm, setShowMissionForm] = useState(false);
   const [missionParentCampaign, setMissionParentCampaign] = useState<Campaign | null>(null);
   const [missionParentProgram, setMissionParentProgram] = useState<Program | null>(null);
+  const [editingMission, setEditingMission] = useState<CampaignMission | null>(null);
   const [missionForm, setMissionForm] = useState({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
 
   // Delete
@@ -270,22 +271,39 @@ export function AdminPrograms() {
   const openNewMission = (campaign: Campaign, program: Program) => {
     setMissionParentCampaign(campaign);
     setMissionParentProgram(program);
+    setEditingMission(null);
     setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
+    setShowMissionForm(true);
+  };
+
+  const openEditMission = (m: CampaignMission, campaign: Campaign, program: Program) => {
+    setMissionParentCampaign(campaign);
+    setMissionParentProgram(program);
+    setEditingMission(m);
+    setMissionForm({ title: m.title, points: String(m.points || 0), frequency: m.frequency || "daily", tag: m.tag, validation_type: m.validation_type || "self_report" });
     setShowMissionForm(true);
   };
 
   const saveMission = async () => {
     if (!missionForm.title || !missionParentCampaign) { toast.error("Preencha o nome da missão."); return; }
-    const { data: mission, error } = await supabase.from("missions").insert({
+    const payload = {
       title: missionForm.title, points: parseInt(missionForm.points) || 0, frequency: missionForm.frequency,
-      tag: missionForm.tag, emoji: "🎯", active: true, validation_type: missionForm.validation_type,
-    }).select("id").single();
-    if (error || !mission) { toast.error("Erro ao criar missão: " + (error?.message || "")); return; }
-    const { error: linkError } = await supabase.from("campaign_missions").insert({
-      campaign_id: missionParentCampaign.id, mission_id: mission.id, sort_order: 0,
-    });
-    if (linkError) { toast.error("Erro ao vincular missão."); return; }
-    toast.success("Missão criada e vinculada.");
+      tag: missionForm.tag, validation_type: missionForm.validation_type,
+    };
+    if (editingMission) {
+      const { error } = await supabase.from("missions").update(payload).eq("id", editingMission.mission_id);
+      if (error) { toast.error("Erro ao atualizar missão: " + error.message); return; }
+      toast.success("Missão atualizada.");
+    } else {
+      const { data: mission, error } = await supabase.from("missions").insert({
+        ...payload, emoji: "🎯", active: true,
+      }).select("id").single();
+      if (error || !mission) { toast.error("Erro ao criar missão: " + (error?.message || "")); return; }
+      const { error: linkError } = await supabase.from("campaign_missions").insert({
+        campaign_id: missionParentCampaign.id, mission_id: mission.id, sort_order: 0,
+      });
+      if (linkError) { toast.error("Erro ao vincular missão."); return; }
+    }
     setShowMissionForm(false);
     loadMissions(missionParentCampaign.id);
     load();
@@ -400,6 +418,9 @@ export function AdminPrograms() {
                                       <Badge variant="outline" className="text-[10px]">{m.points || 0} pts</Badge>
                                       <Badge variant="outline" className="text-[10px]">{FREQ_LABELS[m.frequency || ""] || m.frequency}</Badge>
                                       <Badge variant="secondary" className="text-[10px]">{VALIDATION_BADGE[m.validation_type || "self_report"] || "✅"}</Badge>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditMission(m, camp, prog)}>
+                                        <Pencil className="h-3 w-3" />
+                                      </Button>
                                       <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setDeleteTarget({ type: "mission", id: m.campaign_mission_id, title: m.title, campaignId: missionParentCampaign?.id || camp.id })}>
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
@@ -502,7 +523,7 @@ export function AdminPrograms() {
       {/* ── Modal: Mission ─────────────────────────────── */}
       <Dialog open={showMissionForm} onOpenChange={setShowMissionForm}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Nova Missão</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingMission ? "Editar Missão" : "Nova Missão"}</DialogTitle></DialogHeader>
           {missionParentProgram && missionParentCampaign && (
             <div className="bg-secondary/50 rounded-md px-3 py-2 text-xs text-muted-foreground">
               Dentro de › <span className="font-medium text-foreground">{missionParentProgram.emoji} {missionParentProgram.title}</span> › <span className="font-medium text-foreground">{missionParentCampaign.emoji || "🏆"} {missionParentCampaign.title}</span>
