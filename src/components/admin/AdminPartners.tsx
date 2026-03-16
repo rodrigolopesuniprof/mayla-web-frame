@@ -288,7 +288,9 @@ export function AdminPartners() {
               </div>
 
               <PartnerLocationsEditor partnerId={detailPartner.id} />
-              {activeType === "doctor" && <DoctorAvailabilityEditor partnerId={detailPartner.id} />}
+              {(activeType === "doctor" || activeType === "clinic") && (
+                <DoctorAvailabilityEditor partnerId={detailPartner.id} partnerType={activeType} />
+              )}
             </div>
           )}
         </DialogContent>
