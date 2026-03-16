@@ -6,6 +6,7 @@ import { PartnerFilterBar } from "./PartnerFilterBar";
 import { PartnerCard } from "./PartnerCard";
 import { PartnerDetail } from "./PartnerDetail";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   type Partner,
   type PartnerLocation,
@@ -17,6 +18,8 @@ import {
 
 const LazyMapContent = lazy(() => import("./HealthPartnersMapLazy"));
 
+type GeoState = "idle" | "requesting" | "granted" | "denied";
+
 /* ─── Main Component ─── */
 interface Props {
   onBack: () => void;
@@ -24,7 +27,7 @@ interface Props {
 
 export function HealthPartnersMap({ onBack }: Props) {
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
-  const [geoError, setGeoError] = useState(false);
+  const [geoState, setGeoState] = useState<GeoState>("idle");
   const [partners, setPartners] = useState<Partner[]>([]);
   const [locations, setLocations] = useState<PartnerLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,19 +41,32 @@ export function HealthPartnersMap({ onBack }: Props) {
     city: "",
   });
 
-  // Geolocation
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
-        () => { setGeoError(true); setUserPos(DEFAULT_CENTER); },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      setGeoError(true);
+  // Request geolocation
+  const requestLocation = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      setGeoState("denied");
       setUserPos(DEFAULT_CENTER);
+      return;
     }
+
+    setGeoState("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserPos([pos.coords.latitude, pos.coords.longitude]);
+        setGeoState("granted");
+      },
+      () => {
+        setGeoState("denied");
+        setUserPos(DEFAULT_CENTER);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }, []);
+
+  // Auto-request on mount
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   // Fetch partners + locations
   useEffect(() => {
@@ -66,10 +82,10 @@ export function HealthPartnersMap({ onBack }: Props) {
     load();
   }, []);
 
-  // Enrich with distance
+  // Enrich with distance — use larger radius (50km) so partners are more likely to show
   const enriched = useMemo(() => {
     if (!userPos) return [];
-    return enrichPartners(partners, locations, userPos);
+    return enrichPartners(partners, locations, userPos, 50);
   }, [partners, locations, userPos]);
 
   // Extract unique specialties & cities for filter dropdowns
@@ -115,12 +131,27 @@ export function HealthPartnersMap({ onBack }: Props) {
         resultCount={filtered.length}
       />
 
+      {/* Location permission prompt */}
+      {geoState === "idle" && (
+        <div className="px-4 py-6 flex flex-col items-center gap-3 bg-secondary/50">
+          <span className="text-3xl">📍</span>
+          <p className="text-sm text-center text-muted-foreground">
+            Para encontrar parceiros de saúde próximos a você, precisamos acessar sua localização.
+          </p>
+          <Button onClick={requestLocation} size="sm">
+            Permitir localização
+          </Button>
+        </div>
+      )}
+
       {/* Map */}
       <div className="h-[40vh] min-h-[220px] shrink-0 relative">
         {loading || !userPos ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary gap-3">
             <Skeleton className="w-10 h-10 rounded-full" />
-            <p className="text-xs text-muted-foreground">{loading ? "Carregando parceiros..." : "Obtendo localização..."}</p>
+            <p className="text-xs text-muted-foreground">
+              {geoState === "requesting" ? "Obtendo sua localização..." : "Carregando parceiros..."}
+            </p>
           </div>
         ) : (
           <Suspense fallback={
@@ -137,9 +168,10 @@ export function HealthPartnersMap({ onBack }: Props) {
             />
           </Suspense>
         )}
-        {geoError && (
-          <div className="absolute top-2 left-2 right-2 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 text-xs px-3 py-1.5 rounded-lg z-[1000]">
-            ⚠️ Não foi possível obter sua localização. Mostrando região padrão.
+        {geoState === "denied" && (
+          <div className="absolute top-2 left-2 right-2 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 text-xs px-3 py-1.5 rounded-lg z-[1000] flex items-center justify-between">
+            <span>⚠️ Localização indisponível. Mostrando região padrão.</span>
+            <button onClick={requestLocation} className="underline ml-2 font-medium">Tentar novamente</button>
           </div>
         )}
       </div>

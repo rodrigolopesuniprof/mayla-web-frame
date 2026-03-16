@@ -40,6 +40,10 @@ export default function ConsultationMap({ center, userPos, userIcon, doctors, ma
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
     return () => {
       markersRef.current?.clearLayers();
       map.remove();
@@ -51,6 +55,7 @@ export default function ConsultationMap({ center, userPos, userIcon, doctors, ma
   useEffect(() => {
     if (!mapRef.current) return;
     mapRef.current.setView(center, 13);
+    mapRef.current.invalidateSize();
   }, [center]);
 
   useEffect(() => {
@@ -63,17 +68,17 @@ export default function ConsultationMap({ center, userPos, userIcon, doctors, ma
     L.marker(userPos, { icon: userIcon }).bindPopup("Você").addTo(markers);
 
     doctors
-      .filter((doctor) => typeof doctor.display_lat === "number" && typeof doctor.display_lng === "number")
+      .filter((d) => typeof d.display_lat === "number" && typeof d.display_lng === "number")
       .forEach((doctor) => {
         const marker = L.marker([doctor.display_lat!, doctor.display_lng!], {
           icon: createDoctorIcon(mapSelectedId === doctor.id),
         });
 
-        marker.bindPopup(`<strong>${doctor.name}</strong><br />${doctor.specialty ?? ""}`);
+        marker.bindPopup(`<div style="font-size:12px"><strong>${doctor.name}</strong><br />${doctor.specialty ?? ""}</div>`);
         marker.on("click", () => onPinClick(doctor.id));
         marker.addTo(markers);
       });
   }, [createDoctorIcon, doctors, mapSelectedId, onPinClick, userIcon, userPos]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return <div ref={containerRef} style={{ height: "100%", width: "100%", minHeight: "200px" }} />;
 }
