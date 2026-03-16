@@ -235,22 +235,21 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
   // Enrich doctors with distance for presencial
   const enrichedDoctors = useMemo(() => {
-    if (!userPos) return doctors;
     return doctors.map((d) => {
       const locs = doctorLocations.filter((l) => l.partner_id === d.id && l.latitude != null && l.longitude != null);
       let bestLat = d.latitude, bestLng = d.longitude, bestDist = Infinity;
       
-      if (locs.length > 0) {
+      if (locs.length > 0 && userPos) {
         for (const loc of locs) {
           const dist = haversine(userPos[0], userPos[1], loc.latitude!, loc.longitude!);
           if (dist < bestDist) { bestDist = dist; bestLat = loc.latitude; bestLng = loc.longitude; }
         }
-      } else if (bestLat != null && bestLng != null) {
+      } else if (bestLat != null && bestLng != null && userPos) {
         bestDist = haversine(userPos[0], userPos[1], bestLat, bestLng);
       }
 
       return { ...d, display_lat: bestLat ?? undefined, display_lng: bestLng ?? undefined, distance: bestDist };
-    }).filter((d) => d.display_lat != null && d.display_lng != null).sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
+    }).sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
   }, [doctors, doctorLocations, userPos]);
 
   // Doctor availability slots
@@ -486,7 +485,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                         center={mapCenter}
                         userPos={userPos}
                         userIcon={userIcon}
-                        doctors={enrichedDoctors}
+                        doctors={enrichedDoctors.filter(d => d.display_lat != null && d.display_lng != null)}
                         mapSelectedId={mapSelectedId}
                         createDoctorIcon={createDoctorIcon}
                         onPinClick={(id) => {
@@ -539,11 +538,14 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                             {d.distance != null && d.distance < Infinity && (
                               <span className="text-[10px] text-muted-foreground">📏 {formatDist(d.distance)}</span>
                             )}
+                            {d.distance === Infinity && d.city && (
+                              <span className="text-[10px] text-muted-foreground">📍 {d.city}/{d.state}</span>
+                            )}
                             {d.consultation_price != null && (
                               <span className="text-xs font-semibold text-foreground">R$ {d.consultation_price.toFixed(0)}</span>
                             )}
                             {d.online_consultation_enabled && (
-                              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Online</span>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Online</Badge>
                             )}
                           </div>
                         </div>
