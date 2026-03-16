@@ -211,7 +211,8 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     setLoading(true);
 
     const fetchData = async () => {
-      let q = supabase
+      // Fetch doctors matching specialty
+      let qDoctors = supabase
         .from("partners")
         .select("*")
         .eq("partner_type", "doctor")
@@ -220,16 +221,38 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
         .ilike("specialty", `%${selectedSpecialty}%`);
 
       if (consultMode === "online") {
-        q = q.eq("online_consultation_enabled", true);
+        qDoctors = qDoctors.eq("online_consultation_enabled", true);
       }
 
-      const [{ data: docs }, { data: locs }, { data: avail }] = await Promise.all([
-        q,
+      // Fetch clinics that offer this specialty (via specialties_offered or availability)
+      const qClinics = supabase
+        .from("partners")
+        .select("*")
+        .eq("partner_type", "clinic")
+        .eq("active", true)
+        .eq("approval_status", "approved");
+
+      const [{ data: docs }, { data: clinics }, { data: locs }, { data: avail }] = await Promise.all([
+        qDoctors,
+        qClinics,
         supabase.from("partner_locations").select("*"),
         supabase.from("doctor_availability").select("*").eq("is_active", true),
       ]);
 
-      setDoctors((docs as Doctor[]) || []);
+      // Filter clinics: those with availability for the selected specialty
+      const clinicIds = new Set((avail || [])
+        .filter(a => a.specialty && a.specialty.toLowerCase().includes(selectedSpecialty!.toLowerCase()))
+        .map(a => a.partner_id));
+      
+      // Also include clinics that have the specialty in specialties_offered
+      const matchingClinics = (clinics || []).filter(c => {
+        if (clinicIds.has(c.id)) return true;
+        const offered = c.specialties_offered as string[] | null;
+        return offered?.some(s => s.toLowerCase().includes(selectedSpecialty!.toLowerCase()));
+      });
+
+      const allProviders = [...(docs || []), ...matchingClinics];
+      setDoctors(allProviders as Doctor[]);
       setDoctorLocations((locs as DoctorLocation[]) || []);
       setAvailability((avail as AvailSlot[]) || []);
       setLoading(false);
