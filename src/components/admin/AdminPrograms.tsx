@@ -83,10 +83,8 @@ const TAG_OPTIONS = [
 
 const VALIDATION_OPTIONS = [
   { value: "self_report", label: "Auto-relato", badge: "✅ Auto-relato" },
-  { value: "qr_code", label: "QR Code", badge: "📱 QR" },
   { value: "photo_proof", label: "Foto comprovante", badge: "📷 Foto" },
-  { value: "auto_rppg", label: "Automática: Medição rPPG", badge: "🤖 rPPG" },
-  { value: "auto_survey", label: "Automática: Questionário", badge: "🤖 Questionário" },
+  { value: "auto_survey", label: "Automática: Questionário", badge: "📋 Questionário" },
   { value: "auto_checkin", label: "Automática: Check-in", badge: "🤖 Check-in" },
 ];
 
