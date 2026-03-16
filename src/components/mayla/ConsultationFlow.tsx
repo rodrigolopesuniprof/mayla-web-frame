@@ -237,7 +237,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
   const enrichedDoctors = useMemo(() => {
     if (!userPos) return doctors;
     return doctors.map((d) => {
-      const locs = doctorLocations.filter((l) => l.partner_id === d.id && l.latitude && l.longitude);
+      const locs = doctorLocations.filter((l) => l.partner_id === d.id && l.latitude != null && l.longitude != null);
       let bestLat = d.latitude, bestLng = d.longitude, bestDist = Infinity;
       
       if (locs.length > 0) {
@@ -245,12 +245,12 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
           const dist = haversine(userPos[0], userPos[1], loc.latitude!, loc.longitude!);
           if (dist < bestDist) { bestDist = dist; bestLat = loc.latitude; bestLng = loc.longitude; }
         }
-      } else if (bestLat && bestLng) {
+      } else if (bestLat != null && bestLng != null) {
         bestDist = haversine(userPos[0], userPos[1], bestLat, bestLng);
       }
 
       return { ...d, display_lat: bestLat ?? undefined, display_lng: bestLng ?? undefined, distance: bestDist };
-    }).sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
+    }).filter((d) => d.display_lat != null && d.display_lng != null).sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
   }, [doctors, doctorLocations, userPos]);
 
   // Doctor availability slots

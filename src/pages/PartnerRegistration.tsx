@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { PartnerForm, type PartnerData, type PartnerType } from "@/components/admin/PartnerForm";
+import { buildPrimaryPartnerLocation } from "@/lib/partner-location-utils";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
 const TYPES: { id: PartnerType; label: string; emoji: string; desc: string }[] = [
@@ -22,7 +23,7 @@ export default function PartnerRegistration() {
     setSaving(true);
     try {
       // Extract extended data before inserting
-      const { id, _availability, _clinic_doctors, _clinic_pricing_mode, virtual_store_url, ...rest } = data;
+      const { id, _availability, _clinic_doctors, _clinic_pricing_mode, virtual_store_url, google_maps_url, ...rest } = data;
 
       const payload: Record<string, unknown> = {
         ...rest,
@@ -44,6 +45,19 @@ export default function PartnerRegistration() {
 
       if (error) throw error;
       const partnerId = partner.id;
+
+      await supabase.from("partner_locations").insert(
+        buildPrimaryPartnerLocation(partnerId, {
+          name: data.name,
+          full_address: data.full_address,
+          city: data.city,
+          state: data.state,
+          zip_code: data.zip_code,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          _google_maps_url: google_maps_url,
+        }) as any
+      );
 
       // Insert doctor availability slots
       if (data.partner_type === "doctor" && _availability && _availability.length > 0) {
@@ -84,6 +98,19 @@ export default function PartnerRegistration() {
             .single();
 
           if (docRow) {
+            await supabase.from("partner_locations").insert(
+              buildPrimaryPartnerLocation(docRow.id, {
+                name: doc.name,
+                full_address: data.full_address,
+                city: data.city,
+                state: data.state,
+                zip_code: data.zip_code,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                _google_maps_url: google_maps_url,
+              }) as any
+            );
+
             // Link doctor to clinic
             await supabase.from("partner_doctor_links").insert({
               clinic_id: partnerId,

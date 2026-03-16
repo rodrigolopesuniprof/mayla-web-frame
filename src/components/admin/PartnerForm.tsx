@@ -81,6 +81,7 @@ export interface PartnerData {
   delivery_available: boolean;
   service_notes: string;
   virtual_store_url: string;
+  google_maps_url: string;
   // Extended data for registration flow (not persisted on partners table directly)
   _availability?: AvailabilitySlot[];
   _clinic_doctors?: ClinicDoctor[];
@@ -105,6 +106,7 @@ const emptyPartner = (type: PartnerType): PartnerData => ({
   appointment_only: false, scheduling_link: "",
   delivery_available: false, service_notes: "",
   virtual_store_url: "",
+  google_maps_url: "",
   _availability: [],
   _clinic_doctors: [],
   _clinic_pricing_mode: "fixed",
@@ -257,6 +259,11 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
           <div className="space-y-1">
             <Label>CEP</Label>
             <Input value={data.zip_code} onChange={e => set("zip_code", e.target.value)} />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label>Link do Google Maps</Label>
+            <Input value={data.google_maps_url} onChange={e => set("google_maps_url", e.target.value)} placeholder="https://maps.google.com/..." />
+            <p className="text-[11px] text-muted-foreground">Use o link do local para facilitar a localização no mapa.</p>
           </div>
         </div>
       </fieldset>
