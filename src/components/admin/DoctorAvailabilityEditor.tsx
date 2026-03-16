@@ -33,7 +33,7 @@ interface Props {
   partnerType?: string;
 }
 
-export function DoctorAvailabilityEditor({ partnerId }: Props) {
+export function DoctorAvailabilityEditor({ partnerId, partnerType }: Props) {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
 
