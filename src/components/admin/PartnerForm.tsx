@@ -551,7 +551,15 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
             </div>
             <div className="space-y-1">
               <Label>Aprovação</Label>
-              <Select value={data.approval_status} onValueChange={v => set("approval_status", v as ApprovalStatus)}>
+              <Select
+                value={data.approval_status}
+                onValueChange={v => {
+                  const status = v as ApprovalStatus;
+                  set("approval_status", status);
+                  if (status === "approved") set("active", true);
+                  if (status === "blocked") set("active", false);
+                }}
+              >
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Pendente</SelectItem>

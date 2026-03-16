@@ -80,7 +80,16 @@ export function AdminPartners() {
   };
 
   const quickAction = async (id: string, field: string, value: unknown) => {
-    await supabase.from("partners").update({ [field]: value }).eq("id", id);
+    const patch: Record<string, unknown> =
+      field === "approval_status"
+        ? {
+            approval_status: value as "pending" | "approved" | "blocked",
+            ...((value as string) === "approved" ? { active: true } : {}),
+            ...((value as string) === "blocked" ? { active: false } : {}),
+          }
+        : { [field]: value };
+
+    await supabase.from("partners").update(patch as any).eq("id", id);
     toast({ title: "Atualizado" });
     loadPartners();
   };
