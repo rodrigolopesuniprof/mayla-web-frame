@@ -106,6 +106,7 @@ const emptyPartner = (type: PartnerType): PartnerData => ({
   appointment_only: false, scheduling_link: "",
   delivery_available: false, service_notes: "",
   virtual_store_url: "",
+  google_maps_url: "",
   _availability: [],
   _clinic_doctors: [],
   _clinic_pricing_mode: "fixed",

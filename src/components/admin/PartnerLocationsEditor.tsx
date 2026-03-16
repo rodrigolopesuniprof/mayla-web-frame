@@ -62,6 +62,7 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
 
   const saveRow = async (idx: number) => {
     const loc = locations[idx];
+    const mapsCoordinates = extractCoordinatesFromGoogleMapsUrl(loc.full_address);
     const payload = {
       partner_id: loc.partner_id,
       location_name: loc.location_name,
@@ -69,8 +70,8 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
       city: loc.city,
       state: loc.state,
       zip_code: loc.zip_code,
-      latitude: loc.latitude,
-      longitude: loc.longitude,
+      latitude: mapsCoordinates?.latitude ?? loc.latitude,
+      longitude: mapsCoordinates?.longitude ?? loc.longitude,
       is_main: loc.is_main,
     };
 
