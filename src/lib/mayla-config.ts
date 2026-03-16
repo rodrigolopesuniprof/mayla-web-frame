@@ -7,12 +7,12 @@ export const COMPANY_CONFIG = {
 
 export const RPPG_URL = "https://rppg.saudecomvc.com.br/login";
 
-export type TabId = "inicio" | "bemestar" | "programas" | "missoes" | "perfil";
+export type TabId = "inicio" | "bemestar" | "campanhas" | "servicos" | "perfil";
 
 export const TABS: { id: TabId; emoji: string; label: string }[] = [
   { id: "inicio", emoji: "🏠", label: "Início" },
   { id: "bemestar", emoji: "🌿", label: "Bem-estar" },
-  { id: "programas", emoji: "📋", label: "Programas" },
-  { id: "missoes", emoji: "🎯", label: "Missões" },
+  { id: "campanhas", emoji: "🏆", label: "Campanhas" },
+  { id: "servicos", emoji: "🩺", label: "Serviços" },
   { id: "perfil", emoji: "👤", label: "Perfil" },
 ];

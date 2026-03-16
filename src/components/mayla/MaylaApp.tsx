@@ -6,8 +6,8 @@ import { HealthSurvey } from "./HealthSurvey";
 import { BottomNav } from "./BottomNav";
 import { HomeTab } from "./HomeTab";
 import { WellbeingTab } from "./WellbeingTab";
-import { ProgramsTab } from "./ProgramsTab";
-import { MissionsTab } from "./MissionsTab";
+import { CampanhasTab } from "./CampanhasTab";
+import { ServicosTab } from "./ServicosTab";
 import { ProfileTab } from "./ProfileTab";
 import { TelemedicineScreen } from "./TelemedicineScreen";
 import { AppointmentBooking } from "./AppointmentBooking";
@@ -109,8 +109,8 @@ export function MaylaApp() {
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
-                {activeTab === "programas" && <ProgramsTab />}
-                {activeTab === "missoes" && <MissionsTab />}
+                {activeTab === "campanhas" && <CampanhasTab />}
+                {activeTab === "servicos" && <ServicosTab />}
                 {activeTab === "perfil" && <ProfileTab onRetakeSurvey={handleRetakeSurvey} />}
               </div>
             )}
