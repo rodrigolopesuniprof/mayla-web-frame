@@ -59,6 +59,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       const companyId = profile?.company_id || (user.user_metadata as any)?.company_id || null;
       const isFallback = !companyId;
 
+      // Auto-sync company_id to profile if found via user_metadata but missing in profile
+      if (companyId && profile && !profile.company_id) {
+        await supabase.from("profiles").update({ company_id: companyId }).eq("user_id", user.id);
+      }
+
       let companyData: any = null;
 
       if (companyId) {
