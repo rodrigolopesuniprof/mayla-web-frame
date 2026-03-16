@@ -53,7 +53,7 @@ const getWeekStart = () => {
   return d.toISOString().split("T")[0];
 };
 
-export function MissionsTab() {
+export function MissionsTab({ onBack }: { onBack?: () => void } = {}) {
   const { user } = useAuth();
   const [missions, setMissions] = useState<UserMission[]>([]);
   const [profile, setProfile] = useState<{ points: number; level: string } | null>(null);
