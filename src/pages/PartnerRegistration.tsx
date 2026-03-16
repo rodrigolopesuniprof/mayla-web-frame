@@ -20,10 +20,12 @@ export default function PartnerRegistration() {
 
   const handleSubmit = async (data: PartnerData) => {
     setSaving(true);
-    const payload: Record<string, unknown> = { ...data };
-    delete payload.id;
-    payload.approval_status = "pending";
-    payload.active = false;
+    const { id, ...rest } = data;
+    const payload = {
+      ...rest,
+      approval_status: "pending" as const,
+      active: false,
+    } as any;
 
     const { error } = await supabase.from("partners").insert(payload);
     setSaving(false);

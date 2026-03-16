@@ -57,11 +57,12 @@ export function AdminPartners() {
 
   const handleSave = async (formData: PartnerData) => {
     setSaving(true);
-    const payload: Record<string, unknown> = { ...formData };
-    delete payload.id;
-    // Clean null-ish jsonb fields
-    if (!payload.services_offered || (payload.services_offered as string[]).length === 0) payload.services_offered = [];
-    if (!payload.accepted_payments || (payload.accepted_payments as string[]).length === 0) payload.accepted_payments = [];
+    const { id, ...rest } = formData;
+    const payload = {
+      ...rest,
+      services_offered: rest.services_offered?.length ? rest.services_offered : [],
+      accepted_payments: rest.accepted_payments?.length ? rest.accepted_payments : [],
+    } as any;
 
     if (editPartner?.id) {
       const { error } = await supabase.from("partners").update(payload).eq("id", editPartner.id);
