@@ -711,14 +711,32 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
         >
           {saving ? "Salvando..." : step < totalSteps - 1 ? "Continuar →" : "Finalizar 🎯"}
         </button>
-        {step > 0 && (
+        <div className="flex items-center gap-4">
+          {step > 0 && (
+            <button
+              onClick={() => setStep(step - 1)}
+              className="bg-transparent border-none text-[13px] text-muted-foreground cursor-pointer"
+            >
+              ← Voltar
+            </button>
+          )}
           <button
-            onClick={() => setStep(step - 1)}
-            className="bg-transparent border-none text-[13px] text-muted-foreground cursor-pointer"
+            onClick={async () => {
+              if (!user) return;
+              setSaving(true);
+              await supabase.from("profiles").update({
+                health_survey_completed: true,
+                health_survey_completed_at: new Date().toISOString(),
+              } as any).eq("user_id", user.id);
+              setSaving(false);
+              onDone();
+            }}
+            disabled={saving}
+            className="bg-transparent border-none text-[13px] text-muted-foreground cursor-pointer underline"
           >
-            ← Voltar
+            Pular questionário
           </button>
-        )}
+        </div>
       </div>
     </div>
   );
