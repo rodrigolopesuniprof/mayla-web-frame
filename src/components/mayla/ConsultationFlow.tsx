@@ -422,9 +422,12 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
   const goBack = () => {
     if (step === "mode") { setStep("specialty"); setSelectedSpecialty(null); }
-    else if (step === "doctors") { setStep("mode"); setConsultMode(null); }
+    else if (step === "doctors") {
+      if (expandedDoctorId) { setExpandedDoctorId(null); }
+      else { setStep("mode"); setConsultMode(null); }
+    }
     else if (step === "schedule") { setStep("doctors"); setSelectedDoctor(null); }
-    else if (step === "confirm") { setStep("schedule"); setSelectedSlotTime(null); }
+    else if (step === "confirm") { setStep("doctors"); setSelectedSlotTime(null); setExpandedDoctorId(selectedDoctor?.id ?? null); }
     else onBack();
   };
 
