@@ -29,6 +29,7 @@ export interface AvailabilitySlot {
   end_time: string;
   consultation_mode: string;
   is_active: boolean;
+  slot_duration_minutes: number;
 }
 
 export interface ClinicDoctor {
