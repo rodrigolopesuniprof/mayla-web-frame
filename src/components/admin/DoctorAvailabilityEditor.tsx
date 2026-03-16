@@ -79,6 +79,7 @@ export function DoctorAvailabilityEditor({ partnerId, partnerType }: Props) {
       consultation_mode: slot.consultation_mode,
       is_active: slot.is_active,
       slot_duration_minutes: slot.slot_duration_minutes,
+      specialty: slot.specialty || null,
     };
 
     if (slot.id) {
