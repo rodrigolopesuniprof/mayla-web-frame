@@ -1078,6 +1078,7 @@ export type Database = {
           has_hypertension: boolean | null
           has_pregnant_at_home: boolean | null
           health_survey_completed: boolean | null
+          health_survey_completed_at: string | null
           id: string
           is_bolsa_familia: boolean | null
           is_pregnant: string | null
@@ -1126,6 +1127,7 @@ export type Database = {
           has_hypertension?: boolean | null
           has_pregnant_at_home?: boolean | null
           health_survey_completed?: boolean | null
+          health_survey_completed_at?: string | null
           id?: string
           is_bolsa_familia?: boolean | null
           is_pregnant?: string | null
@@ -1174,6 +1176,7 @@ export type Database = {
           has_hypertension?: boolean | null
           has_pregnant_at_home?: boolean | null
           health_survey_completed?: boolean | null
+          health_survey_completed_at?: string | null
           id?: string
           is_bolsa_familia?: boolean | null
           is_pregnant?: string | null
