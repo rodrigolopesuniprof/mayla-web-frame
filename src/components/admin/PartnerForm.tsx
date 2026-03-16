@@ -185,7 +185,7 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
   };
   const addDoctorAvailSlot = (docIdx: number) => {
     const doc = clinicDoctors[docIdx];
-    updateClinicDoctor(docIdx, "availability", [...doc.availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true }]);
+    updateClinicDoctor(docIdx, "availability", [...doc.availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true, slot_duration_minutes: 30 }]);
   };
   const updateDoctorAvailSlot = (docIdx: number, slotIdx: number, field: keyof AvailabilitySlot, val: unknown) => {
     const doc = clinicDoctors[docIdx];
