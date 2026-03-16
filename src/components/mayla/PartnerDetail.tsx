@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TopBar } from "./TopBar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,18 +15,27 @@ interface Props {
 }
 
 export function PartnerDetail({ partner: p, onBack }: Props) {
-  const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const [showStore, setShowStore] = useState(false);
 
-  // Parse opening hours if structured
   const hours = p.opening_hours && typeof p.opening_hours === "object" && !Array.isArray(p.opening_hours)
     ? Object.entries(p.opening_hours as Record<string, string>)
     : null;
+
+  const virtualStoreUrl = (p as any).virtual_store_url as string | undefined;
+
+  if (showStore && virtualStoreUrl) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <TopBar title="Loja Virtual" onBack={() => setShowStore(false)} />
+        <iframe src={virtualStoreUrl} className="flex-1 w-full border-0" allow="payment" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <TopBar title={p.name} onBack={onBack} />
       <div className="flex-1 overflow-y-auto">
-        {/* Hero */}
         {p.logo_url ? (
           <img src={p.logo_url} alt={p.name} className="w-full h-48 object-cover" />
         ) : (
@@ -35,7 +45,6 @@ export function PartnerDetail({ partner: p, onBack }: Props) {
         )}
 
         <div className="px-5 py-4 space-y-4">
-          {/* Type & specialty */}
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary">{TYPE_LABELS[p.partner_type]}</Badge>
             {p.specialty && <Badge variant="outline">{p.specialty}</Badge>}
@@ -44,24 +53,11 @@ export function PartnerDetail({ partner: p, onBack }: Props) {
             )}
           </div>
 
-          {/* Name */}
           <h2 className="font-display text-xl font-bold text-foreground leading-tight">{p.name}</h2>
 
-          {p.crm && (
-            <p className="text-xs text-muted-foreground">CRM: {p.crm}/{p.crm_state}</p>
-          )}
+          {p.crm && <p className="text-xs text-muted-foreground">CRM: {p.crm}/{p.crm_state}</p>}
+          {p.description && <p className="text-sm text-muted-foreground leading-relaxed">{p.description}</p>}
 
-          {p.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed">{p.description}</p>
-          )}
-
-          {/* Future: Rating section placeholder */}
-          {/* <div className="flex items-center gap-2">
-            <span className="text-sm">⭐ {p.avg_rating?.toFixed(1)}</span>
-            <span className="text-xs text-muted-foreground">({p.review_count} avaliações)</span>
-          </div> */}
-
-          {/* Info card */}
           <div className="bg-card border border-border rounded-xl p-4 space-y-2.5">
             {p.full_address && (
               <div className="flex items-start gap-2.5">
@@ -101,7 +97,6 @@ export function PartnerDetail({ partner: p, onBack }: Props) {
             )}
           </div>
 
-          {/* Opening hours */}
           {hours && hours.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-2">Horários</h4>
@@ -116,7 +111,6 @@ export function PartnerDetail({ partner: p, onBack }: Props) {
             </div>
           )}
 
-          {/* Services */}
           {p.services_offered && (p.services_offered as string[]).length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-2">Serviços</h4>
@@ -128,15 +122,12 @@ export function PartnerDetail({ partner: p, onBack }: Props) {
             </div>
           )}
 
-          {/* Future: Promotions placeholder */}
-          {/* {p.has_promotion && (
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-              <span className="text-sm font-semibold">🎁 Promoção ativa</span>
-            </div>
-          )} */}
-
-          {/* Action buttons */}
           <div className="space-y-2 pt-1 pb-4">
+            {virtualStoreUrl && (
+              <Button className="w-full" variant="default" onClick={() => setShowStore(true)}>
+                🛒 Loja Virtual
+              </Button>
+            )}
             {p.contact_link && (
               <Button className="w-full" onClick={() => window.open(p.contact_link!, "_blank")}>
                 📞 Entrar em contato
