@@ -40,18 +40,23 @@ export function MaylaApp() {
       .maybeSingle()
       .then(({ data }) => {
         const profile = data as any;
-        if (profile?.health_survey_completed && profile?.health_survey_completed_at) {
-          const completedAt = new Date(profile.health_survey_completed_at);
-          const sixMonthsAgo = new Date();
-          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-          if (completedAt > sixMonthsAgo) {
-            setPhase("main");
-          } else {
+        if (profile?.health_survey_completed) {
+          // Check 6-month expiration only if we have a timestamp
+          if (profile.health_survey_completed_at) {
+            const completedAt = new Date(profile.health_survey_completed_at);
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            if (completedAt > sixMonthsAgo) {
+              setPhase("main");
+              return;
+            }
             // Expired — reset and require new survey
-            supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", user.id).then(() => {
-              setPhase("splash");
-            });
+            supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", user.id).then(() => setPhase("splash"));
+            return;
           }
+          // Legacy: completed but no timestamp — go to main, backfill timestamp
+          supabase.from("profiles").update({ health_survey_completed_at: new Date().toISOString() }).eq("user_id", user.id);
+          setPhase("main");
         } else {
           setPhase("splash");
         }
