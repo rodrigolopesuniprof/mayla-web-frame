@@ -42,9 +42,10 @@ interface Mission {
 interface Props {
   companyId: string;
   primaryColor?: string;
+  onNavigate?: (tab: string) => void;
 }
 
-export function WellbeingPrograms({ companyId, primaryColor }: Props) {
+export function WellbeingPrograms({ companyId, primaryColor, onNavigate }: Props) {
   const { user } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,6 +268,28 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
     }
   };
 
+  const getAutoLabel = (vType: string) => {
+    switch (vType) {
+      case "auto_rppg": return "💓 Medir sinais";
+      case "auto_checkin": return "📋 Fazer check-in";
+      case "auto_survey": return "📝 Questionário";
+      default: return "🤖 Ir";
+    }
+  };
+
+  const handleAutoNavigate = (vType: string) => {
+    if (!onNavigate) return;
+    switch (vType) {
+      case "auto_rppg":
+      case "auto_checkin":
+        onNavigate("bemestar");
+        break;
+      case "auto_survey":
+        onNavigate("perfil");
+        break;
+    }
+  };
+
   if (loading) return <p className="text-sm text-muted-foreground text-center py-6">Carregando programas...</p>;
 
   if (programs.length === 0) {
@@ -368,7 +391,12 @@ export function WellbeingPrograms({ companyId, primaryColor }: Props) {
                                       ) : isPendingReview ? (
                                         <span className="text-[10px] text-primary font-semibold shrink-0">⏳ Análise</span>
                                       ) : isAuto ? (
-                                        <span className="text-[10px] text-muted-foreground shrink-0">🤖 Auto</span>
+                                        <button
+                                          onClick={() => handleAutoNavigate(vType)}
+                                          className="text-[10px] font-semibold px-2 py-1 rounded-md shrink-0 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition"
+                                        >
+                                          {getAutoLabel(vType)}
+                                        </button>
                                       ) : (
                                         <button
                                           onClick={() => handleMissionAction(m)}

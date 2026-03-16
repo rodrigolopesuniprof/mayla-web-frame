@@ -4,10 +4,15 @@ import { WellbeingPrograms } from "@/components/corporate/WellbeingPrograms";
 import { CampaignsList } from "@/components/corporate/CampaignsList";
 import { TopBar } from "./TopBar";
 import { MissionsTab } from "./MissionsTab";
+import type { TabId } from "@/lib/mayla-config";
 
 type SubView = "overview" | "missions";
 
-export function CampanhasTab() {
+interface Props {
+  onNavigate?: (tab: TabId) => void;
+}
+
+export function CampanhasTab({ onNavigate }: Props) {
   const { companyId, primaryColor } = useCompany();
   const [subView, setSubView] = useState<SubView>("overview");
 
@@ -19,7 +24,6 @@ export function CampanhasTab() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <TopBar title="Campanhas" />
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
-        {/* Quick access to missions */}
         <button
           onClick={() => setSubView("missions")}
           className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left"
@@ -32,10 +36,7 @@ export function CampanhasTab() {
           <span className="text-muted-foreground text-lg">›</span>
         </button>
 
-        {/* Programs */}
-        <WellbeingPrograms companyId={companyId || ""} primaryColor={primaryColor} />
-
-        {/* Campaigns */}
+        <WellbeingPrograms companyId={companyId || ""} primaryColor={primaryColor} onNavigate={onNavigate} />
         <CampaignsList companyId={companyId || ""} primaryColor={primaryColor} />
       </div>
     </div>

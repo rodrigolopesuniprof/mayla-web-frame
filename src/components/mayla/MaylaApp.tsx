@@ -114,7 +114,7 @@ export function MaylaApp() {
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
-                {activeTab === "campanhas" && <CampanhasTab />}
+                {activeTab === "campanhas" && <CampanhasTab onNavigate={(tab) => setActiveTab(tab)} />}
                 {activeTab === "servicos" && <ServicosTab />}
                 {activeTab === "perfil" && <ProfileTab onRetakeSurvey={handleRetakeSurvey} />}
               </div>
