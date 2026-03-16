@@ -23,7 +23,7 @@ export default function PartnerRegistration() {
     setSaving(true);
     try {
       // Extract extended data before inserting
-      const { id, _availability, _clinic_doctors, _clinic_pricing_mode, virtual_store_url, ...rest } = data;
+      const { id, _availability, _clinic_doctors, _clinic_pricing_mode, virtual_store_url, google_maps_url, ...rest } = data;
 
       const payload: Record<string, unknown> = {
         ...rest,
