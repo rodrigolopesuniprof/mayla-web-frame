@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Trash2, Pencil, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Trash2, Pencil, Plus, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/program-categories";
 
 // ── Types ──────────────────────────────────────────────
