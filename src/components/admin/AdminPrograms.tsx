@@ -627,6 +627,7 @@ export function AdminPrograms() {
                   <SelectContent>{VALIDATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+            </div>
 
             {/* Questionnaire editor - shown when auto_survey */}
             {missionForm.validation_type === "auto_survey" && (
