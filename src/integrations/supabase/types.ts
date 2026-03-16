@@ -854,6 +854,7 @@ export type Database = {
           id: string
           points: number | null
           priority: number | null
+          questionnaire_id: string | null
           tag: string
           title: string
           validation_type: string | null
@@ -867,6 +868,7 @@ export type Database = {
           id?: string
           points?: number | null
           priority?: number | null
+          questionnaire_id?: string | null
           tag: string
           title: string
           validation_type?: string | null
@@ -880,11 +882,20 @@ export type Database = {
           id?: string
           points?: number | null
           priority?: number | null
+          questionnaire_id?: string | null
           tag?: string
           title?: string
           validation_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "missions_questionnaire_id_fkey"
+            columns: ["questionnaire_id"]
+            isOneToOne: false
+            referencedRelation: "questionnaires"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       municipalities: {
         Row: {
@@ -1277,6 +1288,104 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      questionnaire_questions: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          options: Json | null
+          question_text: string
+          questionnaire_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          options?: Json | null
+          question_text: string
+          questionnaire_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          options?: Json | null
+          question_text?: string
+          questionnaire_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questionnaire_questions_questionnaire_id_fkey"
+            columns: ["questionnaire_id"]
+            isOneToOne: false
+            referencedRelation: "questionnaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      questionnaire_responses: {
+        Row: {
+          answers: Json
+          created_at: string | null
+          id: string
+          questionnaire_id: string
+          user_id: string
+          user_mission_id: string | null
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string | null
+          id?: string
+          questionnaire_id: string
+          user_id: string
+          user_mission_id?: string | null
+        }
+        Update: {
+          answers?: Json
+          created_at?: string | null
+          id?: string
+          questionnaire_id?: string
+          user_id?: string
+          user_mission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questionnaire_responses_questionnaire_id_fkey"
+            columns: ["questionnaire_id"]
+            isOneToOne: false
+            referencedRelation: "questionnaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questionnaire_responses_user_mission_id_fkey"
+            columns: ["user_mission_id"]
+            isOneToOne: false
+            referencedRelation: "user_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      questionnaires: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string
+        }
+        Relationships: []
       }
       special_measurements: {
         Row: {

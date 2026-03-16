@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Trash2, Pencil, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Trash2, Pencil, Plus, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/program-categories";
 
 // ── Types ──────────────────────────────────────────────
@@ -50,6 +50,17 @@ interface CampaignMission {
   frequency: string | null;
   tag: string;
   validation_type: string | null;
+  questionnaire_id: string | null;
+}
+
+interface QuestionDraft {
+  category: string;
+  question_text: string;
+}
+
+interface ExistingQuestionnaire {
+  id: string;
+  title: string;
 }
 
 // ── Frequency helpers ──────────────────────────────────
@@ -72,10 +83,8 @@ const TAG_OPTIONS = [
 
 const VALIDATION_OPTIONS = [
   { value: "self_report", label: "Auto-relato", badge: "✅ Auto-relato" },
-  { value: "qr_code", label: "QR Code", badge: "📱 QR" },
   { value: "photo_proof", label: "Foto comprovante", badge: "📷 Foto" },
-  { value: "auto_rppg", label: "Automática: Medição rPPG", badge: "🤖 rPPG" },
-  { value: "auto_survey", label: "Automática: Questionário", badge: "🤖 Questionário" },
+  { value: "auto_survey", label: "Automática: Questionário", badge: "📋 Questionário" },
   { value: "auto_checkin", label: "Automática: Check-in", badge: "🤖 Check-in" },
 ];
 
@@ -113,6 +122,14 @@ export function AdminPrograms() {
   const [missionParentProgram, setMissionParentProgram] = useState<Program | null>(null);
   const [editingMission, setEditingMission] = useState<CampaignMission | null>(null);
   const [missionForm, setMissionForm] = useState({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
+
+  // Questionnaire state
+  const [surveyMode, setSurveyMode] = useState<"new" | "existing">("new");
+  const [surveyQuestionnaireId, setSurveyQuestionnaireId] = useState("");
+  const [surveyTitle, setSurveyTitle] = useState("");
+  const [surveyQuestions, setSurveyQuestions] = useState<QuestionDraft[]>([{ category: "Geral", question_text: "" }]);
+  const [existingQuestionnaires, setExistingQuestionnaires] = useState<ExistingQuestionnaire[]>([]);
+  const [loadedSurveyQuestions, setLoadedSurveyQuestions] = useState<QuestionDraft[]>([]);
 
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<{ type: "program" | "campaign" | "mission"; id: string; title: string; campaignId?: string } | null>(null);
@@ -167,11 +184,11 @@ export function AdminPrograms() {
       return;
     }
     const missionIds = data.map((d: any) => d.mission_id);
-    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag, validation_type").in("id", missionIds);
+    const { data: missions } = await supabase.from("missions").select("id, title, emoji, points, frequency, tag, validation_type, questionnaire_id").in("id", missionIds);
     const missionsMap = new Map((missions || []).map((m: any) => [m.id, m]));
     const result: CampaignMission[] = data.map((d: any) => {
       const m = missionsMap.get(d.mission_id);
-      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag, validation_type: m.validation_type } : null;
+      return m ? { campaign_mission_id: d.id, mission_id: m.id, title: m.title, emoji: m.emoji, points: m.points, frequency: m.frequency, tag: m.tag, validation_type: m.validation_type, questionnaire_id: m.questionnaire_id } : null;
     }).filter(Boolean) as CampaignMission[];
     setMissionsByCampaign(prev => ({ ...prev, [campaignId]: result }));
   };
@@ -268,11 +285,31 @@ export function AdminPrograms() {
   };
 
   // ── Mission CRUD ──────────────────────────────────────
+  const loadExistingQuestionnaires = async () => {
+    const { data } = await supabase.from("questionnaires").select("id, title");
+    setExistingQuestionnaires((data || []) as ExistingQuestionnaire[]);
+  };
+
+  const loadSurveyQuestions = async (qId: string) => {
+    const { data } = await supabase.from("questionnaire_questions").select("category, question_text").eq("questionnaire_id", qId).order("sort_order");
+    setLoadedSurveyQuestions((data || []) as QuestionDraft[]);
+  };
+
+  const resetSurveyState = () => {
+    setSurveyMode("new");
+    setSurveyQuestionnaireId("");
+    setSurveyTitle("");
+    setSurveyQuestions([{ category: "Geral", question_text: "" }]);
+    setLoadedSurveyQuestions([]);
+  };
+
   const openNewMission = (campaign: Campaign, program: Program) => {
     setMissionParentCampaign(campaign);
     setMissionParentProgram(program);
     setEditingMission(null);
     setMissionForm({ title: "", points: "10", frequency: "daily", tag: "geral", validation_type: "self_report" });
+    resetSurveyState();
+    loadExistingQuestionnaires();
     setShowMissionForm(true);
   };
 
@@ -281,14 +318,48 @@ export function AdminPrograms() {
     setMissionParentProgram(program);
     setEditingMission(m);
     setMissionForm({ title: m.title, points: String(m.points || 0), frequency: m.frequency || "daily", tag: m.tag, validation_type: m.validation_type || "self_report" });
+    resetSurveyState();
+    loadExistingQuestionnaires();
+    if (m.questionnaire_id) {
+      setSurveyMode("existing");
+      setSurveyQuestionnaireId(m.questionnaire_id);
+      loadSurveyQuestions(m.questionnaire_id);
+    }
     setShowMissionForm(true);
+  };
+
+  const createQuestionnaireIfNeeded = async (): Promise<string | null> => {
+    if (missionForm.validation_type !== "auto_survey") return null;
+    if (surveyMode === "existing") return surveyQuestionnaireId || null;
+    // Create new questionnaire
+    if (!surveyTitle.trim()) { toast.error("Preencha o título do questionário."); return undefined as any; }
+    const validQs = surveyQuestions.filter(q => q.question_text.trim());
+    if (validQs.length === 0) { toast.error("Adicione pelo menos uma pergunta."); return undefined as any; }
+    const { data: q, error } = await supabase.from("questionnaires").insert({ title: surveyTitle.trim() }).select("id").single();
+    if (error || !q) { toast.error("Erro ao criar questionário: " + (error?.message || "")); return undefined as any; }
+    const questionsToInsert = validQs.map((qq, i) => ({
+      questionnaire_id: q.id, category: qq.category || "Geral", question_text: qq.question_text, sort_order: i,
+    }));
+    const { error: qErr } = await supabase.from("questionnaire_questions").insert(questionsToInsert);
+    if (qErr) { toast.error("Erro ao salvar perguntas."); return undefined as any; }
+    return q.id;
   };
 
   const saveMission = async () => {
     if (!missionForm.title || !missionParentCampaign) { toast.error("Preencha o nome da missão."); return; }
-    const payload = {
+
+    // Handle questionnaire
+    let questionnaireId: string | null = null;
+    if (missionForm.validation_type === "auto_survey") {
+      const result = await createQuestionnaireIfNeeded();
+      if (result === undefined) return; // error occurred
+      questionnaireId = result;
+    }
+
+    const payload: any = {
       title: missionForm.title, points: parseInt(missionForm.points) || 0, frequency: missionForm.frequency,
       tag: missionForm.tag, validation_type: missionForm.validation_type,
+      questionnaire_id: questionnaireId,
     };
     if (editingMission) {
       const { error } = await supabase.from("missions").update(payload).eq("id", editingMission.mission_id);
@@ -557,6 +628,73 @@ export function AdminPrograms() {
                 </Select>
               </div>
             </div>
+
+            {/* Questionnaire editor - shown when auto_survey */}
+            {missionForm.validation_type === "auto_survey" && (
+              <div className="space-y-3 border rounded-lg p-3 bg-secondary/20">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">📋 Questionário vinculado</Label>
+
+                {existingQuestionnaires.length > 0 && (
+                  <Select value={surveyMode} onValueChange={v => { setSurveyMode(v as "new" | "existing"); setLoadedSurveyQuestions([]); }}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">Criar novo questionário</SelectItem>
+                      <SelectItem value="existing">Vincular existente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {surveyMode === "existing" ? (
+                  <>
+                    <Select value={surveyQuestionnaireId} onValueChange={v => { setSurveyQuestionnaireId(v); loadSurveyQuestions(v); }}>
+                      <SelectTrigger><SelectValue placeholder="Selecione um questionário..." /></SelectTrigger>
+                      <SelectContent>
+                        {existingQuestionnaires.map(q => <SelectItem key={q.id} value={q.id}>{q.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {loadedSurveyQuestions.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">{loadedSurveyQuestions.length} pergunta(s):</p>
+                        {loadedSurveyQuestions.map((q, i) => (
+                          <div key={i} className="text-xs text-foreground bg-background rounded px-2 py-1">
+                            <span className="text-muted-foreground uppercase text-[10px]">{q.category}</span> — {q.question_text}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Input placeholder="Título do questionário (ex: Avaliação de Sono)" value={surveyTitle} onChange={e => setSurveyTitle(e.target.value)} className="h-8 text-sm" />
+                    <div className="space-y-2">
+                      {surveyQuestions.map((q, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <Input className="w-28 h-8 text-xs" placeholder="Categoria" value={q.category} onChange={e => {
+                            const updated = [...surveyQuestions];
+                            updated[i] = { ...updated[i], category: e.target.value };
+                            setSurveyQuestions(updated);
+                          }} />
+                          <Input className="flex-1 h-8 text-xs" placeholder="Pergunta" value={q.question_text} onChange={e => {
+                            const updated = [...surveyQuestions];
+                            updated[i] = { ...updated[i], question_text: e.target.value };
+                            setSurveyQuestions(updated);
+                          }} />
+                          {surveyQuestions.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setSurveyQuestions(q => q.filter((_, idx) => idx !== i))}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSurveyQuestions(q => [...q, { category: "Geral", question_text: "" }])}>
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar pergunta
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground">Cada pergunta usa escala 1-5 (😢 a 😄). O colaborador responde e a missão é concluída automaticamente.</p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowMissionForm(false)}>Cancelar</Button>
