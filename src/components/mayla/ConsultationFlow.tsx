@@ -377,16 +377,20 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       ? `${format(selectedDate, "yyyy-MM-dd")}T${selectedSlotTime.split(" – ")[0]}:00`
       : format(selectedDate, "yyyy-MM-dd'T'09:00:00");
 
-    const { error } = await supabase.from("appointments").insert({
+    const clinicLabel = selectedDoctor.partner_type === "clinic"
+      ? selectedDoctor.name
+      : selectedDoctor.city ? `${selectedDoctor.city} - ${selectedDoctor.state}` : null;
+
+    const { data: apptData, error } = await supabase.from("appointments").insert({
       user_id: user.id,
       specialty: selectedSpecialty,
       appointment_date: appointmentDate,
       doctor_name: selectedDoctor.name,
-      clinic_name: selectedDoctor.city ? `${selectedDoctor.city} - ${selectedDoctor.state}` : null,
+      clinic_name: clinicLabel,
       company_id: (company as any)?.id || null,
       notes: patientNotes || null,
       status: "scheduled",
-    });
+    }).select("id").single();
 
     setBooking(false);
     if (error) {
@@ -394,6 +398,13 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     } else {
       toast({ title: "Consulta agendada! ✅" });
       setStep("done");
+
+      // Send email notification to doctor/clinic (fire and forget)
+      if (apptData?.id) {
+        supabase.functions.invoke("notify-appointment", {
+          body: { appointment_id: apptData.id },
+        }).catch(err => console.warn("Email notification failed:", err));
+      }
     }
   };
 
