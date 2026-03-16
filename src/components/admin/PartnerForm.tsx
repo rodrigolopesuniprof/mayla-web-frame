@@ -259,6 +259,11 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
             <Label>CEP</Label>
             <Input value={data.zip_code} onChange={e => set("zip_code", e.target.value)} />
           </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label>Link do Google Maps</Label>
+            <Input value={data.google_maps_url} onChange={e => set("google_maps_url", e.target.value)} placeholder="https://maps.google.com/..." />
+            <p className="text-[11px] text-muted-foreground">Use o link do local para facilitar a localização no mapa.</p>
+          </div>
         </div>
       </fieldset>
 

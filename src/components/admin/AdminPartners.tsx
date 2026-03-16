@@ -58,7 +58,7 @@ export function AdminPartners() {
 
   const handleSave = async (formData: PartnerData) => {
     setSaving(true);
-    const { id, ...rest } = formData;
+    const { id, google_maps_url, _availability, _clinic_doctors, _clinic_pricing_mode, ...rest } = formData;
     const payload = {
       ...rest,
       services_offered: rest.services_offered?.length ? rest.services_offered : [],
@@ -67,12 +67,52 @@ export function AdminPartners() {
 
     if (editPartner?.id) {
       const { error } = await supabase.from("partners").update(payload).eq("id", editPartner.id);
-      if (error) toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
-      else toast({ title: "Parceiro atualizado" });
+      if (error) {
+        toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      } else {
+        const mainLocation = buildPrimaryPartnerLocation(editPartner.id, {
+          name: formData.name,
+          full_address: formData.full_address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zip_code,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          _google_maps_url: google_maps_url,
+        });
+        const { data: existingMain } = await supabase
+          .from("partner_locations")
+          .select("id")
+          .eq("partner_id", editPartner.id)
+          .eq("is_main", true)
+          .maybeSingle();
+
+        if (existingMain?.id) {
+          await supabase.from("partner_locations").update(mainLocation as any).eq("id", existingMain.id);
+        } else {
+          await supabase.from("partner_locations").insert(mainLocation as any);
+        }
+        toast({ title: "Parceiro atualizado" });
+      }
     } else {
-      const { error } = await supabase.from("partners").insert(payload);
-      if (error) toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
-      else toast({ title: "Parceiro criado" });
+      const { data: createdPartner, error } = await supabase.from("partners").insert(payload).select("id").single();
+      if (error) {
+        toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
+      } else if (createdPartner?.id) {
+        await supabase.from("partner_locations").insert(
+          buildPrimaryPartnerLocation(createdPartner.id, {
+            name: formData.name,
+            full_address: formData.full_address,
+            city: formData.city,
+            state: formData.state,
+            zip_code: formData.zip_code,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            _google_maps_url: google_maps_url,
+          }) as any
+        );
+        toast({ title: "Parceiro criado" });
+      }
     }
     setSaving(false);
     setFormOpen(false);

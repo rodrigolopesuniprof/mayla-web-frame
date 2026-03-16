@@ -98,6 +98,19 @@ export default function PartnerRegistration() {
             .single();
 
           if (docRow) {
+            await supabase.from("partner_locations").insert(
+              buildPrimaryPartnerLocation(docRow.id, {
+                name: doc.name,
+                full_address: data.full_address,
+                city: data.city,
+                state: data.state,
+                zip_code: data.zip_code,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                _google_maps_url: google_maps_url,
+              }) as any
+            );
+
             // Link doctor to clinic
             await supabase.from("partner_doctor_links").insert({
               clinic_id: partnerId,
