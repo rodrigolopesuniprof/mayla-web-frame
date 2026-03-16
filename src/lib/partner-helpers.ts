@@ -148,7 +148,7 @@ export function enrichPartners(
 ): Partner[] {
   return partners
     .map((p) => {
-      const pLocs = locations.filter((l) => l.partner_id === p.id && l.latitude && l.longitude);
+      const pLocs = locations.filter((l) => l.partner_id === p.id && l.latitude != null && l.longitude != null);
       let bestLat = p.latitude;
       let bestLng = p.longitude;
       let bestDist = Infinity;
@@ -162,13 +162,13 @@ export function enrichPartners(
             bestLng = loc.longitude;
           }
         }
-      } else if (bestLat && bestLng) {
+      } else if (bestLat != null && bestLng != null) {
         bestDist = haversine(userPos[0], userPos[1], bestLat, bestLng);
       }
 
       return { ...p, display_lat: bestLat ?? undefined, display_lng: bestLng ?? undefined, distance: bestDist };
     })
-    .filter((p) => p.display_lat && p.display_lng && p.distance <= radiusKm);
+    .filter((p) => p.display_lat != null && p.display_lng != null && p.distance <= radiusKm);
 }
 
 /* ─── Filtering & Sorting ─── */
