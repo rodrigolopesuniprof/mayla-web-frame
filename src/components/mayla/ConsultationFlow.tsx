@@ -191,6 +191,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
   const [booking, setBooking] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
+  const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
 
   // Geolocation
   useEffect(() => {
@@ -328,7 +329,18 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     setSelectedDate(null);
     setSelectedSlotTime(null);
     setCurrentMonth(new Date());
-    setStep("schedule");
+    // Toggle expansion inline instead of going to schedule step
+    setExpandedDoctorId(prev => prev === d.id ? null : d.id);
+    setMapSelectedId(d.id);
+  };
+
+  /** Pick a time slot from the inline expanded card → go directly to confirm */
+  const handleInlineSlotSelect = (doctor: Doctor, tw: TimeWindow, weekday: number) => {
+    setSelectedDoctor(doctor);
+    const nextDate = getNextDateForWeekday(weekday);
+    setSelectedDate(nextDate);
+    setSelectedSlotTime(`${tw.start} – ${tw.end}`);
+    setStep("confirm");
   };
 
   const handleSelectDate = (day: Date) => {
@@ -410,9 +422,12 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
   const goBack = () => {
     if (step === "mode") { setStep("specialty"); setSelectedSpecialty(null); }
-    else if (step === "doctors") { setStep("mode"); setConsultMode(null); }
+    else if (step === "doctors") {
+      if (expandedDoctorId) { setExpandedDoctorId(null); }
+      else { setStep("mode"); setConsultMode(null); }
+    }
     else if (step === "schedule") { setStep("doctors"); setSelectedDoctor(null); }
-    else if (step === "confirm") { setStep("schedule"); setSelectedSlotTime(null); }
+    else if (step === "confirm") { setStep("doctors"); setSelectedSlotTime(null); setExpandedDoctorId(selectedDoctor?.id ?? null); }
     else onBack();
   };
 
@@ -507,7 +522,6 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
           </div>
         )}
 
-        {/* ── Step: Doctors ── */}
         {step === "doctors" && (
           <div className="flex flex-col">
             {loading ? (
@@ -518,13 +532,12 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
               <div className="px-5 py-12 text-center">
                 <span className="text-4xl block mb-2">🔍</span>
                 <p className="text-sm text-muted-foreground">Nenhum médico disponível para esta especialidade e modo.</p>
-                <p className="text-xs text-muted-foreground mt-2">Novos médicos podem estar em processo de aprovação. Tente novamente em breve ou escolha outra especialidade.</p>
                 <Button variant="outline" size="sm" className="mt-4" onClick={goBack}>Voltar</Button>
               </div>
             ) : (
               <>
-                {/* Map for presencial mode */}
-                {consultMode === "presencial" && userPos && (
+                {/* Map — show for ALL modes when we have user position & doctors with coords */}
+                {userPos && enrichedDoctors.some(d => d.display_lat != null) && (
                   <div className="h-[35vh] min-h-[200px] shrink-0">
                     <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-secondary"><p className="text-xs text-muted-foreground">Carregando mapa...</p></div>}>
                       <LazyMap
@@ -535,7 +548,8 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                         mapSelectedId={mapSelectedId}
                         createDoctorIcon={createDoctorIcon}
                         onPinClick={(id) => {
-                          setMapSelectedId(id);
+                          const doc = enrichedDoctors.find(d => d.id === id);
+                          if (doc) handleSelectDoctor(doc);
                           document.getElementById(`doc-card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
                         }}
                       />
@@ -560,49 +574,138 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                   </div>
                 )}
 
-                {/* Doctor list */}
+                {/* Doctor list with expandable cards */}
                 <div className="px-4 py-3 space-y-2">
                   <p className="text-xs text-muted-foreground">{enrichedDoctors.length} profissional(is) encontrado(s)</p>
-                  {enrichedDoctors.map((d) => (
-                    <button
-                      key={d.id}
-                      id={`doc-card-${d.id}`}
-                      onClick={() => { setMapSelectedId(d.id); handleSelectDoctor(d); }}
-                      className={`w-full text-left rounded-xl p-3 border cursor-pointer transition-all ${
-                        mapSelectedId === d.id
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border bg-card hover:border-primary/30"
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
-                          {d.partner_type === "clinic" ? "🏥" : "🩺"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-semibold text-foreground truncate">{d.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {d.partner_type === "clinic" ? "Clínica" : d.specialty}
+                  {enrichedDoctors.map((d) => {
+                    const isExpanded = expandedDoctorId === d.id;
+                    const docSlots = availability.filter(a => a.partner_id === d.id && a.is_active);
+                    // For clinics, filter by selected specialty
+                    const filteredSlots = d.partner_type === "clinic" && selectedSpecialty
+                      ? (() => {
+                          const specLower = selectedSpecialty.toLowerCase();
+                          const sf = docSlots.filter(s => s.specialty && s.specialty.toLowerCase().includes(specLower));
+                          return sf.length > 0 ? sf : docSlots;
+                        })()
+                      : docSlots;
+                    // Group slots by weekday for inline display
+                    const slotsByWeekday = filteredSlots.reduce<Record<number, TimeWindow[]>>((acc, slot) => {
+                      const windows = splitIntoWindows(slot);
+                      if (!acc[slot.weekday]) acc[slot.weekday] = [];
+                      acc[slot.weekday].push(...windows);
+                      return acc;
+                    }, {});
+                    // Get next 3 available dates
+                    const upcomingDays = Object.keys(slotsByWeekday)
+                      .map(Number)
+                      .sort((a, b) => {
+                        const dA = getNextDateForWeekday(a);
+                        const dB = getNextDateForWeekday(b);
+                        return dA.getTime() - dB.getTime();
+                      })
+                      .slice(0, 3);
+
+                    return (
+                      <div
+                        key={d.id}
+                        id={`doc-card-${d.id}`}
+                        className={`w-full text-left rounded-xl border transition-all ${
+                          isExpanded
+                            ? "border-primary bg-primary/5 shadow-md"
+                            : mapSelectedId === d.id
+                            ? "border-primary/50 bg-card shadow-sm"
+                            : "border-border bg-card hover:border-primary/30"
+                        }`}
+                      >
+                        {/* Card header — always visible */}
+                        <button
+                          onClick={() => handleSelectDoctor(d)}
+                          className="w-full text-left p-3 cursor-pointer bg-transparent border-none"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
+                              {d.partner_type === "clinic" ? "🏥" : "🩺"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-foreground truncate">{d.name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
+                                  ⭐ Novo
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {d.partner_type === "clinic" ? "Clínica" : d.specialty}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                {d.distance != null && d.distance < Infinity && (
+                                  <span className="text-[10px] text-muted-foreground">📏 {formatDist(d.distance)}</span>
+                                )}
+                                {d.distance === Infinity && d.city && (
+                                  <span className="text-[10px] text-muted-foreground">📍 {d.city}/{d.state}</span>
+                                )}
+                                {d.consultation_price != null && (
+                                  <span className="text-xs font-semibold text-foreground">R$ {d.consultation_price.toFixed(0)}</span>
+                                )}
+                                {d.online_consultation_enabled && (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Online</Badge>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`text-muted-foreground text-sm shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}>›</span>
                           </div>
-                          <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            {d.crm && <span className="text-[10px] text-muted-foreground">CRM {d.crm}/{d.crm_state}</span>}
-                            {d.distance != null && d.distance < Infinity && (
-                              <span className="text-[10px] text-muted-foreground">📏 {formatDist(d.distance)}</span>
-                            )}
-                            {d.distance === Infinity && d.city && (
-                              <span className="text-[10px] text-muted-foreground">📍 {d.city}/{d.state}</span>
-                            )}
-                            {d.consultation_price != null && (
-                              <span className="text-xs font-semibold text-foreground">R$ {d.consultation_price.toFixed(0)}</span>
-                            )}
-                            {d.online_consultation_enabled && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Online</Badge>
+                        </button>
+
+                        {/* Expanded: inline time slots */}
+                        {isExpanded && (
+                          <div className="px-3 pb-3 border-t border-border/50 pt-3 space-y-3">
+                            {upcomingDays.length === 0 ? (
+                              <div className="text-center py-3">
+                                <span className="text-2xl block mb-1">📅</span>
+                                <p className="text-xs text-muted-foreground">Sem horários cadastrados.</p>
+                                <Button variant="outline" size="sm" className="mt-2 text-xs" onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}>
+                                  Ver agenda completa
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-[11px] font-medium text-muted-foreground">Próximos horários disponíveis:</p>
+                                {upcomingDays.map(weekday => {
+                                  const nextDate = getNextDateForWeekday(weekday);
+                                  const windows = slotsByWeekday[weekday] || [];
+                                  return (
+                                    <div key={weekday}>
+                                      <p className="text-[11px] font-semibold text-foreground mb-1.5 capitalize">
+                                        {WEEKDAY_NAMES[weekday]} ({format(nextDate, "dd/MMM", { locale: ptBR })})
+                                      </p>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {windows.map((tw, i) => (
+                                          <button
+                                            key={i}
+                                            onClick={() => handleInlineSlotSelect(d, tw, weekday)}
+                                            className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
+                                          >
+                                            {tw.start}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs text-primary w-full mt-1"
+                                  onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}
+                                >
+                                  Ver agenda completa →
+                                </Button>
+                              </>
                             )}
                           </div>
-                        </div>
-                        <span className="text-muted-foreground text-sm shrink-0">›</span>
+                        )}
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             )}
