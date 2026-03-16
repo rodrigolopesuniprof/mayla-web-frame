@@ -1231,6 +1231,7 @@ export type Database = {
           state: string | null
           sub_specialty: string | null
           updated_at: string | null
+          virtual_store_url: string | null
           wellness_activities: Json | null
           zip_code: string | null
         }
@@ -1275,6 +1276,7 @@ export type Database = {
           state?: string | null
           sub_specialty?: string | null
           updated_at?: string | null
+          virtual_store_url?: string | null
           wellness_activities?: Json | null
           zip_code?: string | null
         }
@@ -1319,6 +1321,7 @@ export type Database = {
           state?: string | null
           sub_specialty?: string | null
           updated_at?: string | null
+          virtual_store_url?: string | null
           wellness_activities?: Json | null
           zip_code?: string | null
         }
