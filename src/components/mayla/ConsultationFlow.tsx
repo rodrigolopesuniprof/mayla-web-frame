@@ -485,7 +485,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
                         center={mapCenter}
                         userPos={userPos}
                         userIcon={userIcon}
-                        doctors={enrichedDoctors}
+                        doctors={enrichedDoctors.filter(d => d.display_lat != null && d.display_lng != null)}
                         mapSelectedId={mapSelectedId}
                         createDoctorIcon={createDoctorIcon}
                         onPinClick={(id) => {
