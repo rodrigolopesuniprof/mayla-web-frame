@@ -431,6 +431,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
               <div className="px-5 py-12 text-center">
                 <span className="text-4xl block mb-2">🔍</span>
                 <p className="text-sm text-muted-foreground">Nenhum médico disponível para esta especialidade e modo.</p>
+                <p className="text-xs text-muted-foreground mt-2">Novos médicos podem estar em processo de aprovação. Tente novamente em breve ou escolha outra especialidade.</p>
                 <Button variant="outline" size="sm" className="mt-4" onClick={goBack}>Voltar</Button>
               </div>
             ) : (
