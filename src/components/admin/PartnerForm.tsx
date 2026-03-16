@@ -81,6 +81,7 @@ export interface PartnerData {
   delivery_available: boolean;
   service_notes: string;
   virtual_store_url: string;
+  google_maps_url: string;
   // Extended data for registration flow (not persisted on partners table directly)
   _availability?: AvailabilitySlot[];
   _clinic_doctors?: ClinicDoctor[];

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { PartnerForm, type PartnerData, type PartnerType } from "@/components/admin/PartnerForm";
+import { buildPrimaryPartnerLocation } from "@/lib/partner-location-utils";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
 const TYPES: { id: PartnerType; label: string; emoji: string; desc: string }[] = [
