@@ -28,6 +28,7 @@ import { ptBR } from "date-fns/locale";
 interface Doctor {
   id: string;
   name: string;
+  partner_type: string;
   specialty: string | null;
   consultation_type: string | null;
   consultation_price: number | null;
@@ -43,6 +44,9 @@ interface Doctor {
   phone: string | null;
   description: string | null;
   logo_url: string | null;
+  notification_email: string | null;
+  email: string | null;
+  specialties_offered: string[] | null;
   // computed
   distance?: number;
   display_lat?: number;
