@@ -226,7 +226,7 @@ export function MissionsTab({ onBack }: { onBack?: () => void } = {}) {
 
   return (
     <div className="animate-fade-up flex-1 overflow-y-auto pb-4">
-      <TopBar />
+      <TopBar title="Missões" onBack={onBack} />
       <div className="px-5 pt-5 pb-4">
         <h2 className="font-display text-2xl font-medium text-foreground mb-1">Missões</h2>
         <p className="text-sm text-muted-foreground">Complete missões e ganhe pontos de saúde</p>
