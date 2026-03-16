@@ -54,8 +54,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [showConsultHistory, setShowConsultHistory] = useState(false);
   const [consultHistory, setConsultHistory] = useState<any[]>([]);
 
-  // Binah
-  const [binahEnabled, setBinahEnabled] = useState(false);
 
   useEffect(() => {
     if (!user) return;
