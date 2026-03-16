@@ -110,7 +110,7 @@ export function WellbeingTab() {
         onClose={() => setShowBinah(false)}
         onComplete={() => { fetchBinahStatus(); fetchMeasurements(); }}
         municipalityId={null}
-        companyId={null}
+        companyId={companyId ?? null}
       />
     );
   }
