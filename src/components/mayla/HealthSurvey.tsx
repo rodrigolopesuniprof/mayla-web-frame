@@ -263,6 +263,7 @@ export function HealthSurvey({ onDone }: { onDone: () => void }) {
       has_hypertension: data.has_hypertension,
       has_diabetes: data.has_diabetes,
       health_survey_completed: true,
+      health_survey_completed_at: new Date().toISOString(),
       cep: data.cep.replace(/\D/g, "") || null,
       endereco: data.endereco || null,
       bairro: data.bairro || null,
