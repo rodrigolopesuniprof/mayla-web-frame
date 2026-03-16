@@ -363,6 +363,44 @@ export type Database = {
           },
         ]
       }
+      collaborative_teams: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string
+          emoji: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by: string
+          emoji?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string
+          emoji?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborative_teams_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           accent_color: string
@@ -1421,6 +1459,35 @@ export type Database = {
           reason?: string
         }
         Relationships: []
+      }
+      team_members: {
+        Row: {
+          id: string
+          joined_at: string | null
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "collaborative_teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_missions: {
         Row: {

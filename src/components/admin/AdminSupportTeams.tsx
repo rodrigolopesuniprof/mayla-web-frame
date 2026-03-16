@@ -2,274 +2,208 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
-interface EsfTeam {
+interface Company {
   id: string;
-  municipality_id: string;
-  cnes_code: string;
   name: string;
-  address: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  qr_code: string;
-  active: boolean;
-  created_at: string;
 }
 
-interface Municipality {
+interface CollaborativeTeam {
   id: string;
+  company_id: string;
   name: string;
-  codigo_ibge: number | null;
+  emoji: string;
+  is_default: boolean;
+  created_at: string;
+  member_count: number;
+  total_points: number;
 }
 
 export function AdminSupportTeams() {
-  const [teams, setTeams] = useState<EsfTeam[]>([]);
-  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
-  const [selectedMuni, setSelectedMuni] = useState<string>("");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [teams, setTeams] = useState<CollaborativeTeam[]>([]);
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
-  const [citizenCounts, setCitizenCounts] = useState<Record<string, number>>({});
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [manualForm, setManualForm] = useState({ name: "", cnes_code: "", address: "" });
-  const [savingManual, setSavingManual] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", emoji: "🏃" });
+  const [saving, setSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [muniRes, teamsRes] = await Promise.all([
-      supabase.from("municipalities").select("id, name, codigo_ibge").order("name"),
-      selectedMuni
-        ? supabase.from("esf_teams").select("*").eq("municipality_id", selectedMuni).order("name")
-        : supabase.from("esf_teams").select("*").order("name"),
-    ]);
-    if (muniRes.data) setMunicipalities(muniRes.data);
-    if (teamsRes.data) setTeams(teamsRes.data as EsfTeam[]);
 
-    // Count citizens per ESF
-    if (teamsRes.data && teamsRes.data.length > 0) {
-      const ids = teamsRes.data.map((t: any) => t.id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("esf_team_id")
-        .in("esf_team_id", ids);
-      if (profiles) {
-        const counts: Record<string, number> = {};
-        profiles.forEach((p: any) => {
-          if (p.esf_team_id) counts[p.esf_team_id] = (counts[p.esf_team_id] || 0) + 1;
-        });
-        setCitizenCounts(counts);
+    // Load companies
+    const { data: companiesData } = await supabase
+      .from("companies")
+      .select("id, name")
+      .order("name");
+    if (companiesData) {
+      setCompanies(companiesData);
+      if (companiesData.length > 0 && !selectedCompany) {
+        setSelectedCompany(companiesData[0].id);
+        setLoading(false);
+        return; // Will re-trigger via useEffect
       }
     }
+
+    if (!selectedCompany) { setLoading(false); return; }
+
+    // Load teams for selected company
+    const { data: teamsData } = await supabase
+      .from("collaborative_teams")
+      .select("*")
+      .eq("company_id", selectedCompany)
+      .order("is_default", { ascending: false })
+      .order("name");
+
+    if (teamsData) {
+      // Get member counts and points
+      const teamIds = teamsData.map(t => t.id);
+      const { data: members } = await supabase
+        .from("team_members")
+        .select("team_id, user_id")
+        .in("team_id", teamIds);
+
+      // Get points for all members
+      const userIds = [...new Set(members?.map(m => m.user_id) || [])];
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from("profiles").select("user_id, points").in("user_id", userIds)
+        : { data: [] };
+
+      const pointsMap = new Map<string, number>(
+        (profiles || []).map(p => [p.user_id, p.points] as [string, number])
+      );
+
+      const enriched: CollaborativeTeam[] = teamsData.map(t => {
+        const teamMembers = members?.filter(m => m.team_id === t.id) || [];
+        const totalPoints = teamMembers.reduce((sum, m) => sum + (pointsMap.get(m.user_id) || 0), 0);
+        return {
+          ...t,
+          emoji: t.emoji || "🏃",
+          is_default: t.is_default || false,
+          member_count: teamMembers.length,
+          total_points: totalPoints,
+        };
+      });
+
+      // Sort by total_points desc (default team always first)
+      enriched.sort((a, b) => {
+        if (a.is_default && !b.is_default) return -1;
+        if (!a.is_default && b.is_default) return 1;
+        return b.total_points - a.total_points;
+      });
+
+      setTeams(enriched);
+    }
+
     setLoading(false);
-  }, [selectedMuni]);
+  }, [selectedCompany]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleImportCNES = async () => {
-    if (!selectedMuni) {
-      toast.error("Selecione um município primeiro");
-      return;
-    }
-    const muni = municipalities.find(m => m.id === selectedMuni);
-    if (!muni?.codigo_ibge) {
-      toast.error("Município sem código IBGE configurado");
-      return;
-    }
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCompany || !form.name.trim()) return;
+    setSaving(true);
 
-    setImporting(true);
-    try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session.session?.user?.id;
+    if (!userId) { toast.error("Não autenticado"); setSaving(false); return; }
 
-      // Fetch all pages
-      let allEstabs: any[] = [];
-      let offset = 0;
-      const limit = 100;
-      let hasMore = true;
+    const { error } = await supabase.from("collaborative_teams").insert({
+      company_id: selectedCompany,
+      name: form.name.trim(),
+      emoji: form.emoji || "🏃",
+      created_by: userId,
+    });
 
-      while (hasMore) {
-        const url = `https://${projectId}.supabase.co/functions/v1/cnes-proxy?codigo_municipio=${muni.codigo_ibge}&status=1&limit=${limit}&offset=${offset}`;
-        const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-        });
-        if (!response.ok) throw new Error(`Erro ${response.status}`);
-        const data = await response.json();
-        const items = data.estabelecimentos || [];
-        allEstabs = allEstabs.concat(items);
-        hasMore = items.length === limit;
-        offset += limit;
-      }
-
-      // Filter ESF-type establishments (tipo 15=UBS, 72=UBS, 50=UBS Fluvial, 70=NASF)
-      // Also filter by name containing "SAUDE DA FAMILIA", "ESF", "PSF", "ESTRATEGIA"
-      const esfEstabs = allEstabs.filter((e: any) => {
-        const name = ((e.nome_fantasia || "") + " " + (e.nome_razao_social || "")).toUpperCase();
-        return (
-          name.includes("SAUDE DA FAMILIA") ||
-          name.includes("ESTRATEGIA") ||
-          name.includes(" ESF ") ||
-          name.includes(" PSF ") ||
-          name.startsWith("ESF ") ||
-          name.startsWith("PSF ") ||
-          name.includes("EQUIPE DE SAUDE") ||
-          [15, 72, 50].includes(e.codigo_tipo_unidade)
-        );
-      });
-
-      if (esfEstabs.length === 0) {
-        toast.info(`Nenhuma ESF encontrada entre ${allEstabs.length} estabelecimentos`);
-        setImporting(false);
-        return;
-      }
-
-      // Upsert into esf_teams
-      let created = 0;
-      let updated = 0;
-      for (const e of esfEstabs) {
-        const cnesCode = String(e.codigo_cnes);
-        const qrCode = `ESF_${cnesCode}`;
-        const name = e.nome_fantasia || e.nome_razao_social || `CNES ${cnesCode}`;
-        const address = [e.endereco_estabelecimento, e.numero_estabelecimento, e.bairro_estabelecimento]
-          .filter(Boolean).join(", ");
-
-        const { data: existing } = await supabase
-          .from("esf_teams")
-          .select("id")
-          .eq("cnes_code", cnesCode)
-          .eq("municipality_id", selectedMuni)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase.from("esf_teams").update({
-            name, address,
-            latitude: e.latitude_estabelecimento_decimo_grau,
-            longitude: e.longitude_estabelecimento_decimo_grau,
-          }).eq("id", existing.id);
-          updated++;
-        } else {
-          await supabase.from("esf_teams").insert({
-            municipality_id: selectedMuni,
-            cnes_code: cnesCode,
-            name, address, qr_code: qrCode,
-            latitude: e.latitude_estabelecimento_decimo_grau,
-            longitude: e.longitude_estabelecimento_decimo_grau,
-          });
-          created++;
-        }
-      }
-
-      toast.success(`Importação concluída: ${created} novas, ${updated} atualizadas (de ${esfEstabs.length} ESFs)`);
+    if (error) {
+      toast.error(`Erro: ${error.message}`);
+    } else {
+      toast.success("Time criado!");
+      setShowForm(false);
+      setForm({ name: "", emoji: "🏃" });
       loadData();
-    } catch (err: any) {
-      toast.error(`Erro: ${err.message}`);
     }
-    setImporting(false);
+    setSaving(false);
   };
 
-  const toggleActive = async (id: string, active: boolean) => {
-    await supabase.from("esf_teams").update({ active: !active }).eq("id", id);
-    loadData();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir esta ESF?")) return;
-    await supabase.from("esf_teams").delete().eq("id", id);
-    toast.success("ESF excluída");
-    loadData();
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Excluir o time "${name}"? Os membros serão desvinculados.`)) return;
+    const { error } = await supabase.from("collaborative_teams").delete().eq("id", id);
+    if (error) toast.error(`Erro: ${error.message}`);
+    else { toast.success("Time excluído"); loadData(); }
   };
 
   const filtered = teams.filter(t => {
     if (!search) return true;
-    const q = search.toLowerCase();
-    return t.name.toLowerCase().includes(q) || t.cnes_code.includes(q) || (t.address || "").toLowerCase().includes(q);
+    return t.name.toLowerCase().includes(search.toLowerCase());
   });
+
+  const emojiOptions = ["🏃", "⚽", "🏋️", "🧘", "🚴", "🏊", "💪", "🌟", "🔥", "🎯", "🏆", "🦅"];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <h2 className="font-display text-2xl text-foreground">Equipes de Saúde da Família</h2>
+        <div>
+          <h2 className="font-display text-2xl text-foreground">Times Colaborativos</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Ranking por pontuação: Empresa → Time → Membros
+          </p>
+        </div>
         <div className="flex gap-2 items-center">
-          <Select value={selectedMuni} onValueChange={setSelectedMuni}>
+          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
             <SelectTrigger className="w-[220px] h-9 text-sm">
-              <SelectValue placeholder="Selecione município" />
+              <SelectValue placeholder="Selecione empresa" />
             </SelectTrigger>
             <SelectContent>
-              {municipalities.map(m => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name} {m.codigo_ibge ? `(${m.codigo_ibge})` : ""}
-                </SelectItem>
+              {companies.map(c => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" onClick={handleImportCNES} disabled={importing || !selectedMuni}>
-            {importing ? "Importando..." : "🔄 Importar do CNES"}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => { setShowManualForm(!showManualForm); setManualForm({ name: "", cnes_code: "", address: "" }); }} disabled={!selectedMuni}>
-            ➕ Cadastrar manual
+          <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} disabled={!selectedCompany}>
+            ➕ Criar Time
           </Button>
         </div>
       </div>
 
-      {/* Manual ESF Form */}
-      {showManualForm && (
+      {showForm && (
         <Card className="mb-4">
           <CardContent className="p-4">
-            <h3 className="font-semibold text-sm text-foreground mb-3">Cadastrar ESF manualmente</h3>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!selectedMuni || !manualForm.name.trim()) return;
-                setSavingManual(true);
-                const cnesCode = manualForm.cnes_code.trim() || `MAN_${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-                const qrCode = manualForm.cnes_code.trim() ? `ESF_${manualForm.cnes_code.trim()}` : `ESF_MAN_${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-                const { error } = await supabase.from("esf_teams").insert({
-                  municipality_id: selectedMuni,
-                  cnes_code: cnesCode,
-                  name: manualForm.name.trim(),
-                  address: manualForm.address.trim() || null,
-                  qr_code: qrCode,
-                });
-                if (error) {
-                  toast.error(`Erro: ${error.message}`);
-                } else {
-                  toast.success("ESF cadastrada com sucesso!");
-                  setShowManualForm(false);
-                  setManualForm({ name: "", cnes_code: "", address: "" });
-                  loadData();
-                }
-                setSavingManual(false);
-              }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-3"
-            >
-              <Input
-                placeholder="Nome da ESF *"
-                value={manualForm.name}
-                onChange={e => setManualForm({ ...manualForm, name: e.target.value })}
-                required
-              />
-              <Input
-                placeholder="Código CNES (opcional)"
-                value={manualForm.cnes_code}
-                onChange={e => setManualForm({ ...manualForm, cnes_code: e.target.value })}
-              />
-              <Input
-                placeholder="Endereço (opcional)"
-                value={manualForm.address}
-                onChange={e => setManualForm({ ...manualForm, address: e.target.value })}
-              />
-              <div className="md:col-span-3 flex gap-2">
-                <Button type="submit" size="sm" disabled={savingManual}>
-                  {savingManual ? "Salvando..." : "Salvar ESF"}
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setShowManualForm(false)}>
-                  Cancelar
-                </Button>
+            <h3 className="font-semibold text-sm text-foreground mb-3">Criar novo time</h3>
+            <form onSubmit={handleCreate} className="flex items-end gap-3">
+              <div className="flex-1">
+                <Input
+                  placeholder="Nome do time *"
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  required
+                />
               </div>
+              <div className="flex gap-1">
+                {emojiOptions.slice(0, 6).map(em => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setForm({ ...form, emoji: em })}
+                    className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center cursor-pointer border-none transition-colors ${
+                      form.emoji === em ? "bg-primary/20 ring-2 ring-primary" : "bg-secondary hover:bg-secondary/80"
+                    }`}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
+              <Button type="submit" size="sm" disabled={saving}>
+                {saving ? "Criando..." : "Criar"}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowForm(false)}>
+                Cancelar
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -277,65 +211,57 @@ export function AdminSupportTeams() {
 
       <div className="flex gap-3 mb-4">
         <Input
-          placeholder="Buscar por nome, CNES ou endereço..."
+          placeholder="Buscar time..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="max-w-sm"
         />
         <span className="text-sm text-muted-foreground self-center">
-          {filtered.length} ESF{filtered.length !== 1 ? "s" : ""}
+          {filtered.length} time{filtered.length !== 1 ? "s" : ""}
         </span>
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground py-8 text-center">Carregando...</p>
+        <div className="flex flex-col gap-2">
+          {[1, 2, 3].map(i => <div key={i} className="h-16 bg-secondary rounded-xl animate-pulse" />)}
+        </div>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
-              {selectedMuni
-                ? "Nenhuma ESF encontrada. Clique em 'Importar do CNES' para buscar automaticamente."
-                : "Selecione um município para ver as ESFs."}
+              {selectedCompany ? "Nenhum time encontrado." : "Selecione uma empresa."}
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtered.map(t => (
-            <Card key={t.id} className={`${!t.active ? "opacity-60" : ""}`}>
+          {filtered.map((t, index) => (
+            <Card key={t.id}>
               <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-xl">
-                    🏥
+                <div className="flex items-center gap-4">
+                  <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-xl font-bold text-muted-foreground">
+                    {t.is_default ? "—" : `#${index + 1}`}
                   </div>
+                  <div className="shrink-0 text-2xl">{t.emoji}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="font-semibold text-sm text-foreground">{t.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground font-mono">
-                        CNES {t.cnes_code}
-                      </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${t.active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        {t.active ? "Ativa" : "Inativa"}
-                      </span>
+                      {t.is_default && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-semibold">
+                          PADRÃO
+                        </span>
+                      )}
                     </div>
-                    {t.address && (
-                      <p className="text-xs text-muted-foreground mb-1">📍 {t.address}</p>
-                    )}
                     <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-                      <span>👥 {citizenCounts[t.id] || 0} cidadãos vinculados</span>
-                      <span className="font-mono text-[10px] bg-secondary px-2 py-0.5 rounded">
-                        QR: {t.qr_code}
-                      </span>
+                      <span>👥 {t.member_count} membro{t.member_count !== 1 ? "s" : ""}</span>
+                      <span>⭐ {t.total_points.toLocaleString()} pts</span>
                     </div>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <Button variant="ghost" size="sm" onClick={() => toggleActive(t.id, t.active)}>
-                      {t.active ? "Desativar" : "Ativar"}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(t.id)}>
+                  {!t.is_default && (
+                    <Button variant="ghost" size="sm" className="text-destructive text-xs" onClick={() => handleDelete(t.id, t.name)}>
                       Excluir
                     </Button>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

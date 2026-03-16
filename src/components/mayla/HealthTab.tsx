@@ -86,6 +86,7 @@ export function HealthTab() {
         onClose={() => setShowBinah(false)}
         onComplete={() => { fetchBinahStatus(); fetchMeasurements(); }}
         municipalityId={null}
+        companyId={null}
       />
     );
   }
