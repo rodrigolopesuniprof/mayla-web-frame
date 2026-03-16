@@ -59,9 +59,8 @@ export default function Admin() {
     { id: "usuarios", label: "👤 Colaboradores" },
     { id: "programas", label: "🌿 Programas" },
     { id: "avisos", label: "📢 Notificações" },
-    { id: "equipes", label: "👥 Equipes" },
-    { id: "locais", label: "📍 Locais" },
-    { id: "especialidades", label: "🩺 Especialidades" },
+    { id: "equipes", label: "🏃 Times" },
+    { id: "especialistas", label: "🩺 Especialistas" },
     { id: "agendamentos", label: "📋 Agendamentos" },
   ];
 
