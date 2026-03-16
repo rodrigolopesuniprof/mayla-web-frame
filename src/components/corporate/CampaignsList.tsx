@@ -31,6 +31,9 @@ export function CampaignsList({ companyId, primaryColor }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setCampaigns([]);
+    setJoined(new Set());
+    setLoading(true);
     loadData();
   }, [companyId, user]);
 
