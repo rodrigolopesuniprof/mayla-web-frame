@@ -35,12 +35,23 @@ export function MaylaApp() {
 
     supabase
       .from("profiles")
-      .select("health_survey_completed")
+      .select("health_survey_completed, health_survey_completed_at")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        if ((data as any)?.health_survey_completed) {
-          setPhase("main");
+        const profile = data as any;
+        if (profile?.health_survey_completed && profile?.health_survey_completed_at) {
+          const completedAt = new Date(profile.health_survey_completed_at);
+          const sixMonthsAgo = new Date();
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+          if (completedAt > sixMonthsAgo) {
+            setPhase("main");
+          } else {
+            // Expired — reset and require new survey
+            supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", user.id).then(() => {
+              setPhase("splash");
+            });
+          }
         } else {
           setPhase("splash");
         }
