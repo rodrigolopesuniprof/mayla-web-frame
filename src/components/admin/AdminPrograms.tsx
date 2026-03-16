@@ -418,6 +418,9 @@ export function AdminPrograms() {
                                       <Badge variant="outline" className="text-[10px]">{m.points || 0} pts</Badge>
                                       <Badge variant="outline" className="text-[10px]">{FREQ_LABELS[m.frequency || ""] || m.frequency}</Badge>
                                       <Badge variant="secondary" className="text-[10px]">{VALIDATION_BADGE[m.validation_type || "self_report"] || "✅"}</Badge>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditMission(m, camp, prog)}>
+                                        <Pencil className="h-3 w-3" />
+                                      </Button>
                                       <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setDeleteTarget({ type: "mission", id: m.campaign_mission_id, title: m.title, campaignId: missionParentCampaign?.id || camp.id })}>
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
