@@ -91,7 +91,16 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
       const { data } = await supabase.from("partner_locations").insert(payload).select().single();
       if (data) updateRow(idx, "id", data.id);
     }
-    toast({ title: "Local salvo" });
+
+    // Also sync coordinates to the partners table if this is the main location
+    if (loc.is_main && (payload.latitude != null || payload.longitude != null)) {
+      await supabase.from("partners").update({
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+      }).eq("id", loc.partner_id);
+    }
+
+    toast({ title: mapsCoordinates ? "Local salvo ✅ Coordenadas extraídas!" : "Local salvo" });
   };
 
   const deleteRow = async (idx: number) => {
