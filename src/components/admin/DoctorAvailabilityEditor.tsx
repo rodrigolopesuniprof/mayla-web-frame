@@ -61,6 +61,7 @@ export function DoctorAvailabilityEditor({ partnerId, partnerType }: Props) {
       consultation_mode: "both",
       is_active: true,
       slot_duration_minutes: 30,
+      specialty: null,
     }]);
   };
 
