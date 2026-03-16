@@ -9,6 +9,7 @@ import { PartnerForm, type PartnerData, type PartnerType } from "./PartnerForm";
 import { PartnerLocationsEditor } from "./PartnerLocationsEditor";
 import { DoctorAvailabilityEditor } from "./DoctorAvailabilityEditor";
 import { PartnerCsvImport } from "./PartnerCsvImport";
+import { buildPrimaryPartnerLocation } from "@/lib/partner-location-utils";
 
 const TABS: { id: PartnerType; label: string; emoji: string }[] = [
   { id: "doctor", label: "Médicos", emoji: "🩺" },
