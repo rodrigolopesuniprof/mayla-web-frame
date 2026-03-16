@@ -134,6 +134,21 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
               <Input value={loc.zip_code} onChange={e => updateRow(idx, "zip_code", e.target.value)} />
             </div>
           </div>
+          {/* Google Maps URL field */}
+          <div className="space-y-1">
+            <Label className="text-xs">🔗 Link do Google Maps (para extrair coordenadas)</Label>
+            <Input
+              value={loc._google_maps_url || ""}
+              onChange={e => updateRow(idx, "_google_maps_url", e.target.value)}
+              placeholder="Cole aqui o link do Google Maps"
+            />
+            {loc.latitude != null && loc.longitude != null && (
+              <p className="text-[10px] text-muted-foreground">📍 Coordenadas: {loc.latitude}, {loc.longitude}</p>
+            )}
+            {!loc.latitude && !loc.longitude && (
+              <p className="text-[10px] text-orange-500">⚠️ Sem coordenadas — cole um link do Google Maps e salve</p>
+            )}
+          </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Switch checked={loc.is_main} onCheckedChange={v => updateRow(idx, "is_main", v)} />
