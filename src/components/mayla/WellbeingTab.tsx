@@ -110,7 +110,7 @@ export function WellbeingTab() {
         onClose={() => setShowBinah(false)}
         onComplete={() => { fetchBinahStatus(); fetchMeasurements(); }}
         municipalityId={null}
-        companyId={null}
+        companyId={companyId ?? null}
       />
     );
   }
@@ -181,13 +181,13 @@ export function WellbeingTab() {
           </div>
         </div>
 
-        {/* Binah Special Measurement CTA */}
+        {/* Special Measurement CTA */}
         {binahEnabled && (
           <div
-            className="rounded-[18px] p-5 relative overflow-hidden cursor-pointer"
+            className="rounded-[18px] p-4 relative overflow-hidden cursor-pointer"
             style={{
               background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
-              boxShadow: "0 12px 36px rgba(26,92,138,.3)",
+              boxShadow: "0 8px 24px rgba(26,92,138,.25)",
               opacity: binahUsedThisMonth >= binahLimit ? 0.5 : 1,
             }}
             onClick={() => {
@@ -195,30 +195,21 @@ export function WellbeingTab() {
             }}
           >
             <div className="flex items-center gap-4">
-              <div className="text-5xl">🔬</div>
-              <div>
-                <div className="text-lg font-semibold" style={{ color: "#fff" }}>
-                  Avaliação de Saúde Especial
+              <div className="text-4xl">🔬</div>
+              <div className="flex-1">
+                <div className="text-[15px] font-semibold" style={{ color: "#fff" }}>
+                  Medir sinais vitais – Função Especial
                 </div>
-                <div className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,.8)" }}>
+                <div className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,.8)" }}>
                   Análise completa · PA, hemoglobina, HRV · +100 pts
                 </div>
               </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between">
-              <div className="flex gap-2">
-                {["🩺 PA", "💧 SpO2", "✨ Bem-estar"].map((item, i) => (
-                  <div key={i} className="rounded-xl px-2.5 py-1.5 text-[10px] font-medium" style={{ background: "rgba(255,255,255,.2)", color: "#fff" }}>
-                    {item}
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-xl px-3 py-1.5 text-[11px] font-bold" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
-                {binahUsedThisMonth}/{binahLimit} este mês
+              <div className="rounded-xl px-2.5 py-1 text-[10px] font-bold shrink-0" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
+                {binahUsedThisMonth}/{binahLimit}
               </div>
             </div>
             {binahUsedThisMonth >= binahLimit && (
-              <div className="mt-2 text-[11px] font-medium" style={{ color: "rgba(255,255,255,.9)" }}>
+              <div className="mt-2 text-[11px] font-medium text-center" style={{ color: "rgba(255,255,255,.9)" }}>
                 Limite mensal atingido. Disponível no próximo mês.
               </div>
             )}
