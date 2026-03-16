@@ -136,23 +136,19 @@ export function ServicosTab() {
           <span className="text-muted-foreground text-lg">›</span>
         </button>
 
-        <h3 className="text-sm font-semibold text-muted-foreground tracking-[.08em] uppercase mt-6 mb-2">Em breve</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground tracking-[.08em] uppercase mt-6 mb-2">Marketplace</h3>
 
-        <div className="w-full rounded-2xl p-4 border border-dashed border-border bg-card/50 flex items-center gap-4 opacity-60">
-          <span className="text-3xl">💊</span>
+        <button
+          onClick={() => setSubView("partners")}
+          className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left"
+        >
+          <span className="text-3xl">📍</span>
           <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground">Farmácia Digital</div>
-            <div className="text-sm text-muted-foreground">Gerenciamento de medicamentos</div>
+            <div className="text-[15px] font-semibold text-foreground">Parceiros de Saúde</div>
+            <div className="text-sm text-muted-foreground">Encontre médicos, clínicas, academias e mais perto de você</div>
           </div>
-        </div>
-
-        <div className="w-full rounded-2xl p-4 border border-dashed border-border bg-card/50 flex items-center gap-4 opacity-60">
-          <span className="text-3xl">🧑‍⚕️</span>
-          <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground">Marketplace de Especialistas</div>
-            <div className="text-sm text-muted-foreground">Encontre profissionais de saúde</div>
-          </div>
-        </div>
+          <span className="text-muted-foreground text-lg">›</span>
+        </button>
       </div>
     </div>
   );
