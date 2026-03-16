@@ -64,7 +64,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         setProfileName(data.full_name);
         setProfilePoints(data.points);
         setProfileLevel(data.level);
-        setHasEsf(!!(data as any).esf_team_id);
       }
     });
 
