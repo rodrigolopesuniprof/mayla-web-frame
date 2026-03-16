@@ -14,7 +14,7 @@ import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashbo
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
-type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "avisos" | "especialistas" | "agendamentos" | "equipes";
+type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "avisos" | "parceiros" | "agendamentos" | "equipes";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
