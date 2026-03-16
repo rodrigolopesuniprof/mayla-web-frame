@@ -99,6 +99,7 @@ export default function PartnerRegistration() {
                 end_time: s.end_time,
                 consultation_mode: s.consultation_mode,
                 is_active: s.is_active,
+                slot_duration_minutes: s.slot_duration_minutes || 30,
               }));
               await supabase.from("doctor_availability").insert(docAvailRows);
             }
