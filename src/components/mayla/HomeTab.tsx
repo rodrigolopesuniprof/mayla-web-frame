@@ -76,13 +76,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
     fetchMyTeam();
   }, [user]);
 
-  // Binah feature check
-  useEffect(() => {
-    if (!companyId) return;
-    supabase.from("company_features").select("enabled").eq("company_id", companyId).eq("feature_key", "binah_special_measurement").maybeSingle().then(({ data }) => {
-      if (data?.enabled) setBinahEnabled(true);
-    });
-  }, [companyId]);
 
   const fetchMyTeam = async () => {
     if (!user) return;
