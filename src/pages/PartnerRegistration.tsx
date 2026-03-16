@@ -46,6 +46,19 @@ export default function PartnerRegistration() {
       if (error) throw error;
       const partnerId = partner.id;
 
+      await supabase.from("partner_locations").insert(
+        buildPrimaryPartnerLocation(partnerId, {
+          name: data.name,
+          full_address: data.full_address,
+          city: data.city,
+          state: data.state,
+          zip_code: data.zip_code,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          _google_maps_url: google_maps_url,
+        }) as any
+      );
+
       // Insert doctor availability slots
       if (data.partner_type === "doctor" && _availability && _availability.length > 0) {
         const availRows = _availability.map(s => ({
