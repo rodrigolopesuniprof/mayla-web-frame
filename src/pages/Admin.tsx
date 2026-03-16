@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { AdminCompanies } from "@/components/admin/AdminCompanies";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminNotifications } from "@/components/admin/AdminNotifications";
-import { AdminLocations } from "@/components/admin/AdminLocations";
 import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
 import { AdminAppointments } from "@/components/admin/AdminAppointments";
 import { AdminSupportTeams } from "@/components/admin/AdminSupportTeams";
@@ -15,7 +14,7 @@ import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashbo
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
-type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "avisos" | "locais" | "especialidades" | "agendamentos" | "equipes";
+type Tab = "corp_dashboard" | "empresas" | "usuarios" | "programas" | "avisos" | "especialistas" | "agendamentos" | "equipes";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
