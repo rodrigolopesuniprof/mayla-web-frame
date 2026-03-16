@@ -20,20 +20,96 @@ export default function PartnerRegistration() {
 
   const handleSubmit = async (data: PartnerData) => {
     setSaving(true);
-    const { id, ...rest } = data;
-    const payload = {
-      ...rest,
-      approval_status: "pending" as const,
-      active: false,
-    } as any;
+    try {
+      // Extract extended data before inserting
+      const { id, _availability, _clinic_doctors, _clinic_pricing_mode, virtual_store_url, ...rest } = data;
 
-    const { error } = await supabase.from("partners").insert(payload);
-    setSaving(false);
+      const payload: Record<string, unknown> = {
+        ...rest,
+        approval_status: "pending" as const,
+        active: false,
+      };
 
-    if (error) {
-      toast({ title: "Erro ao enviar cadastro", description: error.message, variant: "destructive" });
-    } else {
+      // Include virtual_store_url for pharmacies
+      if (data.partner_type === "pharmacy" && virtual_store_url) {
+        payload.virtual_store_url = virtual_store_url;
+      }
+
+      // Insert partner
+      const { data: partner, error } = await supabase
+        .from("partners")
+        .insert(payload as any)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      const partnerId = partner.id;
+
+      // Insert doctor availability slots
+      if (data.partner_type === "doctor" && _availability && _availability.length > 0) {
+        const availRows = _availability.map(s => ({
+          partner_id: partnerId,
+          weekday: s.weekday,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          consultation_mode: s.consultation_mode,
+          is_active: s.is_active,
+        }));
+        await supabase.from("doctor_availability").insert(availRows);
+      }
+
+      // Insert clinic doctors + their availability + links
+      if (data.partner_type === "clinic" && _clinic_doctors && _clinic_doctors.length > 0) {
+        for (const doc of _clinic_doctors) {
+          const docPayload: Record<string, unknown> = {
+            partner_type: "doctor" as const,
+            name: doc.name,
+            crm: doc.crm,
+            crm_state: doc.crm_state,
+            specialty: doc.specialty,
+            consultation_price: _clinic_pricing_mode === "per_doctor" ? doc.consultation_price : data.consultation_price,
+            consultation_type: data.service_mode || "both",
+            city: data.city,
+            state: data.state,
+            full_address: data.full_address,
+            approval_status: "pending" as const,
+            active: false,
+          };
+
+          const { data: docRow } = await supabase
+            .from("partners")
+            .insert(docPayload as any)
+            .select("id")
+            .single();
+
+          if (docRow) {
+            // Link doctor to clinic
+            await supabase.from("partner_doctor_links").insert({
+              clinic_id: partnerId,
+              doctor_id: docRow.id,
+            });
+
+            // Doctor availability
+            if (doc.availability.length > 0) {
+              const docAvailRows = doc.availability.map(s => ({
+                partner_id: docRow.id,
+                weekday: s.weekday,
+                start_time: s.start_time,
+                end_time: s.end_time,
+                consultation_mode: s.consultation_mode,
+                is_active: s.is_active,
+              }));
+              await supabase.from("doctor_availability").insert(docAvailRows);
+            }
+          }
+        }
+      }
+
       setSuccess(true);
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar cadastro", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
