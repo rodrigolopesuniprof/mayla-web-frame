@@ -627,7 +627,73 @@ export function AdminPrograms() {
                   <SelectContent>{VALIDATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-            </div>
+
+            {/* Questionnaire editor - shown when auto_survey */}
+            {missionForm.validation_type === "auto_survey" && (
+              <div className="space-y-3 border rounded-lg p-3 bg-secondary/20">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">📋 Questionário vinculado</Label>
+
+                {existingQuestionnaires.length > 0 && (
+                  <Select value={surveyMode} onValueChange={v => { setSurveyMode(v as "new" | "existing"); setLoadedSurveyQuestions([]); }}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">Criar novo questionário</SelectItem>
+                      <SelectItem value="existing">Vincular existente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {surveyMode === "existing" ? (
+                  <>
+                    <Select value={surveyQuestionnaireId} onValueChange={v => { setSurveyQuestionnaireId(v); loadSurveyQuestions(v); }}>
+                      <SelectTrigger><SelectValue placeholder="Selecione um questionário..." /></SelectTrigger>
+                      <SelectContent>
+                        {existingQuestionnaires.map(q => <SelectItem key={q.id} value={q.id}>{q.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {loadedSurveyQuestions.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">{loadedSurveyQuestions.length} pergunta(s):</p>
+                        {loadedSurveyQuestions.map((q, i) => (
+                          <div key={i} className="text-xs text-foreground bg-background rounded px-2 py-1">
+                            <span className="text-muted-foreground uppercase text-[10px]">{q.category}</span> — {q.question_text}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Input placeholder="Título do questionário (ex: Avaliação de Sono)" value={surveyTitle} onChange={e => setSurveyTitle(e.target.value)} className="h-8 text-sm" />
+                    <div className="space-y-2">
+                      {surveyQuestions.map((q, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <Input className="w-28 h-8 text-xs" placeholder="Categoria" value={q.category} onChange={e => {
+                            const updated = [...surveyQuestions];
+                            updated[i] = { ...updated[i], category: e.target.value };
+                            setSurveyQuestions(updated);
+                          }} />
+                          <Input className="flex-1 h-8 text-xs" placeholder="Pergunta" value={q.question_text} onChange={e => {
+                            const updated = [...surveyQuestions];
+                            updated[i] = { ...updated[i], question_text: e.target.value };
+                            setSurveyQuestions(updated);
+                          }} />
+                          {surveyQuestions.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setSurveyQuestions(q => q.filter((_, idx) => idx !== i))}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSurveyQuestions(q => [...q, { category: "Geral", question_text: "" }])}>
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar pergunta
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground">Cada pergunta usa escala 1-5 (😢 a 😄). O colaborador responde e a missão é concluída automaticamente.</p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowMissionForm(false)}>Cancelar</Button>
