@@ -14,6 +14,7 @@ import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import CompanyLanding from "./pages/CompanyLanding.tsx";
 import CompanyDashboard from "./pages/CompanyDashboard.tsx";
+import PartnerRegistration from "./pages/PartnerRegistration.tsx";
 
 const queryClient = new QueryClient();
 
