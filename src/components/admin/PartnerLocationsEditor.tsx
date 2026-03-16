@@ -63,7 +63,10 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
 
   const saveRow = async (idx: number) => {
     const loc = locations[idx];
-    const mapsCoordinates = extractCoordinatesFromGoogleMapsUrl(loc.full_address);
+    // Try to extract coords from dedicated Google Maps URL field first, then from address
+    const mapsCoordinates =
+      extractCoordinatesFromGoogleMapsUrl(loc._google_maps_url) ??
+      extractCoordinatesFromGoogleMapsUrl(loc.full_address);
     const payload = {
       partner_id: loc.partner_id,
       location_name: loc.location_name,
@@ -75,6 +78,12 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
       longitude: mapsCoordinates?.longitude ?? loc.longitude,
       is_main: loc.is_main,
     };
+
+    if (mapsCoordinates) {
+      // Update local state so user sees the resolved coords
+      updateRow(idx, "latitude", mapsCoordinates.latitude);
+      updateRow(idx, "longitude", mapsCoordinates.longitude);
+    }
 
     if (loc.id) {
       await supabase.from("partner_locations").update(payload).eq("id", loc.id);
