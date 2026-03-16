@@ -60,7 +60,7 @@ export default function Admin() {
     { id: "programas", label: "🌿 Programas" },
     { id: "avisos", label: "📢 Notificações" },
     { id: "equipes", label: "🏃 Times" },
-    { id: "especialistas", label: "🩺 Especialistas" },
+    { id: "parceiros", label: "🏥 Parceiros" },
     { id: "agendamentos", label: "📋 Agendamentos" },
   ];
 
