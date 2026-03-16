@@ -163,7 +163,7 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
   // --- Availability helpers ---
   const availability = data._availability || [];
   const addAvailSlot = () => {
-    set("_availability", [...availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true }]);
+    set("_availability", [...availability, { weekday: 1, start_time: "08:00", end_time: "12:00", consultation_mode: "both", is_active: true, slot_duration_minutes: 30 }]);
   };
   const updateAvailSlot = (idx: number, field: keyof AvailabilitySlot, val: unknown) => {
     set("_availability", availability.map((s, i) => i === idx ? { ...s, [field]: val } : s));
