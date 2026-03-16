@@ -536,8 +536,8 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
               </div>
             ) : (
               <>
-                {/* Map — show for ALL modes when we have user position & doctors with coords */}
-                {userPos && enrichedDoctors.some(d => d.display_lat != null) && (
+                {/* Map — always show when we have user position */}
+                {userPos && (
                   <div className="h-[35vh] min-h-[200px] shrink-0">
                     <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-secondary"><p className="text-xs text-muted-foreground">Carregando mapa...</p></div>}>
                       <LazyMap
