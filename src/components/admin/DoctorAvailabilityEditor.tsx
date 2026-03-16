@@ -10,6 +10,12 @@ import { toast } from "@/hooks/use-toast";
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
+const SPECIALTIES = [
+  "Clínico Geral", "Cardiologia", "Dermatologia", "Endocrinologia", "Gastroenterologia",
+  "Ginecologia e Obstetrícia", "Neurologia", "Nutrição", "Oftalmologia", "Ortopedia",
+  "Pediatria", "Psiquiatria", "Urologia", "Cirurgia Geral",
+];
+
 interface Slot {
   id?: string;
   partner_id: string;
@@ -19,6 +25,7 @@ interface Slot {
   consultation_mode: string;
   is_active: boolean;
   slot_duration_minutes: number;
+  specialty: string | null;
 }
 
 interface Props {
