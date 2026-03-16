@@ -30,6 +30,7 @@ interface Slot {
 
 interface Props {
   partnerId: string;
+  partnerType?: string;
 }
 
 export function DoctorAvailabilityEditor({ partnerId }: Props) {
