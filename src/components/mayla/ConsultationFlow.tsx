@@ -957,6 +957,21 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           />
         )}
 
+        {/* ── Step: Waiting Room ── */}
+        {step === "waiting_room" && waitingConsultationId && selectedDoctor && (
+          <WaitingRoom
+            consultationId={waitingConsultationId}
+            doctorName={selectedDoctor.name}
+            specialty={selectedSpecialty || ""}
+            scheduledAt={selectedDate && selectedSlotTime ? `${format(selectedDate, "yyyy-MM-dd")}T${selectedSlotTime.split(" – ")[0]}:00` : undefined}
+            onEnterCall={() => {
+              setActiveConsultationId(waitingConsultationId);
+              setStep("video_call");
+            }}
+            onBack={() => setStep("done")}
+          />
+        )}
+
         {/* ── Step: Done ── */}
         {step === "done" && (
           <div className="px-5 pt-8 text-center">

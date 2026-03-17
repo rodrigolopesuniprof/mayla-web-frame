@@ -421,7 +421,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
               <div
                 className="rounded-2xl p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
                 style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
-                onClick={() => { setShowConsultasDialog(false); onOpenTelemedicine(); }}
+                onClick={() => { setShowConsultasDialog(false); if (onOpenConsultationOnline) onOpenConsultationOnline(); else onOpenTelemedicine(); }}
               >
                 <span className="text-3xl">📹</span>
                 <div>
