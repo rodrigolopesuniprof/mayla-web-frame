@@ -361,30 +361,114 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     setStep("confirm");
   };
 
-  const handleFirstAvailable = () => {
-    const now = new Date();
-    const todayWeekday = now.getDay();
-    
-    for (const doc of enrichedDoctors) {
-      const docSlots = availability.filter((a) => a.partner_id === doc.id);
-      if (docSlots.length > 0) {
-        const sorted = [...docSlots].sort((a, b) => {
-          const diffA = (a.weekday - todayWeekday + 7) % 7;
-          const diffB = (b.weekday - todayWeekday + 7) % 7;
-          return diffA - diffB;
-        });
-        const best = sorted[0];
-        const windows = splitIntoWindows(best);
-        const firstWindow = windows[0];
-        setSelectedDoctor(doc);
-        const nextDate = getNextDateForWeekday(best.weekday);
-        setSelectedDate(nextDate);
-        setSelectedSlotTime(firstWindow ? `${firstWindow.start} – ${firstWindow.end}` : `${best.start_time.slice(0, 5)} – ${best.end_time.slice(0, 5)}`);
-        setStep("confirm");
-        return;
-      }
+  const handleFirstAvailable = async () => {
+    if (!user || !selectedSpecialty) return;
+    setLoading(true);
+
+    // Find online professionals for this specialty (like Uber matching)
+    const { data: onlineProfs } = await supabase
+      .from("professional_online_status")
+      .select("professional_id, estimated_response_minutes, max_parallel_waiting")
+      .eq("online_now", true)
+      .eq("accepts_on_demand", true)
+      .order("estimated_response_minutes", { ascending: true });
+
+    if (!onlineProfs || onlineProfs.length === 0) {
+      setLoading(false);
+      toast({ title: "Nenhum profissional online", description: "Nenhum médico está disponível agora. Tente novamente em alguns minutos ou escolha um horário agendado.", variant: "destructive" });
+      return;
     }
-    toast({ title: "Nenhum médico disponível", description: "Tente outra especialidade.", variant: "destructive" });
+
+    const profIds = onlineProfs.map((p) => p.professional_id);
+
+    // Filter by specialty
+    const { data: matchingPartners } = await supabase
+      .from("partners")
+      .select("id, name, specialty, partner_type")
+      .in("id", profIds)
+      .eq("active", true)
+      .eq("approval_status", "approved")
+      .ilike("specialty", `%${selectedSpecialty}%`);
+
+    if (!matchingPartners || matchingPartners.length === 0) {
+      setLoading(false);
+      toast({ title: "Nenhum especialista online", description: `Nenhum profissional de ${selectedSpecialty} está online agora.`, variant: "destructive" });
+      return;
+    }
+
+    // Count current queue per professional
+    const { data: activeConsults } = await supabase
+      .from("consultations")
+      .select("professional_id")
+      .in("status", ["waiting", "confirmed"] as any[])
+      .eq("consultation_flow_type", "on_demand" as any)
+      .in("professional_id", profIds);
+
+    const queueMap: Record<string, number> = {};
+    (activeConsults || []).forEach((c: any) => {
+      queueMap[c.professional_id] = (queueMap[c.professional_id] || 0) + 1;
+    });
+
+    // Score and pick best
+    const scored = matchingPartners
+      .map((p) => {
+        const status = onlineProfs.find((o) => o.professional_id === p.id);
+        const queue = queueMap[p.id] || 0;
+        const maxWaiting = status?.max_parallel_waiting || 3;
+        if (queue >= maxWaiting) return null;
+        return {
+          ...p,
+          queue,
+          estimated_response_minutes: status?.estimated_response_minutes || 15,
+          score: queue * 10 + (status?.estimated_response_minutes || 15),
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a!.score - b!.score);
+
+    if (scored.length === 0) {
+      setLoading(false);
+      toast({ title: "Todos os profissionais ocupados", description: "Tente novamente em alguns minutos.", variant: "destructive" });
+      return;
+    }
+
+    const best = scored[0]!;
+    const queuePos = best.queue + 1;
+
+    // Create on-demand consultation
+    const insertPayload: any = {
+      user_id: user.id,
+      professional_id: best.id,
+      professional_type: best.partner_type === "doctor" ? "doctor" : "nurse",
+      specialty: selectedSpecialty,
+      consultation_mode: "online",
+      consultation_flow_type: "on_demand" as any,
+      status: "waiting" as any,
+      join_window_starts_at: new Date().toISOString(),
+      queue_position: queuePos,
+      triage_notes: patientNotes || "Primeiro disponível — atendimento imediato",
+    };
+    if ((company as any)?.id) insertPayload.company_id = (company as any).id;
+
+    const { data: consultData, error } = await supabase
+      .from("consultations")
+      .insert(insertPayload)
+      .select("id")
+      .single();
+
+    setLoading(false);
+
+    if (error || !consultData?.id) {
+      console.error("Erro ao criar consulta primeiro disponível:", error);
+      toast({ title: "Erro ao criar consulta", description: error?.message || "Tente novamente.", variant: "destructive" });
+      return;
+    }
+
+    // Go to waiting room
+    setSelectedDoctor({ id: best.id, name: best.name, specialty: best.specialty } as Doctor);
+    setWaitingConsultationId(consultData.id);
+    setStep("waiting_room");
+    toast({ title: "Profissional encontrado! ⚡", description: `${best.name} foi notificado e atenderá você em breve.` });
   };
 
   const handleConfirm = async () => {
@@ -609,20 +693,25 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                   </div>
                 )}
 
-                {/* First available shortcut */}
+                {/* First available — immediate matching */}
                 {consultMode === "first_available" && (
                   <div className="px-5 pt-3">
                     <button
                       onClick={handleFirstAvailable}
-                      className="w-full rounded-2xl p-4 border-2 border-primary/30 bg-primary/5 flex items-center gap-4 cursor-pointer text-left mb-3"
+                      disabled={loading}
+                      className="w-full rounded-2xl p-4 border-2 border-primary/30 bg-primary/5 flex items-center gap-4 cursor-pointer text-left mb-3 disabled:opacity-50"
                     >
-                      <span className="text-3xl">⚡</span>
+                      <span className="text-3xl">{loading ? "⏳" : "⚡"}</span>
                       <div className="flex-1">
-                        <div className="text-[15px] font-semibold text-foreground">Agendar com o primeiro disponível</div>
-                        <div className="text-xs text-muted-foreground">Seleciona automaticamente o médico mais próximo com horário livre</div>
+                        <div className="text-[15px] font-semibold text-foreground">
+                          {loading ? "Buscando profissional..." : "Conectar com o primeiro disponível"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {loading ? "Procurando médicos online agora..." : "Conecta você imediatamente com um médico online"}
+                        </div>
                       </div>
                     </button>
-                    <p className="text-xs text-muted-foreground mb-2">Ou escolha um médico abaixo:</p>
+                    <p className="text-xs text-muted-foreground mb-2">Ou escolha um médico abaixo para agendar:</p>
                   </div>
                 )}
 
