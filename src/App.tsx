@@ -53,6 +53,14 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/painel-profissional"
+                element={
+                  <ProtectedRoute>
+                    <ProfessionalDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CompanyProvider>

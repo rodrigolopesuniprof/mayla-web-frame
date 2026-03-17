@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { TopBar } from "./TopBar";
 import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
+import { WaitingRoom } from "./WaitingRoom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
