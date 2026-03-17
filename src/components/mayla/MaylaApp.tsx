@@ -13,6 +13,7 @@ import { TelemedicineScreen } from "./TelemedicineScreen";
 import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { EsfLinkScreen } from "./EsfLinkScreen";
+import { OnDemandFlow } from "./OnDemandFlow";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,6 +27,7 @@ export function MaylaApp() {
   const [showTelemedicine, setShowTelemedicine] = useState(false);
   const [showAppointment, setShowAppointment] = useState(false);
   const [showEsfLink, setShowEsfLink] = useState(false);
+  const [showOnDemand, setShowOnDemand] = useState(false);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
 
   // On mount, check if user already completed the survey — skip splash/onboarding if so
@@ -108,6 +110,11 @@ export function MaylaApp() {
               <TelemedicineScreen onBack={() => setShowTelemedicine(false)} />
             ) : showAppointment ? (
               <AppointmentBooking onBack={() => setShowAppointment(false)} />
+            ) : showOnDemand ? (
+              <OnDemandFlow
+                onBack={() => setShowOnDemand(false)}
+                onStartCall={(c) => { setShowOnDemand(false); setActiveVideoCall(c); }}
+              />
             ) : showEsfLink ? (
               <EsfLinkScreen onBack={() => setShowEsfLink(false)} onLinked={() => setShowEsfLink(false)} />
             ) : (
@@ -119,6 +126,7 @@ export function MaylaApp() {
                     onOpenAppointment={() => setShowAppointment(true)}
                     onOpenEsfLink={() => setShowEsfLink(true)}
                     onOpenVideoCall={(c) => setActiveVideoCall(c)}
+                    onOpenOnDemand={() => setShowOnDemand(true)}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
@@ -127,7 +135,7 @@ export function MaylaApp() {
                 {activeTab === "perfil" && <ProfileTab onRetakeSurvey={handleRetakeSurvey} />}
               </div>
             )}
-            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setActiveVideoCall(null); setActiveTab(t); }} />
+            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setActiveVideoCall(null); setActiveTab(t); }} />
           </>
         )}
       </div>

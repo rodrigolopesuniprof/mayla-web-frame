@@ -26,12 +26,13 @@ interface TeamInfo {
   is_default: boolean | null;
 }
 
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall }: {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
   onOpenAppointment: () => void;
   onOpenEsfLink: () => void;
   onOpenVideoCall: (consultation: { id: string; professionalName: string; professionalType: string; specialty: string }) => void;
+  onOpenOnDemand: () => void;
 }) {
   const { isDefault, companyId } = useCompany();
   const { user } = useAuth();
@@ -407,13 +408,25 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             <div className="space-y-3">
               <div
                 className="rounded-2xl p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
+                style={{ background: "linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent) / 0.75))" }}
+                onClick={() => { setShowConsultasDialog(false); onOpenOnDemand(); }}
+              >
+                <span className="text-3xl">⚡</span>
+                <div>
+                  <div className="text-[15px] font-semibold text-accent-foreground">Atendimento Agora</div>
+                  <div className="text-sm" style={{ color: "rgba(255,255,255,.65)" }}>Médico ou enfermeiro em minutos</div>
+                </div>
+              </div>
+
+              <div
+                className="rounded-2xl p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
                 style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
                 onClick={() => { setShowConsultasDialog(false); onOpenTelemedicine(); }}
               >
                 <span className="text-3xl">📹</span>
                 <div>
                   <div className="text-[15px] font-semibold text-primary-foreground">Consulta Online</div>
-                  <div className="text-sm" style={{ color: "rgba(255,255,255,.65)" }}>Telemedicina ou especialistas</div>
+                  <div className="text-sm" style={{ color: "rgba(255,255,255,.65)" }}>Agendar com especialista</div>
                 </div>
               </div>
 
