@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
 
 type WaitingState = "waiting_professional" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
