@@ -12,6 +12,7 @@ import ResetPassword from "./pages/ResetPassword.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ProfessionalDashboard from "./pages/ProfessionalDashboard.tsx";
 import CompanyLanding from "./pages/CompanyLanding.tsx";
 import CompanyDashboard from "./pages/CompanyDashboard.tsx";
 import PartnerRegistration from "./pages/PartnerRegistration.tsx";
