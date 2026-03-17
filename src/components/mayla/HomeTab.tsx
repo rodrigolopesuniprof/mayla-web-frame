@@ -146,13 +146,33 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
   const handleShowHistory = async () => {
     if (!user) return;
-    const { data } = await supabase
+    // Fetch appointments
+    const { data: appts } = await supabase
       .from("appointments")
       .select("id, specialty, appointment_date, status, doctor_name, clinic_name")
       .eq("user_id", user.id)
       .order("appointment_date", { ascending: false })
       .limit(20);
-    setConsultHistory(data || []);
+    
+    // Fetch consultations (online) to match with appointments
+    const { data: consults } = await supabase
+      .from("consultations")
+      .select("id, specialty, scheduled_at, status, join_window_starts_at, professional_id, consultation_mode")
+      .eq("user_id", user.id)
+      .in("status", ["confirmed", "waiting", "in_progress"] as any[])
+      .order("scheduled_at", { ascending: false })
+      .limit(20);
+    
+    // Merge consultation data into appointment list
+    const merged = (appts || []).map((a: any) => {
+      const matchingConsult = (consults || []).find((c: any) => 
+        c.specialty === a.specialty && c.scheduled_at && 
+        new Date(c.scheduled_at).toISOString().slice(0, 16) === new Date(a.appointment_date).toISOString().slice(0, 16)
+      );
+      return { ...a, consultation: matchingConsult || null };
+    });
+    
+    setConsultHistory(merged);
     setShowConsultHistory(true);
   };
 
