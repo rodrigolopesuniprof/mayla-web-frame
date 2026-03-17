@@ -558,6 +558,97 @@ export type Database = {
           },
         ]
       }
+      consultations: {
+        Row: {
+          call_duration_seconds: number | null
+          company_id: string | null
+          consultation_flow_type: Database["public"]["Enums"]["consultation_flow_type"]
+          consultation_mode: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          jitsi_room_name: string | null
+          join_window_starts_at: string | null
+          municipality_id: string | null
+          professional_id: string
+          professional_type: Database["public"]["Enums"]["consultation_professional_type"]
+          queue_position: number | null
+          scheduled_at: string | null
+          specialty: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["consultation_status"]
+          triage_notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          call_duration_seconds?: number | null
+          company_id?: string | null
+          consultation_flow_type?: Database["public"]["Enums"]["consultation_flow_type"]
+          consultation_mode?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          jitsi_room_name?: string | null
+          join_window_starts_at?: string | null
+          municipality_id?: string | null
+          professional_id: string
+          professional_type?: Database["public"]["Enums"]["consultation_professional_type"]
+          queue_position?: number | null
+          scheduled_at?: string | null
+          specialty?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["consultation_status"]
+          triage_notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          call_duration_seconds?: number | null
+          company_id?: string | null
+          consultation_flow_type?: Database["public"]["Enums"]["consultation_flow_type"]
+          consultation_mode?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          jitsi_room_name?: string | null
+          join_window_starts_at?: string | null
+          municipality_id?: string | null
+          professional_id?: string
+          professional_type?: Database["public"]["Enums"]["consultation_professional_type"]
+          queue_position?: number | null
+          scheduled_at?: string | null
+          specialty?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["consultation_status"]
+          triage_notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultations_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultations_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_availability: {
         Row: {
           consultation_mode: string | null
@@ -1332,6 +1423,50 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      professional_online_status: {
+        Row: {
+          accepts_on_demand: boolean
+          created_at: string
+          estimated_response_minutes: number
+          id: string
+          last_seen_at: string | null
+          max_parallel_waiting: number
+          online_now: boolean
+          professional_id: string
+          updated_at: string
+        }
+        Insert: {
+          accepts_on_demand?: boolean
+          created_at?: string
+          estimated_response_minutes?: number
+          id?: string
+          last_seen_at?: string | null
+          max_parallel_waiting?: number
+          online_now?: boolean
+          professional_id: string
+          updated_at?: string
+        }
+        Update: {
+          accepts_on_demand?: boolean
+          created_at?: string
+          estimated_response_minutes?: number
+          id?: string
+          last_seen_at?: string | null
+          max_parallel_waiting?: number
+          online_now?: boolean
+          professional_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_online_status_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -2175,6 +2310,16 @@ export type Database = {
         | "wellbeing_manager"
         | "employee"
       approval_status: "pending" | "approved" | "blocked"
+      consultation_flow_type: "scheduled" | "on_demand"
+      consultation_professional_type: "doctor" | "nurse"
+      consultation_status:
+        | "pending"
+        | "confirmed"
+        | "waiting"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "no_show"
       partner_type: "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy"
     }
     CompositeTypes: {
@@ -2313,6 +2458,17 @@ export const Constants = {
         "employee",
       ],
       approval_status: ["pending", "approved", "blocked"],
+      consultation_flow_type: ["scheduled", "on_demand"],
+      consultation_professional_type: ["doctor", "nurse"],
+      consultation_status: [
+        "pending",
+        "confirmed",
+        "waiting",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "no_show",
+      ],
       partner_type: ["doctor", "clinic", "gym", "laboratory", "pharmacy"],
     },
   },
