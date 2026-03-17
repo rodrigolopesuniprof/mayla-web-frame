@@ -930,6 +930,20 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
           </div>
         )}
 
+        {/* ── Step: Video Call ── */}
+        {step === "video_call" && activeConsultationId && selectedDoctor && selectedSpecialty && (
+          <JitsiConsultationScreen
+            consultation={{
+              id: activeConsultationId,
+              professionalName: selectedDoctor.name,
+              professionalType: selectedDoctor.partner_type === "clinic" ? "doctor" : "doctor",
+              specialty: selectedSpecialty,
+              consultationMode: "online",
+            }}
+            onLeave={() => setStep("done")}
+          />
+        )}
+
         {/* ── Step: Done ── */}
         {step === "done" && (
           <div className="px-5 pt-8 text-center">
@@ -940,7 +954,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
             </p>
             {consultMode === "online" && (
               <p className="text-xs text-muted-foreground mb-2">
-                📹 O link da teleconsulta será enviado antes do horário agendado.
+                📹 A teleconsulta foi registrada no seu histórico.
               </p>
             )}
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-4 mx-auto max-w-sm text-left">
