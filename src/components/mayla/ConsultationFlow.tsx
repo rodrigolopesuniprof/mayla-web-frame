@@ -435,9 +435,9 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     });
 
     // Score and pick best
-    const scored = matchingPartners
+    const scored = filtered
       .map((p) => {
-        const status = onlineProfs.find((o) => o.professional_id === p.id);
+        const status = acceptingProfs.find((o) => o.professional_id === p.id);
         const queue = queueMap[p.id] || 0;
         const maxWaiting = status?.max_parallel_waiting || 3;
         if (queue >= maxWaiting) return null;
