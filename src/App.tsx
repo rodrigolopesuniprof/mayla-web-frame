@@ -17,6 +17,10 @@ import ProfessionalLogin from "./pages/ProfessionalLogin.tsx";
 import CompanyLanding from "./pages/CompanyLanding.tsx";
 import CompanyDashboard from "./pages/CompanyDashboard.tsx";
 import PartnerRegistration from "./pages/PartnerRegistration.tsx";
+import { lazy, Suspense } from "react";
+
+const HealthReport = lazy(() => import("./components/report/HealthReport"));
+const ProfessionalReport = lazy(() => import("./components/report/ProfessionalReport"));
 
 const queryClient = new QueryClient();
 
