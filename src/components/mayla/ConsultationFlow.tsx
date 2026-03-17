@@ -395,6 +395,8 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       ? selectedDoctor.name
       : selectedDoctor.city ? `${selectedDoctor.city} - ${selectedDoctor.state}` : null;
 
+    const isOnline = consultMode === "online" || consultMode === "first_available";
+
     const { data: apptData, error } = await supabase.from("appointments").insert({
       user_id: user.id,
       specialty: selectedSpecialty,
@@ -406,19 +408,53 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       status: "scheduled",
     }).select("id").single();
 
-    setBooking(false);
     if (error) {
+      setBooking(false);
       toast({ title: "Erro ao agendar", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    // For online consultations, also create a consultations record and go to video call
+    if (isOnline) {
+      const { data: consultData, error: consultError } = await supabase
+        .from("consultations")
+        .insert({
+          user_id: user.id,
+          professional_id: selectedDoctor.id,
+          professional_type: "doctor" as any,
+          specialty: selectedSpecialty,
+          consultation_mode: "online",
+          consultation_flow_type: "scheduled" as any,
+          status: "pending" as any,
+          scheduled_at: appointmentDate,
+          triage_notes: patientNotes || null,
+          company_id: (company as any)?.id || null,
+        } as any)
+        .select("id")
+        .single();
+
+      setBooking(false);
+
+      if (consultError) {
+        console.warn("Consultation record failed:", consultError.message);
+        toast({ title: "Consulta agendada! ✅", description: "A videochamada estará disponível no horário." });
+        setStep("done");
+      } else if (consultData?.id) {
+        setActiveConsultationId(consultData.id);
+        toast({ title: "Entrando na consulta... 📹" });
+        setStep("video_call");
+      }
     } else {
+      setBooking(false);
       toast({ title: "Consulta agendada! ✅" });
       setStep("done");
+    }
 
-      // Send email notification to doctor/clinic (fire and forget)
-      if (apptData?.id) {
-        supabase.functions.invoke("notify-appointment", {
-          body: { appointment_id: apptData.id },
-        }).catch(err => console.warn("Email notification failed:", err));
-      }
+    // Send email notification (fire and forget)
+    if (apptData?.id) {
+      supabase.functions.invoke("notify-appointment", {
+        body: { appointment_id: apptData.id },
+      }).catch(err => console.warn("Email notification failed:", err));
     }
   };
 
