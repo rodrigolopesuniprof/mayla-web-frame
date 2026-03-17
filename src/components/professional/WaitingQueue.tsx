@@ -61,6 +61,9 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
   useEffect(() => {
     fetchQueue();
 
+    // Periodic refetch as fallback (every 15s)
+    const interval = setInterval(() => fetchQueue(), 15000);
+
     const channel = supabase
       .channel(`prof-queue-${partnerId}`)
       .on(
@@ -70,7 +73,10 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [partnerId, fetchQueue]);
 
   const handleAccept = async (consultation: WaitingConsultation) => {

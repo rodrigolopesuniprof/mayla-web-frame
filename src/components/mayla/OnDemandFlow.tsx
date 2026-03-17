@@ -128,25 +128,32 @@ export function OnDemandFlow({ onBack }: Props) {
     });
 
     // Create consultation with status "waiting" — professional must accept
+    const insertPayload: any = {
+      user_id: user.id,
+      professional_id: best.id,
+      professional_type: type as any,
+      specialty: best.specialty || (type === "nurse" ? "Enfermagem" : "Clínico Geral"),
+      consultation_mode: "online",
+      consultation_flow_type: "on_demand" as any,
+      status: "waiting" as any,
+      join_window_starts_at: new Date().toISOString(),
+      queue_position: queuePos,
+      triage_notes: `Atendimento imediato solicitado`,
+    };
+
+    // Only add company_id if available (avoid null FK issues)
+    if ((company as any)?.id) {
+      insertPayload.company_id = (company as any).id;
+    }
+
     const { data: consultData, error } = await supabase
       .from("consultations")
-      .insert({
-        user_id: user.id,
-        professional_id: best.id,
-        professional_type: type as any,
-        specialty: best.specialty || (type === "nurse" ? "Enfermagem" : "Clínico Geral"),
-        consultation_mode: "online",
-        consultation_flow_type: "on_demand" as any,
-        status: "waiting" as any,
-        join_window_starts_at: new Date().toISOString(),
-        queue_position: queuePos,
-        triage_notes: `Atendimento imediato solicitado`,
-        company_id: (company as any)?.id || null,
-      } as any)
+      .insert(insertPayload)
       .select("id")
       .single();
 
     if (error || !consultData?.id) {
+      console.error("Erro ao criar consulta on-demand:", error);
       toast({ title: "Erro ao criar consulta", description: error?.message || "Tente novamente.", variant: "destructive" });
       setStep("choose");
       return;
