@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { TopBar } from "./TopBar";
+import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,7 +86,7 @@ interface TimeWindow {
   duration: number;
 }
 
-type Step = "specialty" | "mode" | "doctors" | "schedule" | "confirm" | "done";
+type Step = "specialty" | "mode" | "doctors" | "schedule" | "confirm" | "done" | "video_call";
 type ConsultMode = "online" | "presencial" | "first_available";
 
 const SPECIALTIES = [
@@ -192,6 +193,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
   const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
+  const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
 
   // Geolocation
   useEffect(() => {
@@ -393,6 +395,8 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       ? selectedDoctor.name
       : selectedDoctor.city ? `${selectedDoctor.city} - ${selectedDoctor.state}` : null;
 
+    const isOnline = consultMode === "online" || consultMode === "first_available";
+
     const { data: apptData, error } = await supabase.from("appointments").insert({
       user_id: user.id,
       specialty: selectedSpecialty,
@@ -404,19 +408,53 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       status: "scheduled",
     }).select("id").single();
 
-    setBooking(false);
     if (error) {
+      setBooking(false);
       toast({ title: "Erro ao agendar", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    // For online consultations, also create a consultations record and go to video call
+    if (isOnline) {
+      const { data: consultData, error: consultError } = await supabase
+        .from("consultations")
+        .insert({
+          user_id: user.id,
+          professional_id: selectedDoctor.id,
+          professional_type: "doctor" as any,
+          specialty: selectedSpecialty,
+          consultation_mode: "online",
+          consultation_flow_type: "scheduled" as any,
+          status: "pending" as any,
+          scheduled_at: appointmentDate,
+          triage_notes: patientNotes || null,
+          company_id: (company as any)?.id || null,
+        } as any)
+        .select("id")
+        .single();
+
+      setBooking(false);
+
+      if (consultError) {
+        console.warn("Consultation record failed:", consultError.message);
+        toast({ title: "Consulta agendada! ✅", description: "A videochamada estará disponível no horário." });
+        setStep("done");
+      } else if (consultData?.id) {
+        setActiveConsultationId(consultData.id);
+        toast({ title: "Entrando na consulta... 📹" });
+        setStep("video_call");
+      }
     } else {
+      setBooking(false);
       toast({ title: "Consulta agendada! ✅" });
       setStep("done");
+    }
 
-      // Send email notification to doctor/clinic (fire and forget)
-      if (apptData?.id) {
-        supabase.functions.invoke("notify-appointment", {
-          body: { appointment_id: apptData.id },
-        }).catch(err => console.warn("Email notification failed:", err));
-      }
+    // Send email notification (fire and forget)
+    if (apptData?.id) {
+      supabase.functions.invoke("notify-appointment", {
+        body: { appointment_id: apptData.id },
+      }).catch(err => console.warn("Email notification failed:", err));
     }
   };
 
@@ -428,6 +466,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     }
     else if (step === "schedule") { setStep("doctors"); setSelectedDoctor(null); }
     else if (step === "confirm") { setStep("doctors"); setSelectedSlotTime(null); setExpandedDoctorId(selectedDoctor?.id ?? null); }
+    else if (step === "video_call") { setStep("done"); }
     else onBack();
   };
 
@@ -892,6 +931,20 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
           </div>
         )}
 
+        {/* ── Step: Video Call ── */}
+        {step === "video_call" && activeConsultationId && selectedDoctor && selectedSpecialty && (
+          <JitsiConsultationScreen
+            consultation={{
+              id: activeConsultationId,
+              professionalName: selectedDoctor.name,
+              professionalType: selectedDoctor.partner_type === "clinic" ? "doctor" : "doctor",
+              specialty: selectedSpecialty,
+              consultationMode: "online",
+            }}
+            onLeave={() => setStep("done")}
+          />
+        )}
+
         {/* ── Step: Done ── */}
         {step === "done" && (
           <div className="px-5 pt-8 text-center">
@@ -902,7 +955,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
             </p>
             {consultMode === "online" && (
               <p className="text-xs text-muted-foreground mb-2">
-                📹 O link da teleconsulta será enviado antes do horário agendado.
+                📹 A teleconsulta foi registrada no seu histórico.
               </p>
             )}
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-4 mx-auto max-w-sm text-left">
