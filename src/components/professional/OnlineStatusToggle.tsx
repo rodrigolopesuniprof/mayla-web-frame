@@ -18,29 +18,24 @@ export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnD
 
   const updateStatus = async (field: string, value: boolean) => {
     setSaving(true);
-    const updates: any = { [field]: value, last_seen_at: new Date().toISOString() };
 
+    const newOnline = field === "online_now" ? value : online;
+    const newAccepts = field === "accepts_on_demand" ? value : acceptsOnDemand;
+
+    // Always upsert to handle missing rows
     const { error } = await supabase
       .from("professional_online_status")
-      .update(updates)
-      .eq("professional_id", partnerId);
+      .upsert({
+        professional_id: partnerId,
+        online_now: newOnline,
+        accepts_on_demand: newAccepts,
+        last_seen_at: new Date().toISOString(),
+      } as any, { onConflict: "professional_id" });
 
     if (error) {
-      // Try upsert if no row exists
-      const { error: upsertError } = await supabase
-        .from("professional_online_status")
-        .upsert({
-          professional_id: partnerId,
-          online_now: field === "online_now" ? value : online,
-          accepts_on_demand: field === "accepts_on_demand" ? value : acceptsOnDemand,
-          last_seen_at: new Date().toISOString(),
-        } as any, { onConflict: "professional_id" });
-
-      if (upsertError) {
-        toast({ title: "Erro ao atualizar status", description: upsertError.message, variant: "destructive" });
-        setSaving(false);
-        return;
-      }
+      toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
+      setSaving(false);
+      return;
     }
 
     if (field === "online_now") setOnline(value);

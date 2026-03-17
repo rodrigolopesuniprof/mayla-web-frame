@@ -31,7 +31,7 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
       .from("consultations")
       .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, created_at, triage_notes, scheduled_at")
       .eq("professional_id", partnerId)
-      .in("status", ["confirmed", "waiting"] as any[])
+      .in("status", ["confirmed", "waiting", "pending"] as any[])
       .order("created_at", { ascending: true });
 
     if (data) {
@@ -61,6 +61,9 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
   useEffect(() => {
     fetchQueue();
 
+    // Periodic refetch as fallback (every 15s)
+    const interval = setInterval(() => fetchQueue(), 15000);
+
     const channel = supabase
       .channel(`prof-queue-${partnerId}`)
       .on(
@@ -70,7 +73,10 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [partnerId, fetchQueue]);
 
   const handleAccept = async (consultation: WaitingConsultation) => {

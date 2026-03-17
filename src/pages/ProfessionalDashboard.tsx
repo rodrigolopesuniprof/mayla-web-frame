@@ -57,7 +57,22 @@ export default function ProfessionalDashboard() {
           .eq("professional_id", data.id)
           .maybeSingle();
 
-        setOnlineStatus(statusData as OnlineStatus || { online_now: false, accepts_on_demand: false, always_available: false });
+        if (statusData) {
+          setOnlineStatus(statusData as OnlineStatus);
+        } else {
+          // Auto-create status record for first-time professionals
+          const defaultStatus = { online_now: false, accepts_on_demand: false, always_available: false };
+          await supabase
+            .from("professional_online_status")
+            .insert({
+              professional_id: data.id,
+              online_now: false,
+              accepts_on_demand: false,
+              always_available: false,
+              last_seen_at: new Date().toISOString(),
+            } as any);
+          setOnlineStatus(defaultStatus);
+        }
       }
       setLoadingPartner(false);
     };
