@@ -693,20 +693,25 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                   </div>
                 )}
 
-                {/* First available shortcut */}
+                {/* First available — immediate matching */}
                 {consultMode === "first_available" && (
                   <div className="px-5 pt-3">
                     <button
                       onClick={handleFirstAvailable}
-                      className="w-full rounded-2xl p-4 border-2 border-primary/30 bg-primary/5 flex items-center gap-4 cursor-pointer text-left mb-3"
+                      disabled={loading}
+                      className="w-full rounded-2xl p-4 border-2 border-primary/30 bg-primary/5 flex items-center gap-4 cursor-pointer text-left mb-3 disabled:opacity-50"
                     >
-                      <span className="text-3xl">⚡</span>
+                      <span className="text-3xl">{loading ? "⏳" : "⚡"}</span>
                       <div className="flex-1">
-                        <div className="text-[15px] font-semibold text-foreground">Agendar com o primeiro disponível</div>
-                        <div className="text-xs text-muted-foreground">Seleciona automaticamente o médico mais próximo com horário livre</div>
+                        <div className="text-[15px] font-semibold text-foreground">
+                          {loading ? "Buscando profissional..." : "Conectar com o primeiro disponível"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {loading ? "Procurando médicos online agora..." : "Conecta você imediatamente com um médico online"}
+                        </div>
                       </div>
                     </button>
-                    <p className="text-xs text-muted-foreground mb-2">Ou escolha um médico abaixo:</p>
+                    <p className="text-xs text-muted-foreground mb-2">Ou escolha um médico abaixo para agendar:</p>
                   </div>
                 )}
 
