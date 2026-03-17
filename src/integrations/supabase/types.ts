@@ -1430,6 +1430,7 @@ export type Database = {
       professional_online_status: {
         Row: {
           accepts_on_demand: boolean
+          always_available: boolean
           created_at: string
           estimated_response_minutes: number
           id: string
@@ -1441,6 +1442,7 @@ export type Database = {
         }
         Insert: {
           accepts_on_demand?: boolean
+          always_available?: boolean
           created_at?: string
           estimated_response_minutes?: number
           id?: string
@@ -1452,6 +1454,7 @@ export type Database = {
         }
         Update: {
           accepts_on_demand?: boolean
+          always_available?: boolean
           created_at?: string
           estimated_response_minutes?: number
           id?: string

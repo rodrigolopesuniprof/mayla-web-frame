@@ -8,9 +8,10 @@ interface Props {
   partnerId: string;
   initialOnline: boolean;
   initialAcceptsOnDemand: boolean;
+  alwaysAvailable?: boolean;
 }
 
-export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnDemand }: Props) {
+export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnDemand, alwaysAvailable }: Props) {
   const [online, setOnline] = useState(initialOnline);
   const [acceptsOnDemand, setAcceptsOnDemand] = useState(initialAcceptsOnDemand);
   const [saving, setSaving] = useState(false);
@@ -51,6 +52,12 @@ export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnD
     <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
       <h3 className="text-sm font-semibold text-foreground">Status Online</h3>
 
+      {alwaysAvailable && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2">
+          <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">🟢 Disponível 24/7 — configurado pelo administrador</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <Label htmlFor="online-toggle" className="text-sm text-foreground flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full ${online ? "bg-emerald-500" : "bg-muted-foreground"}`} />
@@ -60,7 +67,7 @@ export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnD
           id="online-toggle"
           checked={online}
           onCheckedChange={(v) => updateStatus("online_now", v)}
-          disabled={saving}
+          disabled={saving || alwaysAvailable}
         />
       </div>
 
@@ -72,7 +79,7 @@ export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnD
           id="ondemand-toggle"
           checked={acceptsOnDemand}
           onCheckedChange={(v) => updateStatus("accepts_on_demand", v)}
-          disabled={saving || !online}
+          disabled={saving || !online || alwaysAvailable}
         />
       </div>
     </div>

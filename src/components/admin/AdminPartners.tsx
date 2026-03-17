@@ -10,6 +10,7 @@ import { PartnerLocationsEditor } from "./PartnerLocationsEditor";
 import { DoctorAvailabilityEditor } from "./DoctorAvailabilityEditor";
 import { PartnerCsvImport } from "./PartnerCsvImport";
 import { buildPrimaryPartnerLocation } from "@/lib/partner-location-utils";
+import { TeleconsultaSettings } from "./TeleconsultaSettings";
 
 const TABS: { id: PartnerType; label: string; emoji: string }[] = [
   { id: "doctor", label: "Médicos", emoji: "🩺" },
@@ -288,6 +289,9 @@ export function AdminPartners() {
               </div>
 
               <PartnerLocationsEditor partnerId={detailPartner.id} />
+              {activeType === "doctor" && (
+                <TeleconsultaSettings partnerId={detailPartner.id} />
+              )}
               {(activeType === "doctor" || activeType === "clinic") && (
                 <DoctorAvailabilityEditor partnerId={detailPartner.id} partnerType={activeType} />
               )}
