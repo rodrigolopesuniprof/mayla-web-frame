@@ -41,6 +41,24 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route
+                path="/relatorio"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>Carregando...</div>}>
+                      <HealthReport />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/relatorio/medico/:token"
+                element={
+                  <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>Carregando...</div>}>
+                    <ProfessionalReport />
+                  </Suspense>
+                }
+              />
+              <Route
                 path="/"
                 element={
                   <ProtectedRoute>
