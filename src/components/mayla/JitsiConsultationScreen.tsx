@@ -193,6 +193,17 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
               ⏱ {formatTime(elapsed)}
             </span>
           )}
+          <button
+            onClick={() => shareWithProfessional(consultation.id)}
+            disabled={sharing || shared}
+            className={`ml-auto text-[10px] font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${
+              shared
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+            }`}
+          >
+            {sharing ? "..." : shared ? "✅ Compartilhado" : "📋 Compartilhar dados"}
+          </button>
         </div>
       </div>
 

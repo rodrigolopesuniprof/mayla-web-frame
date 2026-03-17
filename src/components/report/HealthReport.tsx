@@ -141,20 +141,20 @@ export default function HealthReport() {
         <div className="rpt-score-card">
           <ScoreRing score={scores ? s.score_general : 0} color={scores ? getScoreColor(s.score_general) : "var(--rpt-text-tertiary)"} />
           <div className="rpt-score-info">
-            <div className="rpt-score-heading">{scoreHeading}</div>
-            <div className="rpt-score-subtext">Pontos de melhora identificados</div>
+            <div className="rpt-score-heading">{scores ? scoreHeading : "Sem dados"}</div>
+            <div className="rpt-score-subtext">{scores ? "Pontos de melhora identificados" : "Realize uma medição para gerar seu score"}</div>
             <div className="rpt-subscores">
               {[
-                { name: "Fisiológico", val: s.score_physiological },
-                { name: "Emocional", val: s.score_emotional },
-                { name: "Estilo de vida", val: s.score_lifestyle },
+                { name: "Fisiológico", val: scores ? s.score_physiological : 0 },
+                { name: "Emocional", val: scores ? s.score_emotional : 0 },
+                { name: "Estilo de vida", val: scores ? s.score_lifestyle : 0 },
               ].map((sub) => (
                 <div key={sub.name} className="rpt-subscore-row">
                   <span className="rpt-subscore-name">{sub.name}</span>
                   <div className="rpt-subscore-track">
-                    <div className="rpt-subscore-fill" style={{ width: `${sub.val}%`, background: getScoreColor(sub.val) }} />
+                    <div className="rpt-subscore-fill" style={{ width: `${sub.val}%`, background: scores ? getScoreColor(sub.val) : "var(--rpt-text-tertiary)" }} />
                   </div>
-                  <span className="rpt-subscore-val" style={{ color: getScoreColor(sub.val) }}>{sub.val}</span>
+                  <span className="rpt-subscore-val" style={{ color: scores ? getScoreColor(sub.val) : "var(--rpt-text-tertiary)" }}>{scores ? sub.val : "—"}</span>
                 </div>
               ))}
             </div>

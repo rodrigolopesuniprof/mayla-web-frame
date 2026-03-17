@@ -174,6 +174,21 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
         </div>
       )}
 
+      {/* Share health data button */}
+      {!isFinished && (
+        <button
+          onClick={() => shareWithProfessional(consultationId)}
+          disabled={sharing || shared}
+          className={`w-full max-w-xs py-3 rounded-xl border text-[13px] font-semibold cursor-pointer transition-colors mb-4 ${
+            shared
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+          }`}
+        >
+          {sharing ? "Compartilhando..." : shared ? "✅ Dados compartilhados" : "📋 Compartilhar dados de saúde com equipe médica"}
+        </button>
+      )}
+
       {/* Status + timer */}
       <div className="flex items-center gap-2 mb-6">
         <Badge className={`text-xs ${config.color}`}>
