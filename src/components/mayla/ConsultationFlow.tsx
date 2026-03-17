@@ -179,7 +179,10 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
   const [step, setStep] = useState<Step>("specialty");
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
-  const [consultMode, setConsultMode] = useState<ConsultMode | null>(null);
+  const [consultMode, setConsultMode] = useState<ConsultMode | null>(initialMode || null);
+  const [waitingConsultationId, setWaitingConsultationId] = useState<string | null>(null);
+  const [waitingStatus, setWaitingStatus] = useState<string>("confirmed");
+  const [waitingSeconds, setWaitingSeconds] = useState(0);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [doctorLocations, setDoctorLocations] = useState<DoctorLocation[]>([]);
   const [availability, setAvailability] = useState<AvailSlot[]>([]);
