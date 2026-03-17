@@ -26,12 +26,13 @@ interface TeamInfo {
   is_default: boolean | null;
 }
 
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall }: {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
   onOpenAppointment: () => void;
   onOpenEsfLink: () => void;
   onOpenVideoCall: (consultation: { id: string; professionalName: string; professionalType: string; specialty: string }) => void;
+  onOpenOnDemand: () => void;
 }) {
   const { isDefault, companyId } = useCompany();
   const { user } = useAuth();
