@@ -240,12 +240,54 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
         </div>
       )}
 
-      <button
-        onClick={onBack}
-        className="mt-3 px-6 py-2.5 rounded-xl border border-border bg-transparent text-[13px] font-medium text-muted-foreground cursor-pointer"
-      >
-        {isFinished ? "Voltar ao início" : "Cancelar e voltar"}
-      </button>
+      {/* Cancel / Back */}
+      {isFinished ? (
+        <button
+          onClick={onBack}
+          className="mt-3 px-6 py-2.5 rounded-xl border border-border bg-transparent text-[13px] font-medium text-muted-foreground cursor-pointer"
+        >
+          Voltar ao início
+        </button>
+      ) : !showConfirm ? (
+        <button
+          onClick={() => setShowConfirm(true)}
+          className="mt-3 w-full max-w-xs py-3 rounded-xl border-2 border-destructive bg-transparent text-[14px] font-semibold text-destructive cursor-pointer transition-colors hover:bg-destructive/10"
+        >
+          ✕ Cancelar solicitação
+        </button>
+      ) : (
+        <div className="mt-3 w-full max-w-xs bg-destructive/5 border border-destructive/20 rounded-xl p-4 flex flex-col items-center gap-3">
+          <p className="text-sm font-medium text-foreground">Tem certeza que deseja cancelar?</p>
+          <div className="flex gap-3 w-full">
+            <button
+              disabled={cancelling}
+              onClick={async () => {
+                setCancelling(true);
+                const { error } = await supabase
+                  .from("consultations")
+                  .update({ status: "cancelled" as any })
+                  .eq("id", consultationId);
+                setCancelling(false);
+                if (error) {
+                  toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
+                } else {
+                  toast({ title: "Solicitação cancelada" });
+                  onBack();
+                }
+              }}
+              className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-[13px] font-semibold cursor-pointer disabled:opacity-50"
+            >
+              {cancelling ? "Cancelando..." : "Sim, cancelar"}
+            </button>
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="flex-1 py-2.5 rounded-xl border border-border bg-background text-[13px] font-medium text-foreground cursor-pointer"
+            >
+              Não
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
