@@ -4,24 +4,25 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { WaitingRoom } from "./WaitingRoom";
+import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
 
 type ProfType = "doctor" | "nurse";
-type FlowStep = "choose" | "searching" | "found" | "connecting" | "ready";
+type FlowStep = "choose" | "searching" | "waiting_room" | "video_call";
 
 interface MatchedProfessional {
   id: string;
   name: string;
   specialty: string | null;
   estimated_response_minutes: number;
-  queue_position: number;
 }
 
 interface Props {
   onBack: () => void;
-  onStartCall: (consultation: { id: string; professionalName: string; professionalType: string; specialty: string }) => void;
+  onStartCall?: (consultation: { id: string; professionalName: string; professionalType: string; specialty: string }) => void;
 }
 
-export function OnDemandFlow({ onBack, onStartCall }: Props) {
+export function OnDemandFlow({ onBack }: Props) {
   const { user } = useAuth();
   const { company } = useCompany();
   const [step, setStep] = useState<FlowStep>("choose");
@@ -31,7 +32,6 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
   const [waitSeconds, setWaitSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Waiting timer
   useEffect(() => {
     if (step === "searching") {
       timerRef.current = setInterval(() => setWaitSeconds((s) => s + 1), 1000);
@@ -67,8 +67,6 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
       return;
     }
 
-    // Filter by partner_type matching the chosen professional type
-    const partnerType = type === "nurse" ? "doctor" : "doctor"; // nurses are also in partners as doctor type for now
     const profIds = onlineProfs.map((p) => p.professional_id);
 
     const { data: partners } = await supabase
@@ -84,7 +82,7 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
       return;
     }
 
-    // Count current waiting consultations per professional to find lowest queue
+    // Count current waiting consultations per professional
     const { data: activeConsults } = await supabase
       .from("consultations")
       .select("professional_id")
@@ -97,13 +95,12 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
       queueMap[c.professional_id] = (queueMap[c.professional_id] || 0) + 1;
     });
 
-    // Score: lower queue + faster response = better
     const scored = partners
       .map((p) => {
         const status = onlineProfs.find((o) => o.professional_id === p.id);
         const queue = queueMap[p.id] || 0;
         const maxWaiting = status?.max_parallel_waiting || 3;
-        if (queue >= maxWaiting) return null; // full
+        if (queue >= maxWaiting) return null;
         return {
           ...p,
           queue,
@@ -123,21 +120,14 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
     const best = scored[0]!;
     const queuePos = best.queue + 1;
 
-    // Simulate brief search delay for UX
-    await new Promise((r) => setTimeout(r, 1500));
     setMatched({
       id: best.id,
       name: best.name,
       specialty: best.specialty || (type === "nurse" ? "Enfermagem" : "Clínico Geral"),
       estimated_response_minutes: best.estimated_response_minutes,
-      queue_position: queuePos,
     });
-    setStep("found");
 
-    // Brief pause then create consultation
-    await new Promise((r) => setTimeout(r, 1200));
-    setStep("connecting");
-
+    // Create consultation with status "waiting" — professional must accept
     const { data: consultData, error } = await supabase
       .from("consultations")
       .insert({
@@ -147,10 +137,10 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
         specialty: best.specialty || (type === "nurse" ? "Enfermagem" : "Clínico Geral"),
         consultation_mode: "online",
         consultation_flow_type: "on_demand" as any,
-        status: "confirmed" as any,
+        status: "waiting" as any,
         join_window_starts_at: new Date().toISOString(),
         queue_position: queuePos,
-        triage_notes: `Atendimento imediato solicitado. Tempo de espera: ${waitSeconds}s`,
+        triage_notes: `Atendimento imediato solicitado`,
         company_id: (company as any)?.id || null,
       } as any)
       .select("id")
@@ -163,19 +153,51 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
     }
 
     setConsultationId(consultData.id);
-    await new Promise((r) => setTimeout(r, 800));
-    setStep("ready");
+    setStep("waiting_room");
   };
 
-  const handleEnterCall = () => {
-    if (!matched || !consultationId) return;
-    onStartCall({
-      id: consultationId,
-      professionalName: matched.name,
-      professionalType: profType || "doctor",
-      specialty: matched.specialty || "Clínico Geral",
-    });
-  };
+  // Video call overlay
+  if (step === "video_call" && consultationId && matched) {
+    return (
+      <div className="flex-1 flex flex-col h-full">
+        <JitsiConsultationScreen
+          consultation={{
+            id: consultationId,
+            professionalName: matched.name,
+            professionalType: profType || "doctor",
+            specialty: matched.specialty || "Clínico Geral",
+            consultationMode: "online",
+          }}
+          onLeave={onBack}
+        />
+      </div>
+    );
+  }
+
+  // Waiting room — patient waits for professional to accept
+  if (step === "waiting_room" && consultationId && matched) {
+    return (
+      <div className="flex-1 flex flex-col">
+        <div className="px-[22px] py-3 flex items-center gap-3 border-b border-border shrink-0">
+          <button
+            onClick={onBack}
+            className="bg-secondary border-none rounded-xl px-3 py-1.5 text-secondary-foreground text-[13px] font-medium cursor-pointer"
+          >
+            ← Voltar
+          </button>
+          <span className="font-display text-base font-medium text-foreground">Atendimento Agora</span>
+        </div>
+        <WaitingRoom
+          consultationId={consultationId}
+          doctorName={matched.name}
+          specialty={matched.specialty || "Clínico Geral"}
+          isOnDemand
+          onEnterCall={() => setStep("video_call")}
+          onBack={onBack}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -243,69 +265,6 @@ export function OnDemandFlow({ onBack, onStartCall }: Props) {
             <Badge variant="secondary" className="text-xs">
               ⏱ {formatWait(waitSeconds)}
             </Badge>
-          </div>
-        )}
-
-        {/* Step: Found */}
-        {step === "found" && matched && (
-          <div className="text-center max-w-xs animate-fade-up">
-            <span className="text-5xl block mb-3">✅</span>
-            <h3 className="font-display text-lg font-semibold text-foreground mb-1">Profissional encontrado!</h3>
-            <div className="bg-secondary rounded-2xl p-4 mt-4 text-left space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-xl">
-                  {profType === "nurse" ? "👩‍⚕️" : "🩺"}
-                </div>
-                <div>
-                  <p className="text-[13px] font-semibold text-foreground">{matched.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{matched.specialty}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="outline" className="text-[10px]">⏱ ~{matched.estimated_response_minutes} min</Badge>
-                {matched.queue_position <= 1 && (
-                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700">Sem fila</Badge>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step: Connecting */}
-        {step === "connecting" && (
-          <div className="text-center max-w-xs">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full border-3 border-emerald-500 border-t-transparent animate-spin" />
-            </div>
-            <h3 className="font-display text-lg font-semibold text-foreground mb-1">Preparando consulta...</h3>
-            <p className="text-sm text-muted-foreground">Criando sala de videochamada</p>
-          </div>
-        )}
-
-        {/* Step: Ready */}
-        {step === "ready" && matched && (
-          <div className="text-center max-w-xs animate-fade-up">
-            <span className="text-5xl block mb-3">📹</span>
-            <h3 className="font-display text-lg font-semibold text-foreground mb-2">Consulta pronta!</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Sua sala com <strong>{matched.name}</strong> está pronta.
-            </p>
-            <div className="text-[10px] text-muted-foreground mb-4">
-              Tempo de espera: {formatWait(waitSeconds)}
-            </div>
-            <button
-              onClick={handleEnterCall}
-              className="w-full py-3.5 rounded-xl border-none text-[14px] font-semibold text-primary-foreground cursor-pointer"
-              style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))" }}
-            >
-              📹 Entrar na videochamada
-            </button>
-            <button
-              onClick={onBack}
-              className="w-full mt-2 py-2.5 rounded-xl border border-border bg-transparent text-[13px] font-medium text-muted-foreground cursor-pointer"
-            >
-              Cancelar
-            </button>
           </div>
         )}
       </div>

@@ -78,7 +78,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
             setStartedAt(now);
             startTimer();
           }
-          if (newStatus === "finished" || newStatus === "completed" || newStatus === "cancelled") {
+          if (newStatus === "completed" || newStatus === "cancelled") {
             stopTimer();
           }
         }
@@ -142,7 +142,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
     await supabase
       .from("consultations")
       .update({
-        status: "finished" as any,
+        status: "completed" as any,
         ended_at: now.toISOString(),
         call_duration_seconds: elapsed,
       })
@@ -152,6 +152,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
   };
 
   const statusInfo = STATUS_LABELS[status] || STATUS_LABELS.pending;
+
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">

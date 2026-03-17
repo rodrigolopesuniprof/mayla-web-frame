@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 
-type WaitingState = "searching_professional" | "waiting_professional" | "confirmed" | "in_progress" | "finished";
+type WaitingState = "waiting_professional" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
 interface Props {
   consultationId: string;
@@ -15,12 +15,6 @@ interface Props {
 }
 
 const STATE_CONFIG: Record<WaitingState, { emoji: string; title: string; subtitle: string; color: string }> = {
-  searching_professional: {
-    emoji: "🔍",
-    title: "Buscando profissional...",
-    subtitle: "Estamos localizando um profissional disponível para você",
-    color: "bg-amber-100 text-amber-800",
-  },
   waiting_professional: {
     emoji: "⏳",
     title: "Aguardando profissional",
@@ -39,16 +33,22 @@ const STATE_CONFIG: Record<WaitingState, { emoji: string; title: string; subtitl
     subtitle: "A videochamada está ativa. Entre agora!",
     color: "bg-primary/10 text-primary",
   },
-  finished: {
+  completed: {
     emoji: "🎉",
     title: "Consulta finalizada",
     subtitle: "Sua consulta foi concluída. Obrigado!",
     color: "bg-muted text-muted-foreground",
   },
+  cancelled: {
+    emoji: "❌",
+    title: "Consulta cancelada",
+    subtitle: "Esta consulta foi cancelada.",
+    color: "bg-destructive/10 text-destructive",
+  },
 };
 
 export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt, isOnDemand, onEnterCall, onBack }: Props) {
-  const [state, setState] = useState<WaitingState>(isOnDemand ? "searching_professional" : "confirmed");
+  const [state, setState] = useState<WaitingState>(isOnDemand ? "waiting_professional" : "confirmed");
   const [waitSec, setWaitSec] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -58,13 +58,32 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // Simulate search → found for on-demand
+  // Fetch initial status
   useEffect(() => {
-    if (!isOnDemand) return;
-    const t1 = setTimeout(() => setState("waiting_professional"), 2000);
-    const t2 = setTimeout(() => setState("confirmed"), 4000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [isOnDemand]);
+    const fetchStatus = async () => {
+      const { data } = await supabase
+        .from("consultations")
+        .select("status")
+        .eq("id", consultationId)
+        .single();
+      if (data) {
+        const s = data.status as string;
+        if (s === "in_progress") {
+          setState("in_progress");
+          setTimeout(() => onEnterCall(), 1000);
+        } else if (s === "completed") {
+          setState("completed");
+        } else if (s === "cancelled" || s === "no_show") {
+          setState("cancelled");
+        } else if (s === "confirmed") {
+          setState("confirmed");
+        } else if (s === "waiting") {
+          setState("waiting_professional");
+        }
+      }
+    };
+    fetchStatus();
+  }, [consultationId]);
 
   // Realtime subscription on consultation status
   useEffect(() => {
@@ -81,8 +100,10 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
             setState("in_progress");
             // Auto-enter after brief delay
             setTimeout(() => onEnterCall(), 1500);
-          } else if (newStatus === "completed" || newStatus === "finished") {
-            setState("finished");
+          } else if (newStatus === "completed") {
+            setState("completed");
+          } else if (newStatus === "cancelled" || newStatus === "no_show") {
+            setState("cancelled");
           }
         }
       )
@@ -97,28 +118,26 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
     return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
-  const now = new Date();
   const scheduled = scheduledAt ? new Date(scheduledAt) : null;
   const joinWindow = scheduled ? new Date(scheduled.getTime() - 15 * 60 * 1000) : null;
-  const canJoinNow = !joinWindow || now >= joinWindow;
+  const canJoinNow = !joinWindow || new Date() >= joinWindow;
 
   const config = STATE_CONFIG[state];
-  const isSearching = state === "searching_professional";
   const isActive = state === "in_progress";
-  const isFinished = state === "finished";
+  const isFinished = state === "completed" || state === "cancelled";
 
   return (
     <div className="px-5 pt-8 flex flex-col items-center text-center">
       {/* Animated indicator */}
       <div className="relative mb-6">
         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-          <div className={`w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center ${isSearching ? "animate-spin" : "animate-pulse"}`}>
+          <div className={`w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center ${!isFinished ? "animate-pulse" : ""}`}>
             <span className="text-3xl">{config.emoji}</span>
           </div>
         </div>
         {!isFinished && (
           <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-background animate-pulse ${
-            isActive ? "bg-emerald-500" : isSearching ? "bg-amber-500" : "bg-blue-500"
+            isActive ? "bg-emerald-500" : "bg-blue-500"
           }`} />
         )}
       </div>
@@ -149,7 +168,7 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
       {/* Status + timer */}
       <div className="flex items-center gap-2 mb-6">
         <Badge className={`text-xs ${config.color}`}>
-          {config.emoji} {config.title.split("...")[0]}
+          {config.emoji} {config.title}
         </Badge>
         {!isFinished && (
           <span className="text-xs font-mono text-muted-foreground">⏱ {formatWait(waitSec)}</span>
@@ -157,15 +176,6 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
       </div>
 
       {/* State-specific messages */}
-      {isSearching && (
-        <div className="w-full max-w-xs mb-4 space-y-2">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-            Procurando profissional disponível...
-          </div>
-        </div>
-      )}
-
       {state === "waiting_professional" && (
         <div className="w-full max-w-xs mb-4 bg-secondary rounded-xl p-3">
           <p className="text-xs text-foreground">
@@ -174,7 +184,7 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
         </div>
       )}
 
-      {state === "confirmed" && !isOnDemand && (
+      {state === "confirmed" && (
         <div className="w-full max-w-xs mb-4 bg-secondary rounded-xl p-3">
           <p className="text-xs text-foreground">
             ✅ Sua consulta está confirmada. Quando o profissional iniciar o atendimento, você será conectado automaticamente.
@@ -191,7 +201,7 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
       )}
 
       {/* Enter call button */}
-      {!isFinished && !isSearching && (
+      {!isFinished && state !== "waiting_professional" && (
         <>
           {canJoinNow ? (
             <button
@@ -216,7 +226,7 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
         </>
       )}
 
-      {isFinished && (
+      {state === "completed" && (
         <div className="w-full max-w-xs bg-secondary rounded-xl p-4 mb-4">
           <p className="text-sm text-foreground font-medium mb-1">Consulta concluída</p>
           <p className="text-xs text-muted-foreground">O registro ficará disponível no seu histórico de saúde.</p>
