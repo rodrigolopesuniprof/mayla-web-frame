@@ -365,13 +365,14 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     if (!user || !selectedSpecialty) return;
     setLoading(true);
 
-    // Find online professionals for this specialty (like Uber matching)
+    // Find online professionals — check both on_demand AND just online
     const { data: onlineProfs } = await supabase
       .from("professional_online_status")
-      .select("professional_id, estimated_response_minutes, max_parallel_waiting")
-      .eq("online_now", true)
-      .eq("accepts_on_demand", true)
+      .select("professional_id, estimated_response_minutes, max_parallel_waiting, accepts_on_demand, always_available")
+      .or("online_now.eq.true,always_available.eq.true")
       .order("estimated_response_minutes", { ascending: true });
+
+    console.log("[FirstAvailable] Online profs found:", onlineProfs?.length, onlineProfs);
 
     if (!onlineProfs || onlineProfs.length === 0) {
       setLoading(false);
@@ -379,18 +380,42 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       return;
     }
 
-    const profIds = onlineProfs.map((p) => p.professional_id);
+    // Filter to those accepting on-demand or always available
+    const acceptingProfs = onlineProfs.filter(p => p.accepts_on_demand || p.always_available);
+    console.log("[FirstAvailable] Accepting on-demand:", acceptingProfs.length);
 
-    // Filter by specialty
+    if (acceptingProfs.length === 0) {
+      setLoading(false);
+      toast({ title: "Nenhum profissional aceitando atendimento imediato", description: "Profissionais estão online mas não aceitam atendimento imediato no momento.", variant: "destructive" });
+      return;
+    }
+
+    const profIds = acceptingProfs.map((p) => p.professional_id);
+
+    // Filter by specialty — match on specialty field OR specialties_offered array
     const { data: matchingPartners } = await supabase
       .from("partners")
-      .select("id, name, specialty, partner_type")
+      .select("id, name, specialty, partner_type, specialties_offered")
       .in("id", profIds)
       .eq("active", true)
-      .eq("approval_status", "approved")
-      .ilike("specialty", `%${selectedSpecialty}%`);
+      .eq("approval_status", "approved");
 
-    if (!matchingPartners || matchingPartners.length === 0) {
+    console.log("[FirstAvailable] All active partners in online pool:", matchingPartners?.length, matchingPartners);
+
+    // Client-side specialty filter (more flexible than ilike)
+    const specLower = selectedSpecialty.toLowerCase();
+    const filtered = (matchingPartners || []).filter(p => {
+      if (p.specialty && p.specialty.toLowerCase().includes(specLower)) return true;
+      const offered = p.specialties_offered as string[] | null;
+      if (offered?.some(s => s.toLowerCase().includes(specLower))) return true;
+      // Fallback: "Clínico Geral" matches any doctor
+      if (specLower.includes("clínico") || specLower.includes("clinico")) return true;
+      return false;
+    });
+
+    console.log("[FirstAvailable] After specialty filter:", filtered.length, filtered);
+
+    if (filtered.length === 0) {
       setLoading(false);
       toast({ title: "Nenhum especialista online", description: `Nenhum profissional de ${selectedSpecialty} está online agora.`, variant: "destructive" });
       return;
