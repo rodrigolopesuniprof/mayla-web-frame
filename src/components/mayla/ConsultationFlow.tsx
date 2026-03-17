@@ -478,6 +478,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     else if (step === "schedule") { setStep("doctors"); setSelectedDoctor(null); }
     else if (step === "confirm") { setStep("doctors"); setSelectedSlotTime(null); setExpandedDoctorId(selectedDoctor?.id ?? null); }
     else if (step === "video_call") { setStep("done"); }
+    else if (step === "waiting_room") { setStep("done"); }
     else onBack();
   };
 
