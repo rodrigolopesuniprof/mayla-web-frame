@@ -99,7 +99,12 @@ export function MaylaApp() {
         {phase === "survey" && <HealthSurvey onDone={handleSurveyDone} />}
         {phase === "main" && (
           <>
-            {showTelemedicine ? (
+            {activeVideoCall ? (
+              <JitsiConsultationScreen
+                consultation={{ ...activeVideoCall, consultationMode: "online" }}
+                onLeave={() => setActiveVideoCall(null)}
+              />
+            ) : showTelemedicine ? (
               <TelemedicineScreen onBack={() => setShowTelemedicine(false)} />
             ) : showAppointment ? (
               <AppointmentBooking onBack={() => setShowAppointment(false)} />
