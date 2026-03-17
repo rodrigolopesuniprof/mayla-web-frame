@@ -86,7 +86,7 @@ interface TimeWindow {
   duration: number;
 }
 
-type Step = "specialty" | "mode" | "doctors" | "schedule" | "confirm" | "done" | "video_call";
+type Step = "specialty" | "mode" | "doctors" | "schedule" | "confirm" | "done" | "video_call" | "waiting_room";
 type ConsultMode = "online" | "presencial" | "first_available";
 
 const SPECIALTIES = [
