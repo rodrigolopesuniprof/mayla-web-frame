@@ -76,7 +76,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
             setStartedAt(now);
             startTimer();
           }
-          if (newStatus === "completed" || newStatus === "cancelled") {
+          if (newStatus === "finished" || newStatus === "completed" || newStatus === "cancelled") {
             stopTimer();
           }
         }
