@@ -10,6 +10,7 @@ import { CampanhasTab } from "./CampanhasTab";
 import { ServicosTab } from "./ServicosTab";
 import { ProfileTab } from "./ProfileTab";
 import { TelemedicineScreen } from "./TelemedicineScreen";
+import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { EsfLinkScreen } from "./EsfLinkScreen";
 import { useAuth } from "@/contexts/AuthContext";
