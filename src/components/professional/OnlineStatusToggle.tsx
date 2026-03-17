@@ -11,7 +11,7 @@ interface Props {
   alwaysAvailable?: boolean;
 }
 
-export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnDemand }: Props) {
+export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnDemand, alwaysAvailable }: Props) {
   const [online, setOnline] = useState(initialOnline);
   const [acceptsOnDemand, setAcceptsOnDemand] = useState(initialAcceptsOnDemand);
   const [saving, setSaving] = useState(false);
