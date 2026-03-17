@@ -17,6 +17,10 @@ import ProfessionalLogin from "./pages/ProfessionalLogin.tsx";
 import CompanyLanding from "./pages/CompanyLanding.tsx";
 import CompanyDashboard from "./pages/CompanyDashboard.tsx";
 import PartnerRegistration from "./pages/PartnerRegistration.tsx";
+import { lazy, Suspense } from "react";
+
+const HealthReport = lazy(() => import("./components/report/HealthReport"));
+const ProfessionalReport = lazy(() => import("./components/report/ProfessionalReport"));
 
 const queryClient = new QueryClient();
 
@@ -36,6 +40,24 @@ const App = () => (
               <Route path="/painel/:slug" element={<CompanyDashboard />} />
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route
+                path="/relatorio"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>Carregando...</div>}>
+                      <HealthReport />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/relatorio/medico/:token"
+                element={
+                  <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>Carregando...</div>}>
+                    <ProfessionalReport />
+                  </Suspense>
+                }
+              />
               <Route
                 path="/"
                 element={

@@ -363,6 +363,45 @@ export type Database = {
           },
         ]
       }
+      clinical_notes: {
+        Row: {
+          conditions_active: Json | null
+          consultation_id: string | null
+          created_at: string
+          id: string
+          medications: Json | null
+          note_text: string | null
+          professional_id: string | null
+          referrals: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conditions_active?: Json | null
+          consultation_id?: string | null
+          created_at?: string
+          id?: string
+          medications?: Json | null
+          note_text?: string | null
+          professional_id?: string | null
+          referrals?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conditions_active?: Json | null
+          consultation_id?: string | null
+          created_at?: string
+          id?: string
+          medications?: Json | null
+          note_text?: string | null
+          professional_id?: string | null
+          referrals?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       collaborative_teams: {
         Row: {
           company_id: string
@@ -830,50 +869,146 @@ export type Database = {
           },
         ]
       }
+      health_alerts: {
+        Row: {
+          days_triggered: number | null
+          description: string
+          detail: string | null
+          dismissed_at: string | null
+          generated_at: string
+          id: string
+          metric: string
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          days_triggered?: number | null
+          description: string
+          detail?: string | null
+          dismissed_at?: string | null
+          generated_at?: string
+          id?: string
+          metric: string
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          days_triggered?: number | null
+          description?: string
+          detail?: string | null
+          dismissed_at?: string | null
+          generated_at?: string
+          id?: string
+          metric?: string
+          severity?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       health_measurements: {
         Row: {
+          active_minutes: number | null
           blood_pressure_dia: number | null
           blood_pressure_sys: number | null
           created_at: string
+          fatigue_score: number | null
+          glucose_estimated: number | null
           heart_rate: number | null
+          hrv: number | null
           id: string
           measured_at: string
           measurement_type: string
           notes: string | null
           respiratory_rate: number | null
+          sleep_duration_min: number | null
+          sleep_quality_score: number | null
           source: string | null
           spo2: number | null
+          steps: number | null
           stress_level: number | null
           user_id: string
         }
         Insert: {
+          active_minutes?: number | null
           blood_pressure_dia?: number | null
           blood_pressure_sys?: number | null
           created_at?: string
+          fatigue_score?: number | null
+          glucose_estimated?: number | null
           heart_rate?: number | null
+          hrv?: number | null
           id?: string
           measured_at?: string
           measurement_type: string
           notes?: string | null
           respiratory_rate?: number | null
+          sleep_duration_min?: number | null
+          sleep_quality_score?: number | null
           source?: string | null
           spo2?: number | null
+          steps?: number | null
           stress_level?: number | null
           user_id: string
         }
         Update: {
+          active_minutes?: number | null
           blood_pressure_dia?: number | null
           blood_pressure_sys?: number | null
           created_at?: string
+          fatigue_score?: number | null
+          glucose_estimated?: number | null
           heart_rate?: number | null
+          hrv?: number | null
           id?: string
           measured_at?: string
           measurement_type?: string
           notes?: string | null
           respiratory_rate?: number | null
+          sleep_duration_min?: number | null
+          sleep_quality_score?: number | null
           source?: string | null
           spo2?: number | null
+          steps?: number | null
           stress_level?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      health_scores: {
+        Row: {
+          generated_at: string
+          id: string
+          period_end: string
+          period_start: string
+          recommendation_level: number
+          score_emotional: number
+          score_general: number
+          score_lifestyle: number
+          score_physiological: number
+          user_id: string
+        }
+        Insert: {
+          generated_at?: string
+          id?: string
+          period_end: string
+          period_start: string
+          recommendation_level?: number
+          score_emotional?: number
+          score_general?: number
+          score_lifestyle?: number
+          score_physiological?: number
+          user_id: string
+        }
+        Update: {
+          generated_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          recommendation_level?: number
+          score_emotional?: number
+          score_general?: number
+          score_lifestyle?: number
+          score_physiological?: number
           user_id?: string
         }
         Relationships: []
@@ -1794,6 +1929,36 @@ export type Database = {
           created_at?: string | null
           id?: string
           title?: string
+        }
+        Relationships: []
+      }
+      report_shares: {
+        Row: {
+          accessed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          professional_id: string | null
+          token: string
+          user_id: string
+        }
+        Insert: {
+          accessed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          professional_id?: string | null
+          token: string
+          user_id: string
+        }
+        Update: {
+          accessed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          professional_id?: string | null
+          token?: string
+          user_id?: string
         }
         Relationships: []
       }
