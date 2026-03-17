@@ -449,20 +449,56 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
                   <p className="text-sm text-muted-foreground">Nenhuma consulta agendada ainda.</p>
                 </div>
               ) : (
-                consultHistory.map((c: any) => (
-                  <div key={c.id} className="bg-secondary rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold text-foreground">{c.specialty}</span>
-                      <span className={`text-[10px] font-semibold rounded-md px-2 py-0.5 uppercase ${c.status === "confirmed" ? "bg-green-500/10 text-green-600" : c.status === "cancelled" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-600"}`}>
-                        {c.status === "confirmed" ? "Confirmada" : c.status === "cancelled" ? "Cancelada" : "Agendada"}
-                      </span>
+                consultHistory.map((c: any) => {
+                  const consultation = c.consultation;
+                  const now = new Date();
+                  const canJoin = consultation && 
+                    consultation.join_window_starts_at && 
+                    new Date(consultation.join_window_starts_at) <= now &&
+                    ["confirmed", "waiting", "in_progress"].includes(consultation.status);
+                  
+                  return (
+                    <div key={c.id} className="bg-secondary rounded-2xl p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-foreground">{c.specialty}</span>
+                        <span className={`text-[10px] font-semibold rounded-md px-2 py-0.5 uppercase ${c.status === "confirmed" ? "bg-green-500/10 text-green-600" : c.status === "cancelled" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-600"}`}>
+                          {c.status === "confirmed" ? "Confirmada" : c.status === "cancelled" ? "Cancelada" : "Agendada"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(c.appointment_date).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                      {c.doctor_name && <div className="text-xs text-muted-foreground mt-0.5">Dr(a). {c.doctor_name}</div>}
+                      
+                      {consultation && (
+                        <div className="mt-2">
+                          {canJoin ? (
+                            <button
+                              onClick={() => {
+                                setShowConsultasDialog(false);
+                                setShowConsultHistory(false);
+                                onOpenVideoCall({
+                                  id: consultation.id,
+                                  professionalName: c.doctor_name || "Profissional",
+                                  professionalType: "doctor",
+                                  specialty: c.specialty,
+                                });
+                              }}
+                              className="w-full py-2 rounded-xl border-none text-[12px] font-semibold text-primary-foreground cursor-pointer"
+                              style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))" }}
+                            >
+                              📹 Entrar na consulta
+                            </button>
+                          ) : consultation.join_window_starts_at && new Date(consultation.join_window_starts_at) > now ? (
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              📹 Videochamada disponível a partir de {new Date(consultation.join_window_starts_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(c.appointment_date).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                    {c.doctor_name && <div className="text-xs text-muted-foreground mt-0.5">Dr(a). {c.doctor_name}</div>}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
