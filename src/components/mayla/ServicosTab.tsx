@@ -17,11 +17,20 @@ interface Appointment {
   clinic_name: string | null;
 }
 
-export function ServicosTab() {
+export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlineMode?: boolean; onClearOnlineMode?: () => void }) {
   const { user } = useAuth();
-  const [subView, setSubView] = useState<SubView>("menu");
+  const [subView, setSubView] = useState<SubView>(startOnlineMode ? "consultation" : "menu");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [onlineInitialMode, setOnlineInitialMode] = useState<"online" | undefined>(startOnlineMode ? "online" : undefined);
+
+  useEffect(() => {
+    if (startOnlineMode) {
+      setSubView("consultation");
+      setOnlineInitialMode("online");
+      onClearOnlineMode?.();
+    }
+  }, [startOnlineMode]);
 
   useEffect(() => {
     if (subView === "history" && user) {
@@ -40,7 +49,7 @@ export function ServicosTab() {
   }, [subView, user]);
 
   if (subView === "consultation") {
-    return <ConsultationFlow onBack={() => setSubView("menu")} />;
+    return <ConsultationFlow onBack={() => { setSubView("menu"); setOnlineInitialMode(undefined); }} initialMode={onlineInitialMode} />;
   }
 
   if (subView === "appointment_legacy") {

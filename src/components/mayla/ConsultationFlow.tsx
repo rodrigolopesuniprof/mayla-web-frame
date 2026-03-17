@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { TopBar } from "./TopBar";
 import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
+import { WaitingRoom } from "./WaitingRoom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,7 +87,7 @@ interface TimeWindow {
   duration: number;
 }
 
-type Step = "specialty" | "mode" | "doctors" | "schedule" | "confirm" | "done" | "video_call";
+type Step = "specialty" | "mode" | "doctors" | "schedule" | "confirm" | "done" | "video_call" | "waiting_room";
 type ConsultMode = "online" | "presencial" | "first_available";
 
 const SPECIALTIES = [
@@ -173,13 +174,16 @@ function getNextDateForWeekday(weekday: number, fromDate: Date = new Date()): Da
 const LazyMap = lazy(() => import("./ConsultationMap"));
 
 /* ─── Main Component ─── */
-export function ConsultationFlow({ onBack }: { onBack: () => void }) {
+export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; initialMode?: ConsultMode }) {
   const { user } = useAuth();
   const { company } = useCompany();
 
   const [step, setStep] = useState<Step>("specialty");
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
-  const [consultMode, setConsultMode] = useState<ConsultMode | null>(null);
+  const [consultMode, setConsultMode] = useState<ConsultMode | null>(initialMode || null);
+  const [waitingConsultationId, setWaitingConsultationId] = useState<string | null>(null);
+  const [waitingStatus, setWaitingStatus] = useState<string>("confirmed");
+  const [waitingSeconds, setWaitingSeconds] = useState(0);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [doctorLocations, setDoctorLocations] = useState<DoctorLocation[]>([]);
   const [availability, setAvailability] = useState<AvailSlot[]>([]);
@@ -420,7 +424,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
       const scheduledDate = new Date(appointmentDate);
       const joinWindowStart = new Date(scheduledDate.getTime() - 15 * 60 * 1000);
 
-      const { error: consultError } = await supabase
+      const { data: consultData2, error: consultError } = await supabase
         .from("consultations")
         .insert({
           user_id: user.id,
@@ -442,10 +446,16 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
       if (consultError) {
         console.warn("Consultation record failed:", consultError.message);
+        toast({ title: "Consulta agendada! ✅", description: "Mas houve um erro ao criar a sala de vídeo." });
+        setStep("done");
+      } else {
+        // Go to waiting room instead of done
+        setWaitingConsultationId(consultData2?.id || null);
+        setWaitingStatus("confirmed");
+        setWaitingSeconds(0);
+        toast({ title: "Consulta online agendada! ✅" });
+        setStep("waiting_room");
       }
-
-      toast({ title: "Consulta online agendada! ✅", description: "Você poderá entrar na videochamada 15 minutos antes do horário." });
-      setStep("done");
     } else {
       setBooking(false);
       toast({ title: "Consulta agendada! ✅" });
@@ -469,6 +479,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
     else if (step === "schedule") { setStep("doctors"); setSelectedDoctor(null); }
     else if (step === "confirm") { setStep("doctors"); setSelectedSlotTime(null); setExpandedDoctorId(selectedDoctor?.id ?? null); }
     else if (step === "video_call") { setStep("done"); }
+    else if (step === "waiting_room") { setStep("done"); }
     else onBack();
   };
 
@@ -944,6 +955,21 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
               consultationMode: "online",
             }}
             onLeave={() => setStep("done")}
+          />
+        )}
+
+        {/* ── Step: Waiting Room ── */}
+        {step === "waiting_room" && waitingConsultationId && selectedDoctor && (
+          <WaitingRoom
+            consultationId={waitingConsultationId}
+            doctorName={selectedDoctor.name}
+            specialty={selectedSpecialty || ""}
+            scheduledAt={selectedDate && selectedSlotTime ? `${format(selectedDate, "yyyy-MM-dd")}T${selectedSlotTime.split(" – ")[0]}:00` : undefined}
+            onEnterCall={() => {
+              setActiveConsultationId(waitingConsultationId);
+              setStep("video_call");
+            }}
+            onBack={() => setStep("done")}
           />
         )}
 

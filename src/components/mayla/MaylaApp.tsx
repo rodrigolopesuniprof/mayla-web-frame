@@ -28,6 +28,7 @@ export function MaylaApp() {
   const [showAppointment, setShowAppointment] = useState(false);
   const [showEsfLink, setShowEsfLink] = useState(false);
   const [showOnDemand, setShowOnDemand] = useState(false);
+  const [consultOnlineMode, setConsultOnlineMode] = useState(false);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
 
   // On mount, check if user already completed the survey — skip splash/onboarding if so
@@ -127,15 +128,19 @@ export function MaylaApp() {
                     onOpenEsfLink={() => setShowEsfLink(true)}
                     onOpenVideoCall={(c) => setActiveVideoCall(c)}
                     onOpenOnDemand={() => setShowOnDemand(true)}
+                    onOpenConsultationOnline={() => {
+                      setActiveTab("servicos");
+                      setConsultOnlineMode(true);
+                    }}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
                 {activeTab === "campanhas" && <CampanhasTab onNavigate={(tab) => setActiveTab(tab)} />}
-                {activeTab === "servicos" && <ServicosTab />}
+                {activeTab === "servicos" && <ServicosTab startOnlineMode={consultOnlineMode} onClearOnlineMode={() => setConsultOnlineMode(false)} />}
                 {activeTab === "perfil" && <ProfileTab onRetakeSurvey={handleRetakeSurvey} />}
               </div>
             )}
-            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setActiveVideoCall(null); setActiveTab(t); }} />
+            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setActiveTab(t); }} />
           </>
         )}
       </div>
