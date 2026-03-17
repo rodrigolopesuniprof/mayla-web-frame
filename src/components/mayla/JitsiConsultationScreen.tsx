@@ -24,8 +24,10 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   confirmed: { label: "Confirmada", color: "bg-blue-100 text-blue-800" },
   waiting: { label: "Na fila", color: "bg-purple-100 text-purple-800" },
   in_progress: { label: "Em andamento", color: "bg-emerald-100 text-emerald-800" },
+  finished: { label: "Finalizada", color: "bg-muted text-muted-foreground" },
   completed: { label: "Finalizada", color: "bg-muted text-muted-foreground" },
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800" },
+  missed: { label: "Não compareceu", color: "bg-red-100 text-red-800" },
 };
 
 export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
