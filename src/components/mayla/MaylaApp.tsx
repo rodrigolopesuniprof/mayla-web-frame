@@ -110,6 +110,11 @@ export function MaylaApp() {
               <TelemedicineScreen onBack={() => setShowTelemedicine(false)} />
             ) : showAppointment ? (
               <AppointmentBooking onBack={() => setShowAppointment(false)} />
+            ) : showOnDemand ? (
+              <OnDemandFlow
+                onBack={() => setShowOnDemand(false)}
+                onStartCall={(c) => { setShowOnDemand(false); setActiveVideoCall(c); }}
+              />
             ) : showEsfLink ? (
               <EsfLinkScreen onBack={() => setShowEsfLink(false)} onLinked={() => setShowEsfLink(false)} />
             ) : (
