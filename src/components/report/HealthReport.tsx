@@ -120,11 +120,26 @@ export default function HealthReport() {
         </div>
       </div>
 
+      {/* EMPTY DATA BANNER */}
+      {!scores && (
+        <div className="rpt-empty-banner">
+          <div className="rpt-empty-icon">ℹ️</div>
+          <div className="rpt-empty-content">
+            <p className="rpt-empty-text">
+              Você ainda não possui dados de medição. Use a funcionalidade de medição por câmera ou conecte um relógio de saúde para gerar seu relatório completo.
+            </p>
+            <button className="rpt-empty-btn" onClick={() => navigate("/")}>
+              📷 Fazer minha primeira medição
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* SCORE */}
       <div className="rpt-section" style={{ marginTop: 16 }}>
         <div className="rpt-section-label">Score geral</div>
         <div className="rpt-score-card">
-          <ScoreRing score={s.score_general} color={getScoreColor(s.score_general)} />
+          <ScoreRing score={scores ? s.score_general : 0} color={scores ? getScoreColor(s.score_general) : "var(--rpt-text-tertiary)"} />
           <div className="rpt-score-info">
             <div className="rpt-score-heading">{scoreHeading}</div>
             <div className="rpt-score-subtext">Pontos de melhora identificados</div>
