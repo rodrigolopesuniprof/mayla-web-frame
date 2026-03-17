@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [status, setStatus] = useState("waiting");
   const [elapsed, setElapsed] = useState(0);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
@@ -37,7 +37,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
   const joinedAtRef = useRef<string | null>(null);
 
   const roomName = `mayla-consulta-${consultation.id}`;
-  const displayName = profile?.full_name || user?.email || "Paciente";
+  const displayName = user?.user_metadata?.full_name || user?.email || "Paciente";
   const userEmail = user?.email || "";
 
   // Record patient joined
