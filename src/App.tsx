@@ -54,6 +54,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/login-profissional" element={<ProfessionalLogin />} />
               <Route
                 path="/painel-profissional"
                 element={

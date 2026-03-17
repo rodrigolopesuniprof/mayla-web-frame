@@ -167,16 +167,16 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
       )}
 
       {state === "waiting_professional" && (
-        <div className="w-full max-w-xs mb-4 bg-blue-50 rounded-xl p-3">
-          <p className="text-xs text-blue-800">
+        <div className="w-full max-w-xs mb-4 bg-secondary rounded-xl p-3">
+          <p className="text-xs text-foreground">
             🔔 O profissional foi notificado e entrará na sala em breve. Você será conectado automaticamente.
           </p>
         </div>
       )}
 
       {state === "confirmed" && !isOnDemand && (
-        <div className="w-full max-w-xs mb-4 bg-emerald-50 rounded-xl p-3">
-          <p className="text-xs text-emerald-800">
+        <div className="w-full max-w-xs mb-4 bg-secondary rounded-xl p-3">
+          <p className="text-xs text-foreground">
             ✅ Sua consulta está confirmada. Quando o profissional iniciar o atendimento, você será conectado automaticamente.
           </p>
         </div>
