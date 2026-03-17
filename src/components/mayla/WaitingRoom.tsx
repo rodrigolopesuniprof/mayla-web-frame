@@ -58,7 +58,7 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // Fetch initial status
+  // Fetch status + periodic polling fallback
   useEffect(() => {
     const fetchStatus = async () => {
       const { data } = await supabase
@@ -83,6 +83,10 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
       }
     };
     fetchStatus();
+
+    // Poll every 10s as fallback for realtime
+    const interval = setInterval(fetchStatus, 10000);
+    return () => clearInterval(interval);
   }, [consultationId]);
 
   // Realtime subscription on consultation status
