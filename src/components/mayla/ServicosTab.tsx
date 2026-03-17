@@ -49,7 +49,7 @@ export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlin
   }, [subView, user]);
 
   if (subView === "consultation") {
-    return <ConsultationFlow onBack={() => setSubView("menu")} />;
+    return <ConsultationFlow onBack={() => { setSubView("menu"); setOnlineInitialMode(undefined); }} initialMode={onlineInitialMode} />;
   }
 
   if (subView === "appointment_legacy") {
