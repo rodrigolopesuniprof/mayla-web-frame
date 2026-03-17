@@ -22,6 +22,7 @@ interface PartnerProfile {
 interface OnlineStatus {
   online_now: boolean;
   accepts_on_demand: boolean;
+  always_available: boolean;
 }
 
 export default function ProfessionalDashboard() {
