@@ -193,6 +193,7 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
   const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
+  const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
 
   // Geolocation
   useEffect(() => {
