@@ -54,6 +54,7 @@ interface HealthProfile {
 type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime";
 
 export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } = {}) {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [esfInfo, setEsfInfo] = useState<EsfInfo | null>(null);
