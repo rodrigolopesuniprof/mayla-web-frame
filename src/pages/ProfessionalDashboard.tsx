@@ -144,6 +144,7 @@ export default function ProfessionalDashboard() {
             partnerId={partner.id}
             initialOnline={onlineStatus.online_now}
             initialAcceptsOnDemand={onlineStatus.accepts_on_demand}
+            alwaysAvailable={onlineStatus.always_available}
           />
         )}
 

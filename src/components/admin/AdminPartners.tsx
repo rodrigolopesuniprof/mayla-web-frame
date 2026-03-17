@@ -291,6 +291,9 @@ export function AdminPartners() {
               </div>
 
               <PartnerLocationsEditor partnerId={detailPartner.id} />
+              {activeType === "doctor" && (
+                <TeleconsultaSettings partnerId={detailPartner.id} />
+              )}
               {(activeType === "doctor" || activeType === "clinic") && (
                 <DoctorAvailabilityEditor partnerId={detailPartner.id} partnerType={activeType} />
               )}
