@@ -31,7 +31,7 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
       .from("consultations")
       .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, created_at, triage_notes, scheduled_at")
       .eq("professional_id", partnerId)
-      .in("status", ["confirmed", "waiting"] as any[])
+      .in("status", ["confirmed", "waiting", "pending"] as any[])
       .order("created_at", { ascending: true });
 
     if (data) {
