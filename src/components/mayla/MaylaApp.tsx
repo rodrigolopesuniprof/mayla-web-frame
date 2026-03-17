@@ -126,6 +126,7 @@ export function MaylaApp() {
                     onOpenAppointment={() => setShowAppointment(true)}
                     onOpenEsfLink={() => setShowEsfLink(true)}
                     onOpenVideoCall={(c) => setActiveVideoCall(c)}
+                    onOpenOnDemand={() => setShowOnDemand(true)}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
