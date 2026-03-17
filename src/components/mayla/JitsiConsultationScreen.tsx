@@ -34,6 +34,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
   const { user } = useAuth();
   const [status, setStatus] = useState("waiting");
+  const { shared, sharing, shareWithProfessional } = useShareHealthData();
   const [elapsed, setElapsed] = useState(0);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
