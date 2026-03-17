@@ -423,7 +423,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       const scheduledDate = new Date(appointmentDate);
       const joinWindowStart = new Date(scheduledDate.getTime() - 15 * 60 * 1000);
 
-      const { error: consultError } = await supabase
+      const { data: consultData2, error: consultError } = await supabase
         .from("consultations")
         .insert({
           user_id: user.id,
@@ -445,10 +445,16 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
       if (consultError) {
         console.warn("Consultation record failed:", consultError.message);
+        toast({ title: "Consulta agendada! ✅", description: "Mas houve um erro ao criar a sala de vídeo." });
+        setStep("done");
+      } else {
+        // Go to waiting room instead of done
+        setWaitingConsultationId(consultData2?.id || null);
+        setWaitingStatus("confirmed");
+        setWaitingSeconds(0);
+        toast({ title: "Consulta online agendada! ✅" });
+        setStep("waiting_room");
       }
-
-      toast({ title: "Consulta online agendada! ✅", description: "Você poderá entrar na videochamada 15 minutos antes do horário." });
-      setStep("done");
     } else {
       setBooking(false);
       toast({ title: "Consulta agendada! ✅" });
