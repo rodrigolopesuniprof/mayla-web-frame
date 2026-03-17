@@ -55,6 +55,7 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
   const [showConfirm, setShowConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { shared, sharing, shareWithProfessional } = useShareHealthData();
 
   // Wait timer
   useEffect(() => {
