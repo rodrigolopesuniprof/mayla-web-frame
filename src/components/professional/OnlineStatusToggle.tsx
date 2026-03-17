@@ -8,6 +8,7 @@ interface Props {
   partnerId: string;
   initialOnline: boolean;
   initialAcceptsOnDemand: boolean;
+  alwaysAvailable?: boolean;
 }
 
 export function OnlineStatusToggle({ partnerId, initialOnline, initialAcceptsOnDemand }: Props) {
