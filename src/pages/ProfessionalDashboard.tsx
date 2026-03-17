@@ -72,7 +72,7 @@ export default function ProfessionalDashboard() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login-profissional" replace />;
   }
 
   if (!partner) {
