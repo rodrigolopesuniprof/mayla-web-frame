@@ -416,7 +416,11 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
     // For online consultations, also create a consultations record and go to video call
     if (isOnline) {
-      const { data: consultData, error: consultError } = await supabase
+      // join_window_starts_at = 15 minutes before scheduled time
+      const scheduledDate = new Date(appointmentDate);
+      const joinWindowStart = new Date(scheduledDate.getTime() - 15 * 60 * 1000);
+
+      const { error: consultError } = await supabase
         .from("consultations")
         .insert({
           user_id: user.id,
@@ -425,8 +429,9 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
           specialty: selectedSpecialty,
           consultation_mode: "online",
           consultation_flow_type: "scheduled" as any,
-          status: "pending" as any,
+          status: "confirmed" as any,
           scheduled_at: appointmentDate,
+          join_window_starts_at: joinWindowStart.toISOString(),
           triage_notes: patientNotes || null,
           company_id: (company as any)?.id || null,
         } as any)
@@ -437,13 +442,10 @@ export function ConsultationFlow({ onBack }: { onBack: () => void }) {
 
       if (consultError) {
         console.warn("Consultation record failed:", consultError.message);
-        toast({ title: "Consulta agendada! ✅", description: "A videochamada estará disponível no horário." });
-        setStep("done");
-      } else if (consultData?.id) {
-        setActiveConsultationId(consultData.id);
-        toast({ title: "Entrando na consulta... 📹" });
-        setStep("video_call");
       }
+
+      toast({ title: "Consulta online agendada! ✅", description: "Você poderá entrar na videochamada 15 minutos antes do horário." });
+      setStep("done");
     } else {
       setBooking(false);
       toast({ title: "Consulta agendada! ✅" });

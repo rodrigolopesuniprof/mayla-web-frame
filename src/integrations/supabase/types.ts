@@ -2320,6 +2320,8 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+        | "finished"
+        | "missed"
       partner_type: "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy"
     }
     CompositeTypes: {
@@ -2468,6 +2470,8 @@ export const Constants = {
         "completed",
         "cancelled",
         "no_show",
+        "finished",
+        "missed",
       ],
       partner_type: ["doctor", "clinic", "gym", "laboratory", "pharmacy"],
     },
