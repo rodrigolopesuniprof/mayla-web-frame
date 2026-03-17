@@ -28,6 +28,7 @@ export function MaylaApp() {
   const [showAppointment, setShowAppointment] = useState(false);
   const [showEsfLink, setShowEsfLink] = useState(false);
   const [showOnDemand, setShowOnDemand] = useState(false);
+  const [consultOnlineMode, setConsultOnlineMode] = useState(false);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
 
   // On mount, check if user already completed the survey — skip splash/onboarding if so
