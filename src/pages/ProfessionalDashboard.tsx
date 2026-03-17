@@ -51,11 +51,11 @@ export default function ProfessionalDashboard() {
         // Fetch online status
         const { data: statusData } = await supabase
           .from("professional_online_status")
-          .select("online_now, accepts_on_demand")
+          .select("online_now, accepts_on_demand, always_available")
           .eq("professional_id", data.id)
           .maybeSingle();
 
-        setOnlineStatus(statusData as OnlineStatus || { online_now: false, accepts_on_demand: false });
+        setOnlineStatus(statusData as OnlineStatus || { online_now: false, accepts_on_demand: false, always_available: false });
       }
       setLoadingPartner(false);
     };
