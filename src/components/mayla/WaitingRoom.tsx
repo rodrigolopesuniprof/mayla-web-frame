@@ -51,6 +51,8 @@ const STATE_CONFIG: Record<WaitingState, { emoji: string; title: string; subtitl
 export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt, isOnDemand, onEnterCall, onBack }: Props) {
   const [state, setState] = useState<WaitingState>(isOnDemand ? "waiting_professional" : "confirmed");
   const [waitSec, setWaitSec] = useState(0);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Wait timer
