@@ -140,7 +140,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
     await supabase
       .from("consultations")
       .update({
-        status: "completed" as any,
+        status: "finished" as any,
         ended_at: now.toISOString(),
         call_duration_seconds: elapsed,
       })
