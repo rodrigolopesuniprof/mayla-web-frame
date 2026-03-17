@@ -173,7 +173,7 @@ function getNextDateForWeekday(weekday: number, fromDate: Date = new Date()): Da
 const LazyMap = lazy(() => import("./ConsultationMap"));
 
 /* ─── Main Component ─── */
-export function ConsultationFlow({ onBack }: { onBack: () => void }) {
+export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; initialMode?: ConsultMode }) {
   const { user } = useAuth();
   const { company } = useCompany();
 
