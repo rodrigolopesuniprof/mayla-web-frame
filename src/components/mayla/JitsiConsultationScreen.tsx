@@ -205,7 +205,11 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
             disableModeratorIndicator: true,
             enableEmailInProfile: false,
             prejoinPageEnabled: false,
+            prejoinConfig: { enabled: false },
             disableDeepLinking: true,
+            enableLobbyChat: false,
+            hideLobbyButton: true,
+            requireDisplayName: false,
             toolbarButtons: [
               "microphone",
               "camera",
@@ -224,6 +228,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
             DEFAULT_BACKGROUND: "#1a1a2e",
+            ENABLE_LOBBY_CHAT: false,
           }}
           userInfo={{
             displayName,

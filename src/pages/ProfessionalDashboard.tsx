@@ -120,7 +120,7 @@ export default function ProfessionalDashboard() {
   // Active video call overlay
   if (activeCall) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="h-screen flex flex-col bg-background">
         <JitsiConsultationScreen
           consultation={{
             id: activeCall.id,
