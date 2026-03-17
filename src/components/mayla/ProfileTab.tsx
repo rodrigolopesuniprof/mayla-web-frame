@@ -162,7 +162,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
         ]).map((item) => (
           <button
             key={item.key}
-            onClick={() => setSubView(item.key)}
+            onClick={() => (item as any).navigate ? navigate("/relatorio") : setSubView(item.key as SubView)}
             className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3 cursor-pointer text-left w-full hover:border-accent/30 transition-colors"
           >
             <span className="text-xl">{item.emoji}</span>
