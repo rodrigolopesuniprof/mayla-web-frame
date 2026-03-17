@@ -13,6 +13,7 @@ import { TelemedicineScreen } from "./TelemedicineScreen";
 import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { EsfLinkScreen } from "./EsfLinkScreen";
+import { OnDemandFlow } from "./OnDemandFlow";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
