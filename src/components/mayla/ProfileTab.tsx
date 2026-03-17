@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { TopBar } from "./TopBar";
 import { Avatar } from "./MaylaIcons";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +54,7 @@ interface HealthProfile {
 type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime";
 
 export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } = {}) {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [esfInfo, setEsfInfo] = useState<EsfInfo | null>(null);
@@ -150,6 +152,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
           { key: "dados" as SubView, emoji: "📋", label: "Meus dados" },
           { key: "autoavaliacao" as SubView, emoji: "🩺", label: "Auto avaliação" },
           { key: "medicoes" as SubView, emoji: "📊", label: "Histórico de medições" },
+          { key: "relatorio" as any, emoji: "📈", label: "Relatório de saúde", navigate: true },
           { key: "consultas" as SubView, emoji: "📅", label: "Consultas agendadas" },
           { key: "meutime" as SubView, emoji: "👥", label: "Meu Time" },
           { key: "medicamentos" as SubView, emoji: "💊", label: "Medicamentos" },
@@ -159,7 +162,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
         ]).map((item) => (
           <button
             key={item.key}
-            onClick={() => setSubView(item.key)}
+            onClick={() => (item as any).navigate ? navigate("/relatorio") : setSubView(item.key as SubView)}
             className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3 cursor-pointer text-left w-full hover:border-accent/30 transition-colors"
           >
             <span className="text-xl">{item.emoji}</span>
