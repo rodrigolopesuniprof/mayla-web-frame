@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { useShareHealthData } from "@/hooks/useShareHealthData";
 
 type WaitingState = "waiting_professional" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
@@ -54,6 +55,7 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
   const [showConfirm, setShowConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { shared, sharing, shareWithProfessional } = useShareHealthData();
 
   // Wait timer
   useEffect(() => {
@@ -170,6 +172,21 @@ export function WaitingRoom({ consultationId, doctorName, specialty, scheduledAt
             </div>
           )}
         </div>
+      )}
+
+      {/* Share health data button */}
+      {!isFinished && (
+        <button
+          onClick={() => shareWithProfessional(consultationId)}
+          disabled={sharing || shared}
+          className={`w-full max-w-xs py-3 rounded-xl border text-[13px] font-semibold cursor-pointer transition-colors mb-4 ${
+            shared
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+          }`}
+        >
+          {sharing ? "Compartilhando..." : shared ? "✅ Dados compartilhados" : "📋 Compartilhar dados de saúde com equipe médica"}
+        </button>
       )}
 
       {/* Status + timer */}

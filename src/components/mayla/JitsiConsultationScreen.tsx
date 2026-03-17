@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useShareHealthData } from "@/hooks/useShareHealthData";
 
 interface ConsultationInfo {
   id: string;
@@ -33,6 +34,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
   const { user } = useAuth();
   const [status, setStatus] = useState("waiting");
+  const { shared, sharing, shareWithProfessional } = useShareHealthData();
   const [elapsed, setElapsed] = useState(0);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -191,6 +193,17 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
               ⏱ {formatTime(elapsed)}
             </span>
           )}
+          <button
+            onClick={() => shareWithProfessional(consultation.id)}
+            disabled={sharing || shared}
+            className={`ml-auto text-[10px] font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${
+              shared
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+            }`}
+          >
+            {sharing ? "..." : shared ? "✅ Compartilhado" : "📋 Compartilhar dados"}
+          </button>
         </div>
       </div>
 
