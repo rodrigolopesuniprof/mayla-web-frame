@@ -3,6 +3,13 @@
 // Fix recharts JSX component types with @types/react@18.3.x
 declare module "recharts" {
   import type { ComponentType } from "react";
+
+  export interface LegendProps {
+    payload?: Array<{ value: string; type?: string; id?: string; color?: string }>;
+    verticalAlign?: "top" | "middle" | "bottom";
+    [key: string]: any;
+  }
+
   export const LineChart: ComponentType<any>;
   export const Line: ComponentType<any>;
   export const BarChart: ComponentType<any>;
