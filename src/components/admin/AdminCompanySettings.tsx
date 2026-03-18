@@ -128,6 +128,9 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
 
   return (
     <div className="space-y-6">
+      {/* Admin da empresa */}
+      <CompanyAdminManager companyId={company.id} />
+
       {/* Links rápidos */}
       <Card>
         <CardHeader>
