@@ -314,24 +314,23 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       </div>
 
       {/* Questionnaire Card */}
-      {latestQuestionnaire && !showQuestionnaire && (
+      {latestQuestionnaire && !alreadyAnswered && !showQuestionnaire && (
         <div
           className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
-          onClick={() => !alreadyAnswered && setShowQuestionnaire(true)}
-          style={{ opacity: alreadyAnswered ? 0.7 : 1 }}
+          onClick={() => setShowQuestionnaire(true)}
         >
-          <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: alreadyAnswered ? "hsl(var(--mayla-green) / .15)" : "hsl(var(--accent) / .12)" }}>
-            {alreadyAnswered ? "✅" : "📋"}
+          <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--accent) / .12)" }}>
+            📋
           </div>
           <div className="flex-1">
             <div className="text-[15px] font-semibold text-foreground mb-0.5">
-              {alreadyAnswered ? "Questionário respondido" : "Preencher questionário"}
+              Preencher pesquisa
             </div>
             <div className="text-sm text-muted-foreground leading-snug">
-              {alreadyAnswered ? latestQuestionnaire.title : `Responda: ${latestQuestionnaire.title}`}
+              {latestQuestionnaire.title}
             </div>
           </div>
-          {!alreadyAnswered && <span className="text-xl text-muted-foreground">›</span>}
+          <span className="text-xl text-muted-foreground">›</span>
         </div>
       )}
 

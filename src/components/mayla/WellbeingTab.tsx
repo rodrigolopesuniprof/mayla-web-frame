@@ -5,11 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { WellbeingCheckin } from "@/components/corporate/WellbeingCheckin";
 import { RppgCapture } from "./RppgCapture";
 import { BinahCapture } from "./BinahCapture";
-import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { TopBar } from "./TopBar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, ChevronRight } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -38,11 +36,6 @@ interface Measurement {
   source: string | null;
 }
 
-interface Questionnaire {
-  id: string;
-  title: string;
-}
-
 const MOOD_EMOJI = ["", "😞", "😕", "😐", "🙂", "😊"];
 
 export function WellbeingTab() {
@@ -56,11 +49,6 @@ export function WellbeingTab() {
   const [binahEnabled, setBinahEnabled] = useState(false);
   const [binahLimit, setBinahLimit] = useState(3);
   const [binahUsedThisMonth, setBinahUsedThisMonth] = useState(0);
-
-  // Questionnaire state
-  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
-  const [showSurveyList, setShowSurveyList] = useState(false);
-  const [activeQuestionnaire, setActiveQuestionnaire] = useState<Questionnaire | null>(null);
 
   const loadHistory = () => {
     if (!user) return;
@@ -108,35 +96,11 @@ export function WellbeingTab() {
     }
   };
 
-  const fetchQuestionnaires = async () => {
-    const { data } = await supabase
-      .from("questionnaires")
-      .select("id, title")
-      .order("created_at", { ascending: false });
-    setQuestionnaires(data || []);
-  };
-
   useEffect(() => {
     loadHistory();
     fetchMeasurements();
     fetchBinahStatus();
-    fetchQuestionnaires();
   }, [user, companyId]);
-
-  // ---- Full-screen captures ----
-  if (activeQuestionnaire) {
-    return (
-      <QuestionnaireRunner
-        questionnaireId={activeQuestionnaire.id}
-        questionnaireTitle={activeQuestionnaire.title}
-        onClose={() => setActiveQuestionnaire(null)}
-        onComplete={() => {
-          setActiveQuestionnaire(null);
-          setShowSurveyList(false);
-        }}
-      />
-    );
-  }
 
   if (showBinah) {
     return (
@@ -158,44 +122,6 @@ export function WellbeingTab() {
     );
   }
 
-  // ---- Survey list screen ----
-  if (showSurveyList) {
-    return (
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-5 pt-5 pb-3 flex items-center gap-3">
-          <button onClick={() => setShowSurveyList(false)} className="p-2 rounded-full hover:bg-secondary transition-colors">
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
-          <h2 className="text-lg font-semibold text-foreground">Autoavaliações de Saúde</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {questionnaires.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-4xl mb-3">📋</p>
-              <p className="text-sm text-muted-foreground">Nenhuma avaliação disponível no momento.</p>
-            </div>
-          ) : (
-            questionnaires.map((q) => (
-              <button
-                key={q.id}
-                onClick={() => setActiveQuestionnaire(q)}
-                className="w-full rounded-2xl p-4 bg-secondary flex items-center gap-4 text-left hover:bg-secondary/80 transition-colors"
-              >
-                <span className="text-2xl">📋</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-semibold text-foreground truncate">{q.title}</p>
-                  <p className="text-[11px] text-muted-foreground">Escala 1-5 · Toque para responder</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ---- Derived data ----
   const latest = measurements[0] || null;
 
   const chartData = measurements
@@ -287,28 +213,6 @@ export function WellbeingTab() {
           </div>
         )}
 
-        {/* Self-assessment CTA */}
-        <div
-          className="rounded-[18px] p-4 relative overflow-hidden cursor-pointer"
-          style={{
-            background: "linear-gradient(135deg, hsl(var(--mayla-teal)), hsl(var(--mayla-amber)))",
-            boxShadow: "0 8px 24px rgba(100,140,80,.2)",
-          }}
-          onClick={() => setShowSurveyList(true)}
-        >
-          <div className="flex items-center gap-4">
-            <div className="text-4xl">📋</div>
-            <div className="flex-1">
-              <div className="text-[15px] font-semibold" style={{ color: "#fff" }}>
-                Realizar autoavaliação de saúde
-              </div>
-              <div className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,.8)" }}>
-                Responda questionários personalizados · +50 pts
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 shrink-0" style={{ color: "rgba(255,255,255,.7)" }} />
-          </div>
-        </div>
 
         {/* Latest vitals */}
         {latest && (
