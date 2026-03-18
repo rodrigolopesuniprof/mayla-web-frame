@@ -6,6 +6,7 @@ import { AdminUsers } from "./AdminUsers";
 import { AdminPrograms } from "./AdminPrograms";
 import { AdminNotifications } from "./AdminNotifications";
 import { AdminPartners } from "./AdminPartners";
+import { AdminSurveys } from "./AdminSurveys";
 import { AdminSupportTeams } from "./AdminSupportTeams";
 import { ArrowLeft } from "lucide-react";
 
@@ -130,7 +131,7 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
         )}
 
         {activeSection === "pesquisas" && (
-          <SurveysPlaceholder />
+          <AdminSurveys />
         )}
 
         {activeSection === "programas" && (
@@ -153,14 +154,3 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
   );
 }
 
-function SurveysPlaceholder() {
-  return (
-    <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-12 text-center">
-      <div className="text-5xl mb-4">📋</div>
-      <h3 className="text-lg font-semibold text-foreground mb-2">Pesquisas e Avaliações</h3>
-      <p className="text-sm text-muted-foreground max-w-md mx-auto">
-        Em breve você poderá criar pesquisas, questionários e avaliações gamificadas para engajar os colaboradores desta empresa.
-      </p>
-    </div>
-  );
-}

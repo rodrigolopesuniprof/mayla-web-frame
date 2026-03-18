@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { PartnerForm, type PartnerData, type PartnerType } from "./PartnerForm";
@@ -46,6 +47,7 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
   const [detailPartner, setDetailPartner] = useState<any | null>(null);
   const [csvOpen, setCsvOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
   useEffect(() => {
     loadPartners();
@@ -243,6 +245,7 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
                       >
                         {p.active ? "⏸" : "▶️"}
                       </Button>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(p)}>🗑️</Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -314,6 +317,39 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
           <PartnerCsvImport partnerType={activeType} onDone={() => { setCsvOpen(false); loadPartners(); }} />
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir parceiro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleteTarget?.name}</strong>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!deleteTarget) return;
+                await supabase.from("partner_locations").delete().eq("partner_id", deleteTarget.id);
+                await supabase.from("doctor_availability").delete().eq("partner_id", deleteTarget.id);
+                const { error } = await supabase.from("partners").delete().eq("id", deleteTarget.id);
+                if (error) {
+                  toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+                } else {
+                  toast({ title: "Parceiro excluído" });
+                  loadPartners();
+                }
+                setDeleteTarget(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
