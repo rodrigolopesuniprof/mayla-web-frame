@@ -287,8 +287,9 @@ export default function CompanyDashboard() {
           <p className="text-muted-foreground text-center py-12">Carregando dados...</p>
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="w-full justify-start">
+             <TabsList className="w-full justify-start">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="users">Usuários</TabsTrigger>
               <TabsTrigger value="wellbeing">Bem-estar</TabsTrigger>
               <TabsTrigger value="programs">Programas</TabsTrigger>
               <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
