@@ -507,10 +507,12 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
       {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap">
         <Input placeholder="Buscar por nome, CPF ou e-mail..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-        <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-          <option value="">Todas as empresas</option>
-          {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        {!companyId && (
+          <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <option value="">Todas as empresas</option>
+            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Users table */}
