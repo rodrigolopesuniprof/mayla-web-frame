@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   missed: { label: "Não compareceu", color: "bg-red-100 text-red-800" },
 };
 
-export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
+export function JitsiConsultationScreen({ consultation, onLeave, isProfessional, patientName }: Props) {
   const { user } = useAuth();
   const [status, setStatus] = useState("waiting");
   const { shared, sharing, shareWithProfessional } = useShareHealthData();
@@ -41,6 +41,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const joinedAtRef = useRef<string | null>(null);
+  const [sharedToken, setSharedToken] = useState<string | null>(null);
 
   const roomName = `mayla-consulta-${consultation.id}`;
   const displayName = user?.user_metadata?.full_name || user?.email || "Paciente";
