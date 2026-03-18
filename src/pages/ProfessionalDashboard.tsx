@@ -130,6 +130,8 @@ export default function ProfessionalDashboard() {
             consultationMode: "online",
           }}
           onLeave={() => setActiveCall(null)}
+          isProfessional={true}
+          patientName={activeCall.patientName}
         />
       </div>
     );
