@@ -37,7 +37,8 @@ interface AdminPartnersProps {
 }
 
 export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
-  const [activeType, setActiveType] = useState<PartnerType>("doctor");
+  const visibleTabs = filterTypes ? TABS.filter(t => filterTypes.includes(t.id)) : TABS;
+  const [activeType, setActiveType] = useState<PartnerType>(visibleTabs[0]?.id || "doctor");
   const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
