@@ -140,7 +140,7 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
           </div>
           {token && (
             <p className="text-xs text-muted-foreground font-mono bg-secondary rounded-lg px-3 py-2">
-              {window.location.origin}/cadastro/{token}
+              {PUBLISHED_DOMAIN}/cadastro/{token}
             </p>
           )}
           <BinahToggle companyId={company.id} />
