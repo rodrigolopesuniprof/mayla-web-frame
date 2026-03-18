@@ -90,15 +90,30 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
   const fetchLatestQuestionnaire = async () => {
     if (!user) return;
-    const { data: q } = await supabase
-      .from("questionnaires")
-      .select("id, title")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+
+    const [{ data: questionnaires }, { data: missions }] = await Promise.all([
+      supabase
+        .from("questionnaires")
+        .select("id, title")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("missions")
+        .select("questionnaire_id")
+        .not("questionnaire_id", "is", null),
+    ]);
+
+    const linkedQuestionnaireIds = new Set(
+      (missions || [])
+        .map((mission: any) => mission.questionnaire_id)
+        .filter(Boolean)
+    );
+
+    const q = (questionnaires || []).find(
+      (questionnaire: any) => !linkedQuestionnaireIds.has(questionnaire.id)
+    );
+
     if (q) {
       setLatestQuestionnaire({ id: q.id, title: q.title });
-      // Check if user already answered it
       const { data: resp } = await supabase
         .from("questionnaire_responses")
         .select("id")
@@ -107,9 +122,12 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         .limit(1)
         .maybeSingle();
       setAlreadyAnswered(!!resp);
-    } else {
-      setLatestQuestionnaire(null);
+      return;
     }
+
+    setLatestQuestionnaire(null);
+    setAlreadyAnswered(false);
+    setShowQuestionnaire(false);
   };
 
   const fetchMyTeam = async () => {
