@@ -91,7 +91,11 @@ const VALIDATION_OPTIONS = [
 const VALIDATION_BADGE: Record<string, string> = Object.fromEntries(VALIDATION_OPTIONS.map(o => [o.value, o.badge]));
 
 // ── Component ──────────────────────────────────────────
-export function AdminPrograms() {
+interface AdminProgramsProps {
+  companyId?: string;
+}
+
+export function AdminPrograms({ companyId }: AdminProgramsProps = {}) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
 
