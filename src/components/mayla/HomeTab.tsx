@@ -88,6 +88,30 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   }, [user]);
 
 
+  const fetchLatestQuestionnaire = async () => {
+    if (!user) return;
+    const { data: q } = await supabase
+      .from("questionnaires")
+      .select("id, title")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (q) {
+      setLatestQuestionnaire({ id: q.id, title: q.title });
+      // Check if user already answered it
+      const { data: resp } = await supabase
+        .from("questionnaire_responses")
+        .select("id")
+        .eq("questionnaire_id", q.id)
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      setAlreadyAnswered(!!resp);
+    } else {
+      setLatestQuestionnaire(null);
+    }
+  };
+
   const fetchMyTeam = async () => {
     if (!user) return;
     const { data: membership } = await supabase
