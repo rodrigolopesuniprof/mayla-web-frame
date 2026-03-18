@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { QuestionnaireRunner } from "./QuestionnaireRunner";
 
 interface NotificationItem {
   id: string;
@@ -42,7 +43,11 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [selectedAlert, setSelectedAlert] = useState<NotificationItem | null>(null);
   const [profilePoints, setProfilePoints] = useState(0);
   const [profileLevel, setProfileLevel] = useState("Colaborador");
-  
+
+  // Questionnaire state
+  const [latestQuestionnaire, setLatestQuestionnaire] = useState<{ id: string; title: string } | null>(null);
+  const [alreadyAnswered, setAlreadyAnswered] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
 
   // Team state
   const [myTeam, setMyTeam] = useState<TeamInfo | null>(null);
@@ -77,8 +82,35 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
     // Fetch user's team
     fetchMyTeam();
+
+    // Fetch latest questionnaire from admin "Pesquisas"
+    fetchLatestQuestionnaire();
   }, [user]);
 
+
+  const fetchLatestQuestionnaire = async () => {
+    if (!user) return;
+    const { data: q } = await supabase
+      .from("questionnaires")
+      .select("id, title")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (q) {
+      setLatestQuestionnaire({ id: q.id, title: q.title });
+      // Check if user already answered it
+      const { data: resp } = await supabase
+        .from("questionnaire_responses")
+        .select("id")
+        .eq("questionnaire_id", q.id)
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      setAlreadyAnswered(!!resp);
+    } else {
+      setLatestQuestionnaire(null);
+    }
+  };
 
   const fetchMyTeam = async () => {
     if (!user) return;
@@ -263,7 +295,44 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <span className="text-xl text-muted-foreground">›</span>
       </div>
 
-      {/* Unified Consultas Button */}
+      {/* Questionnaire Card */}
+      {latestQuestionnaire && !showQuestionnaire && (
+        <div
+          className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
+          onClick={() => !alreadyAnswered && setShowQuestionnaire(true)}
+          style={{ opacity: alreadyAnswered ? 0.7 : 1 }}
+        >
+          <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: alreadyAnswered ? "hsl(var(--mayla-green) / .15)" : "hsl(var(--accent) / .12)" }}>
+            {alreadyAnswered ? "✅" : "📋"}
+          </div>
+          <div className="flex-1">
+            <div className="text-[15px] font-semibold text-foreground mb-0.5">
+              {alreadyAnswered ? "Questionário respondido" : "Preencher questionário"}
+            </div>
+            <div className="text-sm text-muted-foreground leading-snug">
+              {alreadyAnswered ? latestQuestionnaire.title : `Responda: ${latestQuestionnaire.title}`}
+            </div>
+          </div>
+          {!alreadyAnswered && <span className="text-xl text-muted-foreground">›</span>}
+        </div>
+      )}
+
+      {/* Questionnaire Runner (inline full-screen) */}
+      {showQuestionnaire && latestQuestionnaire && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <QuestionnaireRunner
+            questionnaireId={latestQuestionnaire.id}
+            questionnaireTitle={latestQuestionnaire.title}
+            onClose={() => setShowQuestionnaire(false)}
+            onComplete={() => {
+              setShowQuestionnaire(false);
+              setAlreadyAnswered(true);
+            }}
+          />
+        </div>
+      )}
+
+
       <div className="mx-5 mb-5">
         <div
           className="rounded-[18px] p-5 cursor-pointer active:scale-[.97] transition-transform"

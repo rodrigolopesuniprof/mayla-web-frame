@@ -53,7 +53,7 @@ interface HealthProfile {
 
 type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime";
 
-export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } = {}) {
+export function ProfileTab() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -101,7 +101,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
         </div>
         <div className="px-[22px] pt-4">
           {subView === "dados" && <MeusDados profile={profile} userId={user?.id} onUpdate={setProfile} />}
-          {subView === "autoavaliacao" && <AutoAvaliacao userId={user?.id} onRetakeSurvey={onRetakeSurvey} />}
+          {subView === "autoavaliacao" && <AutoAvaliacao userId={user?.id} />}
           {subView === "medicoes" && <HistoricoMedicoes userId={user?.id} />}
           {subView === "consultas" && <ConsultasAgendadas userId={user?.id} />}
           {subView === "meutime" && <MeuTime userId={user?.id} />}
@@ -139,7 +139,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
           </div>
         )}
         {!esfInfo && !loadingProfile && (
-          <p className="text-[11px] text-muted-foreground text-center mt-1">Não vinculado a nenhuma ESF</p>
+          <p className="text-[11px] text-muted-foreground text-center mt-1">Não vinculado a nenhum Time</p>
         )}
       </div>
 
@@ -179,7 +179,7 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
 
 // Sub-views
 
-function AutoAvaliacao({ userId, onRetakeSurvey }: { userId?: string; onRetakeSurvey?: () => void }) {
+function AutoAvaliacao({ userId }: { userId?: string }) {
   const [health, setHealth] = useState<HealthProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -248,9 +248,6 @@ function AutoAvaliacao({ userId, onRetakeSurvey }: { userId?: string; onRetakeSu
     <div className="flex flex-col items-center py-16 gap-3">
       <span className="text-4xl">🩺</span>
       <p className="text-sm text-muted-foreground">Questionário não preenchido ainda.</p>
-      {onRetakeSurvey && (
-        <Button onClick={onRetakeSurvey} variant="outline" className="mt-2">Preencher agora</Button>
-      )}
     </div>
   );
 
@@ -367,15 +364,6 @@ function AutoAvaliacao({ userId, onRetakeSurvey }: { userId?: string; onRetakeSu
         />
       </div>
 
-      {onRetakeSurvey && (
-        <button
-          onClick={onRetakeSurvey}
-          className="bg-accent/10 rounded-2xl p-4 border border-accent/20 flex items-center gap-3 cursor-pointer text-left w-full hover:bg-accent/20 transition-colors"
-        >
-          <span className="text-xl">🔄</span>
-          <span className="text-[14px] font-medium text-accent flex-1">Refazer questionário completo</span>
-        </button>
-      )}
     </div>
   );
 }

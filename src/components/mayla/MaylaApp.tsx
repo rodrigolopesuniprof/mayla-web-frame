@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import type { TabId } from "@/lib/mayla-config";
 import { SplashScreen } from "./SplashScreen";
 import { OnboardingScreen } from "./OnboardingScreen";
-import { HealthSurvey } from "./HealthSurvey";
 import { BottomNav } from "./BottomNav";
 import { HomeTab } from "./HomeTab";
 import { WellbeingTab } from "./WellbeingTab";
@@ -15,40 +14,13 @@ import { AppointmentBooking } from "./AppointmentBooking";
 import { EsfLinkScreen } from "./EsfLinkScreen";
 import { OnDemandFlow } from "./OnDemandFlow";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
-type AppPhase = "loading" | "splash" | "onboarding" | "survey" | "main";
-
-async function checkSurveyStatus(userId: string): Promise<AppPhase> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("health_survey_completed, health_survey_completed_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const profile = data as any;
-  if (profile?.health_survey_completed) {
-    if (profile.health_survey_completed_at) {
-      const completedAt = new Date(profile.health_survey_completed_at);
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      if (completedAt > sixMonthsAgo) return "main";
-      // Expired — reset
-      await supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", userId);
-      return "splash";
-    }
-    // Legacy backfill
-    await supabase.from("profiles").update({ health_survey_completed_at: new Date().toISOString() }).eq("user_id", userId);
-    return "main";
-  }
-  return "splash";
-}
+type AppPhase = "loading" | "splash" | "onboarding" | "main";
 
 export function MaylaApp() {
   const { user } = useAuth();
   const [phase, setPhase] = useState<AppPhase>("loading");
   const [activeTab, setActiveTab] = useState<TabId>("inicio");
-  const [isRetake, setIsRetake] = useState(false);
   const [showTelemedicine, setShowTelemedicine] = useState(false);
   const [showAppointment, setShowAppointment] = useState(false);
   const [showEsfLink, setShowEsfLink] = useState(false);
@@ -58,37 +30,14 @@ export function MaylaApp() {
   const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
-    const uid = user?.id;
-    if (!uid) {
-      if (!hasChecked) { setPhase("splash"); setHasChecked(true); }
-      return;
-    }
     if (hasChecked) return;
+    // If logged in, go straight to main; otherwise show splash
+    setPhase(user ? "main" : "splash");
+    setHasChecked(true);
+  }, [user, hasChecked]);
 
-    let cancelled = false;
-    checkSurveyStatus(uid).then((p) => {
-      if (!cancelled) { setPhase(p); setHasChecked(true); }
-    });
-    return () => { cancelled = true; };
-  }, [user?.id, hasChecked]);
-
-  const handleOnboardingDone = async () => {
-    // Re-verify before showing survey — prevents repeat if already completed
-    if (user?.id) {
-      const resolved = await checkSurveyStatus(user.id);
-      if (resolved === "main") { setPhase("main"); return; }
-    }
-    setPhase("survey");
-  };
-
-  const handleSurveyDone = () => { setIsRetake(false); setPhase("main"); };
-
-  const handleRetakeSurvey = async () => {
-    if (user) {
-      await supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", user.id);
-    }
-    setIsRetake(true);
-    setPhase("survey");
+  const handleOnboardingDone = () => {
+    setPhase("main");
   };
 
   return (
@@ -111,7 +60,6 @@ export function MaylaApp() {
         )}
         {phase === "splash" && <SplashScreen onDone={() => setPhase("onboarding")} />}
         {phase === "onboarding" && <OnboardingScreen onDone={handleOnboardingDone} />}
-        {phase === "survey" && <HealthSurvey onDone={handleSurveyDone} />}
         {phase === "main" && (
           <>
             {activeVideoCall ? (
@@ -149,7 +97,7 @@ export function MaylaApp() {
                 {activeTab === "bemestar" && <WellbeingTab />}
                 {activeTab === "campanhas" && <CampanhasTab onNavigate={(tab) => setActiveTab(tab)} />}
                 {activeTab === "servicos" && <ServicosTab startOnlineMode={consultOnlineMode} onClearOnlineMode={() => setConsultOnlineMode(false)} />}
-                {activeTab === "perfil" && <ProfileTab onRetakeSurvey={handleRetakeSurvey} />}
+                {activeTab === "perfil" && <ProfileTab />}
               </div>
             )}
             <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setActiveTab(t); }} />
