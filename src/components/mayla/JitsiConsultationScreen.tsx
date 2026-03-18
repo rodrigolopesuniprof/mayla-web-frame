@@ -291,6 +291,16 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
               {sharing ? "..." : shared ? "✅ Compartilhado" : "📋 Compartilhar dados"}
             </button>
           )}
+          {isProfessional && consultationMeta && (
+            <div className="ml-auto">
+              <DocumentSender
+                consultationId={consultation.id}
+                professionalId={consultationMeta.professionalId}
+                patientUserId={consultationMeta.patientUserId}
+                patientName={patientName}
+              />
+            </div>
+          )}
         </div>
       </div>
 
