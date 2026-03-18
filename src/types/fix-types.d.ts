@@ -5,7 +5,7 @@ declare module "recharts" {
   import type { ComponentType } from "react";
 
   export interface LegendProps {
-    payload?: Array<{ value: string; type?: string; id?: string; color?: string }>;
+    payload?: Array<{ value: string; type?: string; id?: string; color?: string; dataKey?: string }>;
     verticalAlign?: "top" | "middle" | "bottom";
     [key: string]: any;
   }
