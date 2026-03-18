@@ -122,23 +122,9 @@ export default function Login() {
                   maxLength={14}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="company">Empresa</Label>
-                <select
-                  id="company"
-                  value={companyId}
-                  onChange={(e) => setCompanyId(e.target.value)}
-                  required
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">Selecione sua empresa...</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <p className="text-xs text-muted-foreground bg-secondary/50 rounded-lg p-3">
+                💡 Para vincular-se a uma empresa, utilize o link de cadastro fornecido pela sua empresa.
+              </p>
             </>
           )}
 
