@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AggregatedDashboard } from "@/components/corporate/AggregatedDashboard";
 import { WellbeingPrograms } from "@/components/corporate/WellbeingPrograms";
 import { CampaignsList } from "@/components/corporate/CampaignsList";
+import { CompanyUsersTab } from "@/components/corporate/CompanyUsersTab";
 
 interface Company {
   id: string;
