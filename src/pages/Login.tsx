@@ -16,39 +16,6 @@ export default function Login() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [cpf, setCpf] = useState("");
-  const [companyId, setCompanyId] = useState("");
-  const [companies, setCompanies] = useState<CompanyOption[]>([]);
-
-  useEffect(() => {
-    const loadCompanies = async () => {
-      // Load from both companies and municipalities for backward compat
-      const [companiesRes, munisRes] = await Promise.all([
-        supabase.from("companies").select("id, name").order("name"),
-        supabase.from("municipalities").select("id, name").order("name"),
-      ]);
-      const all: CompanyOption[] = [];
-      if (companiesRes.data) all.push(...companiesRes.data);
-      if (munisRes.data) {
-        munisRes.data.forEach((m) => {
-          if (!all.find((c) => c.id === m.id)) all.push(m);
-        });
-      }
-      all.sort((a, b) => a.name.localeCompare(b.name));
-      setCompanies(all);
-    };
-    loadCompanies();
-
-    // Check if came from company/city landing link
-    const savedCompanyId = localStorage.getItem("selected_company_id");
-    const savedMuniId = localStorage.getItem("selected_municipality_id");
-    if (savedCompanyId) {
-      setCompanyId(savedCompanyId);
-      setMode("signup");
-    } else if (savedMuniId) {
-      setCompanyId(savedMuniId);
-      setMode("signup");
-    }
-  }, []);
 
   const formatCpf = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
