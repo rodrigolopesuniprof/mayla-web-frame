@@ -7,6 +7,7 @@ import { WaitingQueue } from "@/components/professional/WaitingQueue";
 import { TodayConsultations } from "@/components/professional/TodayConsultations";
 import { ConsultationHistory } from "@/components/professional/ConsultationHistory";
 import { OperationalAlerts } from "@/components/professional/OperationalAlerts";
+import { AvailabilityEditor } from "@/components/professional/AvailabilityEditor";
 import { JitsiConsultationScreen } from "@/components/mayla/JitsiConsultationScreen";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
