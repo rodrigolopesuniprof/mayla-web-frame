@@ -32,7 +32,11 @@ const APPROVAL_LABELS: Record<string, string> = {
   blocked: "Bloqueado",
 };
 
-export function AdminPartners() {
+interface AdminPartnersProps {
+  filterTypes?: PartnerType[];
+}
+
+export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
   const [activeType, setActiveType] = useState<PartnerType>("doctor");
   const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

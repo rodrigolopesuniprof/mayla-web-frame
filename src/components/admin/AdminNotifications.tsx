@@ -90,8 +90,10 @@ export function AdminNotifications({ companyId }: AdminNotificationsProps = {}) 
 
   async function loadData() {
     setLoading(true);
+    let notifQuery = supabase.from("notifications").select("*").order("priority", { ascending: false }).order("created_at", { ascending: false });
+    if (companyId) notifQuery = notifQuery.eq("company_id", companyId);
     const [notifRes, munRes, compRes, usersRes] = await Promise.all([
-      supabase.from("notifications").select("*").order("priority", { ascending: false }).order("created_at", { ascending: false }),
+      notifQuery,
       supabase.from("municipalities").select("id, name").order("name"),
       supabase.from("companies").select("id, name").order("name"),
       supabase.from("profiles").select("user_id, full_name, cpf"),

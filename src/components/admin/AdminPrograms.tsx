@@ -140,8 +140,10 @@ export function AdminPrograms({ companyId }: AdminProgramsProps = {}) {
 
   // ── Load ──────────────────────────────────────────────
   const load = useCallback(async () => {
+    let pQuery = supabase.from("wellbeing_programs").select("id, company_id, title, description, category, emoji, active, starts_at, ends_at").order("created_at", { ascending: false });
+    if (companyId) pQuery = pQuery.eq("company_id", companyId);
     const [p, c] = await Promise.all([
-      supabase.from("wellbeing_programs").select("id, company_id, title, description, category, emoji, active, starts_at, ends_at").order("created_at", { ascending: false }),
+      pQuery,
       supabase.from("companies").select("id, name").order("name"),
     ]);
     const progs = (p.data || []) as Program[];

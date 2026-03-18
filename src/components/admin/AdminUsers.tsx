@@ -438,13 +438,15 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
                 <Label>CPF</Label>
                 <Input value={addCpf} onChange={(e) => setAddCpf(e.target.value)} placeholder="000.000.000-00" />
               </div>
-              <div className="space-y-2">
-                <Label>Empresa *</Label>
-                <select value={addCompanyId} onChange={(e) => setAddCompanyId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
-                  <option value="">Selecione...</option>
-                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
+              {!companyId && (
+                <div className="space-y-2">
+                  <Label>Empresa *</Label>
+                  <select value={addCompanyId} onChange={(e) => setAddCompanyId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                    <option value="">Selecione...</option>
+                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="md:col-span-2">
                 <Button type="submit" disabled={addSaving}>{addSaving ? "Criando..." : "Criar e vincular"}</Button>
               </div>
