@@ -17,6 +17,7 @@ import ProfessionalLogin from "./pages/ProfessionalLogin.tsx";
 import CompanyLanding from "./pages/CompanyLanding.tsx";
 import CompanyDashboard from "./pages/CompanyDashboard.tsx";
 import PartnerRegistration from "./pages/PartnerRegistration.tsx";
+import CompanySignup from "./pages/CompanySignup.tsx";
 import { lazy, Suspense } from "react";
 
 const HealthReport = lazy(() => import("./components/report/HealthReport"));
@@ -35,6 +36,7 @@ const App = () => (
             <Routes>
               <Route path="/empresa/:slug" element={<CompanyLanding />} />
               <Route path="/cadastro-parceiro" element={<PartnerRegistration />} />
+              <Route path="/cadastro/:token" element={<CompanySignup />} />
               {/* Backward compat */}
               <Route path="/cidade/:slug" element={<CompanyLanding />} />
               <Route path="/painel/:slug" element={<CompanyDashboard />} />

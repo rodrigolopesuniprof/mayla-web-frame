@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AggregatedDashboard } from "@/components/corporate/AggregatedDashboard";
 import { WellbeingPrograms } from "@/components/corporate/WellbeingPrograms";
 import { CampaignsList } from "@/components/corporate/CampaignsList";
+import { CompanyUsersTab } from "@/components/corporate/CompanyUsersTab";
 
 interface Company {
   id: string;
@@ -286,8 +287,9 @@ export default function CompanyDashboard() {
           <p className="text-muted-foreground text-center py-12">Carregando dados...</p>
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="w-full justify-start">
+             <TabsList className="w-full justify-start">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="users">Usuários</TabsTrigger>
               <TabsTrigger value="wellbeing">Bem-estar</TabsTrigger>
               <TabsTrigger value="programs">Programas</TabsTrigger>
               <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
@@ -369,6 +371,10 @@ export default function CompanyDashboard() {
               <p className="text-center text-xs text-muted-foreground mt-8">
                 📢 {data.totalNotifications} mensagens enviadas · Dados atualizados em tempo real
               </p>
+            </TabsContent>
+
+            <TabsContent value="users">
+              <CompanyUsersTab companyId={company.id} primaryColor={primaryHsl} />
             </TabsContent>
 
             <TabsContent value="wellbeing">
