@@ -85,9 +85,11 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
     setSaving(false);
   };
 
+  const PUBLISHED_DOMAIN = "https://saude.saudecomvc.com.br";
+
   const copyInviteLink = () => {
     if (!token) { toast({ title: "Token não encontrado", variant: "destructive" }); return; }
-    const url = `${window.location.origin}/cadastro/${token}`;
+    const url = `${PUBLISHED_DOMAIN}/cadastro/${token}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link de cadastro copiado!", description: url });
   };
