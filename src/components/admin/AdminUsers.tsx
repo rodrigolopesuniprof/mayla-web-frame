@@ -115,14 +115,16 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
   const [engageData, setEngageData] = useState<EngagementData | null>(null);
   const [engageLoading, setEngageLoading] = useState(false);
 
+  const effectiveCompanyFilter = companyId || filterCompany;
+
   const loadProfiles = useCallback(async () => {
     setLoading(true);
     let query = supabase.from("profiles").select("*").order("full_name");
-    if (filterCompany) query = query.eq("company_id", filterCompany);
+    if (effectiveCompanyFilter) query = query.eq("company_id", effectiveCompanyFilter);
     const { data } = await query;
     if (data) setProfiles(data as Profile[]);
     setLoading(false);
-  }, [filterCompany]);
+  }, [effectiveCompanyFilter]);
 
   const loadCompanies = useCallback(async () => {
     const { data } = await supabase.from("companies").select("id, name").order("name");
