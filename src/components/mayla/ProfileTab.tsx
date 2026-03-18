@@ -179,7 +179,7 @@ export function ProfileTab() {
 
 // Sub-views
 
-function AutoAvaliacao({ userId, onRetakeSurvey }: { userId?: string; onRetakeSurvey?: () => void }) {
+function AutoAvaliacao({ userId }: { userId?: string }) {
   const [health, setHealth] = useState<HealthProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
