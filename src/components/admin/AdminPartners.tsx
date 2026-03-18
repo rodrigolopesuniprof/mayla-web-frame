@@ -317,6 +317,39 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
           <PartnerCsvImport partnerType={activeType} onDone={() => { setCsvOpen(false); loadPartners(); }} />
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir parceiro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleteTarget?.name}</strong>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!deleteTarget) return;
+                await supabase.from("partner_locations").delete().eq("partner_id", deleteTarget.id);
+                await supabase.from("doctor_availability").delete().eq("partner_id", deleteTarget.id);
+                const { error } = await supabase.from("partners").delete().eq("id", deleteTarget.id);
+                if (error) {
+                  toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+                } else {
+                  toast({ title: "Parceiro excluído" });
+                  loadPartners();
+                }
+                setDeleteTarget(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
