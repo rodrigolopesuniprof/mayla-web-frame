@@ -295,7 +295,44 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <span className="text-xl text-muted-foreground">›</span>
       </div>
 
-      {/* Unified Consultas Button */}
+      {/* Questionnaire Card */}
+      {latestQuestionnaire && !showQuestionnaire && (
+        <div
+          className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
+          onClick={() => !alreadyAnswered && setShowQuestionnaire(true)}
+          style={{ opacity: alreadyAnswered ? 0.7 : 1 }}
+        >
+          <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: alreadyAnswered ? "hsl(var(--mayla-green) / .15)" : "hsl(var(--accent) / .12)" }}>
+            {alreadyAnswered ? "✅" : "📋"}
+          </div>
+          <div className="flex-1">
+            <div className="text-[15px] font-semibold text-foreground mb-0.5">
+              {alreadyAnswered ? "Questionário respondido" : "Preencher questionário"}
+            </div>
+            <div className="text-sm text-muted-foreground leading-snug">
+              {alreadyAnswered ? latestQuestionnaire.title : `Responda: ${latestQuestionnaire.title}`}
+            </div>
+          </div>
+          {!alreadyAnswered && <span className="text-xl text-muted-foreground">›</span>}
+        </div>
+      )}
+
+      {/* Questionnaire Runner (inline full-screen) */}
+      {showQuestionnaire && latestQuestionnaire && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <QuestionnaireRunner
+            questionnaireId={latestQuestionnaire.id}
+            questionnaireTitle={latestQuestionnaire.title}
+            onClose={() => setShowQuestionnaire(false)}
+            onComplete={() => {
+              setShowQuestionnaire(false);
+              setAlreadyAnswered(true);
+            }}
+          />
+        </div>
+      )}
+
+
       <div className="mx-5 mb-5">
         <div
           className="rounded-[18px] p-5 cursor-pointer active:scale-[.97] transition-transform"
