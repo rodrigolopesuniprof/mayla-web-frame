@@ -48,16 +48,12 @@ export default function Login() {
       toast({ title: "CPF inválido", description: "Informe os 11 dígitos do CPF.", variant: "destructive" });
       return;
     }
-    if (!companyId) {
-      toast({ title: "Selecione sua empresa", description: "Escolha a empresa onde você trabalha.", variant: "destructive" });
-      return;
-    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, cpf: rawCpf, company_id: companyId },
+        data: { full_name: fullName, cpf: rawCpf },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -65,11 +61,7 @@ export default function Login() {
     if (error) {
       toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
     } else {
-      localStorage.removeItem("selected_company_id");
-      localStorage.removeItem("selected_company_name");
-      localStorage.removeItem("selected_municipality_id");
-      localStorage.removeItem("selected_municipality_name");
-      toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
+      toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro. Para vincular-se a uma empresa, use o link de cadastro fornecido pela sua empresa." });
       setMode("login");
     }
   };
