@@ -101,7 +101,7 @@ export function ProfileTab() {
         </div>
         <div className="px-[22px] pt-4">
           {subView === "dados" && <MeusDados profile={profile} userId={user?.id} onUpdate={setProfile} />}
-          {subView === "autoavaliacao" && <AutoAvaliacao userId={user?.id} onRetakeSurvey={onRetakeSurvey} />}
+          {subView === "autoavaliacao" && <AutoAvaliacao userId={user?.id} />}
           {subView === "medicoes" && <HistoricoMedicoes userId={user?.id} />}
           {subView === "consultas" && <ConsultasAgendadas userId={user?.id} />}
           {subView === "meutime" && <MeuTime userId={user?.id} />}
