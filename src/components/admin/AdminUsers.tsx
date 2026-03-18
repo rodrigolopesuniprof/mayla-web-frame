@@ -80,7 +80,7 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
 
   // CSV
   const [showCsv, setShowCsv] = useState(false);
-  const [csvCompanyId, setCsvCompanyId] = useState("");
+  const [csvCompanyId, setCsvCompanyId] = useState(companyId || "");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResult, setCsvResult] = useState<any>(null);
