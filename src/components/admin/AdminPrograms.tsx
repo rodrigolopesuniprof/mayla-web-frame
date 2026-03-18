@@ -219,7 +219,7 @@ export function AdminPrograms({ companyId }: AdminProgramsProps = {}) {
   // ── Program CRUD ──────────────────────────────────────
   const openNewProgram = () => {
     setEditingProgram(null);
-    setProgramForm({ title: "", description: "", category: "general", emoji: "🌿", company_id: companies[0]?.id || "", starts_at: "", ends_at: "" });
+    setProgramForm({ title: "", description: "", category: "general", emoji: "🌿", company_id: companyId || companies[0]?.id || "", starts_at: "", ends_at: "" });
     setShowProgramForm(true);
   };
 

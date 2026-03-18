@@ -156,7 +156,7 @@ export function AdminNotifications({ companyId }: AdminNotificationsProps = {}) 
       external_url: form.external_url.trim() || null,
       scope: form.scope,
       municipality_id: form.scope === "municipal" ? form.municipality_id : null,
-      company_id: form.scope === "company" ? form.company_id : null,
+      company_id: companyId || (form.scope === "company" ? form.company_id : null),
       target_user_id: form.scope === "personal" ? form.target_user_id : null,
       priority: form.priority,
       active: form.active,
