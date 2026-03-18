@@ -364,15 +364,6 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
         />
       </div>
 
-      {onRetakeSurvey && (
-        <button
-          onClick={onRetakeSurvey}
-          className="bg-accent/10 rounded-2xl p-4 border border-accent/20 flex items-center gap-3 cursor-pointer text-left w-full hover:bg-accent/20 transition-colors"
-        >
-          <span className="text-xl">🔄</span>
-          <span className="text-[14px] font-medium text-accent flex-1">Refazer questionário completo</span>
-        </button>
-      )}
     </div>
   );
 }
