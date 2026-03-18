@@ -82,6 +82,9 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
     // Fetch user's team
     fetchMyTeam();
+
+    // Fetch latest questionnaire from admin "Pesquisas"
+    fetchLatestQuestionnaire();
   }, [user]);
 
 
