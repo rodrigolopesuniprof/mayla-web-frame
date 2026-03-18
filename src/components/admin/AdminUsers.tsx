@@ -57,12 +57,17 @@ interface EngagementData {
   appointmentsCount: number;
 }
 
-export function AdminUsers() {
+interface AdminUsersProps {
+  companyId?: string;
+  companyName?: string;
+}
+
+export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [emailMap, setEmailMap] = useState<Record<string, string>>({});
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
-  const [filterCompany, setFilterCompany] = useState<string>("");
+  const [filterCompany, setFilterCompany] = useState<string>(companyId || "");
   const [loading, setLoading] = useState(true);
 
   // Add user form
