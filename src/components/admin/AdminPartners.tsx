@@ -162,7 +162,7 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
 
       {/* Sub-tabs */}
       <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
-        {TABS.map(tab => (
+        {visibleTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveType(tab.id)}
