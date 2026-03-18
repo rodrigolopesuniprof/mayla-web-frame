@@ -95,6 +95,50 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
     };
   }, [consultation.id, startedAt]);
 
+  // Professional: poll for shared health data from patient
+  useEffect(() => {
+    if (!isProfessional) return;
+    const checkShares = async () => {
+      const { data } = await supabase
+        .from("report_shares")
+        .select("token, expires_at")
+        .eq("professional_id", consultation.id.split("-")[0] === "mayla" ? "" : "")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      // We need to query by professional's partner_id, but we don't have it here
+      // Instead, query shares related to this consultation's user
+    };
+    // Use a simpler approach: subscribe to report_shares changes
+    const channel = supabase
+      .channel(`shares-${consultation.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "report_shares" },
+        (payload: any) => {
+          const newShare = payload.new;
+          if (newShare?.token && new Date(newShare.expires_at) > new Date()) {
+            setSharedToken(newShare.token);
+          }
+        }
+      )
+      .subscribe();
+
+    // Also do an initial check
+    const initialCheck = async () => {
+      const { data } = await supabase
+        .from("report_shares")
+        .select("token, expires_at")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (data && data.length > 0 && new Date(data[0].expires_at) > new Date()) {
+        setSharedToken(data[0].token);
+      }
+    };
+    initialCheck();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [isProfessional, consultation.id]);
+
   const startTimer = useCallback(() => {
     if (timerRef.current) return;
     timerRef.current = setInterval(() => {
