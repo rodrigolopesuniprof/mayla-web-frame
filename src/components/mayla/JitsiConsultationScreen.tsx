@@ -18,6 +18,8 @@ interface ConsultationInfo {
 interface Props {
   consultation: ConsultationInfo;
   onLeave: () => void;
+  isProfessional?: boolean;
+  patientName?: string;
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
