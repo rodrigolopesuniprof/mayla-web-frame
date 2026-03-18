@@ -131,7 +131,7 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
         )}
 
         {activeSection === "pesquisas" && (
-          <SurveysPlaceholder />
+          <AdminSurveys />
         )}
 
         {activeSection === "programas" && (
