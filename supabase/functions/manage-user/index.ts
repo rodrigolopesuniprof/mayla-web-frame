@@ -67,6 +67,48 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "create_company_admin") {
+      const { email, password, company_id, full_name } = body;
+      if (!email || !password || !company_id) {
+        return new Response(JSON.stringify({ error: "email, password e company_id são obrigatórios" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Create auth user with email confirmed
+      const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: full_name || "", company_id },
+      });
+      if (createErr) {
+        return new Response(JSON.stringify({ error: createErr.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Update profile with company_id (trigger handle_new_user already created it)
+      await supabaseAdmin
+        .from("profiles")
+        .update({ company_id, full_name: full_name || "" })
+        .eq("user_id", newUser.user.id);
+
+      // Insert company_admin role
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: newUser.user.id, role: "company_admin" });
+      if (roleErr) {
+        return new Response(JSON.stringify({ error: roleErr.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "update_email") {
       if (!user_id || !updates?.email) {
         return new Response(JSON.stringify({ error: "user_id e email são obrigatórios" }), {
@@ -174,7 +216,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Ação inválida. Use 'delete', 'update' ou 'reset_password'" }), {
+    return new Response(JSON.stringify({ error: "Ação inválida. Use 'delete', 'update', 'reset_password' ou 'create_company_admin'" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

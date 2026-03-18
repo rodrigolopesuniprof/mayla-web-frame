@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
+import { CompanyAdminManager } from "./CompanyAdminManager";
 
 interface Company {
   id: string;
@@ -127,6 +128,9 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
 
   return (
     <div className="space-y-6">
+      {/* Admin da empresa */}
+      <CompanyAdminManager companyId={company.id} />
+
       {/* Links rápidos */}
       <Card>
         <CardHeader>
