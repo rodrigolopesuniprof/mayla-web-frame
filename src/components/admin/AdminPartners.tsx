@@ -32,8 +32,13 @@ const APPROVAL_LABELS: Record<string, string> = {
   blocked: "Bloqueado",
 };
 
-export function AdminPartners() {
-  const [activeType, setActiveType] = useState<PartnerType>("doctor");
+interface AdminPartnersProps {
+  filterTypes?: PartnerType[];
+}
+
+export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
+  const visibleTabs = filterTypes ? TABS.filter(t => filterTypes.includes(t.id)) : TABS;
+  const [activeType, setActiveType] = useState<PartnerType>(visibleTabs[0]?.id || "doctor");
   const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -157,7 +162,7 @@ export function AdminPartners() {
 
       {/* Sub-tabs */}
       <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
-        {TABS.map(tab => (
+        {visibleTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveType(tab.id)}

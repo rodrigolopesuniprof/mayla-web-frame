@@ -91,7 +91,11 @@ const VALIDATION_OPTIONS = [
 const VALIDATION_BADGE: Record<string, string> = Object.fromEntries(VALIDATION_OPTIONS.map(o => [o.value, o.badge]));
 
 // ── Component ──────────────────────────────────────────
-export function AdminPrograms() {
+interface AdminProgramsProps {
+  companyId?: string;
+}
+
+export function AdminPrograms({ companyId }: AdminProgramsProps = {}) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
 
@@ -136,8 +140,10 @@ export function AdminPrograms() {
 
   // ── Load ──────────────────────────────────────────────
   const load = useCallback(async () => {
+    let pQuery = supabase.from("wellbeing_programs").select("id, company_id, title, description, category, emoji, active, starts_at, ends_at").order("created_at", { ascending: false });
+    if (companyId) pQuery = pQuery.eq("company_id", companyId);
     const [p, c] = await Promise.all([
-      supabase.from("wellbeing_programs").select("id, company_id, title, description, category, emoji, active, starts_at, ends_at").order("created_at", { ascending: false }),
+      pQuery,
       supabase.from("companies").select("id, name").order("name"),
     ]);
     const progs = (p.data || []) as Program[];
@@ -213,7 +219,7 @@ export function AdminPrograms() {
   // ── Program CRUD ──────────────────────────────────────
   const openNewProgram = () => {
     setEditingProgram(null);
-    setProgramForm({ title: "", description: "", category: "general", emoji: "🌿", company_id: companies[0]?.id || "", starts_at: "", ends_at: "" });
+    setProgramForm({ title: "", description: "", category: "general", emoji: "🌿", company_id: companyId || companies[0]?.id || "", starts_at: "", ends_at: "" });
     setShowProgramForm(true);
   };
 

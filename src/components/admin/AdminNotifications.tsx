@@ -68,7 +68,11 @@ const emptyForm = {
   expires_at: "",
 };
 
-export function AdminNotifications() {
+interface AdminNotificationsProps {
+  companyId?: string;
+}
+
+export function AdminNotifications({ companyId }: AdminNotificationsProps = {}) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
@@ -86,8 +90,10 @@ export function AdminNotifications() {
 
   async function loadData() {
     setLoading(true);
+    let notifQuery = supabase.from("notifications").select("*").order("priority", { ascending: false }).order("created_at", { ascending: false });
+    if (companyId) notifQuery = notifQuery.eq("company_id", companyId);
     const [notifRes, munRes, compRes, usersRes] = await Promise.all([
-      supabase.from("notifications").select("*").order("priority", { ascending: false }).order("created_at", { ascending: false }),
+      notifQuery,
       supabase.from("municipalities").select("id, name").order("name"),
       supabase.from("companies").select("id, name").order("name"),
       supabase.from("profiles").select("user_id, full_name, cpf"),
@@ -101,7 +107,7 @@ export function AdminNotifications() {
 
   function openCreate() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, company_id: companyId || "" });
     setDialogOpen(true);
   }
 
@@ -150,7 +156,7 @@ export function AdminNotifications() {
       external_url: form.external_url.trim() || null,
       scope: form.scope,
       municipality_id: form.scope === "municipal" ? form.municipality_id : null,
-      company_id: form.scope === "company" ? form.company_id : null,
+      company_id: companyId || (form.scope === "company" ? form.company_id : null),
       target_user_id: form.scope === "personal" ? form.target_user_id : null,
       priority: form.priority,
       active: form.active,

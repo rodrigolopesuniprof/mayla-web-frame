@@ -57,12 +57,17 @@ interface EngagementData {
   appointmentsCount: number;
 }
 
-export function AdminUsers() {
+interface AdminUsersProps {
+  companyId?: string;
+  companyName?: string;
+}
+
+export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [emailMap, setEmailMap] = useState<Record<string, string>>({});
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
-  const [filterCompany, setFilterCompany] = useState<string>("");
+  const [filterCompany, setFilterCompany] = useState<string>(companyId || "");
   const [loading, setLoading] = useState(true);
 
   // Add user form
@@ -70,12 +75,12 @@ export function AdminUsers() {
   const [addName, setAddName] = useState("");
   const [addEmail, setAddEmail] = useState("");
   const [addCpf, setAddCpf] = useState("");
-  const [addCompanyId, setAddCompanyId] = useState("");
+  const [addCompanyId, setAddCompanyId] = useState(companyId || "");
   const [addSaving, setAddSaving] = useState(false);
 
   // CSV
   const [showCsv, setShowCsv] = useState(false);
-  const [csvCompanyId, setCsvCompanyId] = useState("");
+  const [csvCompanyId, setCsvCompanyId] = useState(companyId || "");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResult, setCsvResult] = useState<any>(null);
@@ -110,14 +115,16 @@ export function AdminUsers() {
   const [engageData, setEngageData] = useState<EngagementData | null>(null);
   const [engageLoading, setEngageLoading] = useState(false);
 
+  const effectiveCompanyFilter = companyId || filterCompany;
+
   const loadProfiles = useCallback(async () => {
     setLoading(true);
     let query = supabase.from("profiles").select("*").order("full_name");
-    if (filterCompany) query = query.eq("company_id", filterCompany);
+    if (effectiveCompanyFilter) query = query.eq("company_id", effectiveCompanyFilter);
     const { data } = await query;
     if (data) setProfiles(data as Profile[]);
     setLoading(false);
-  }, [filterCompany]);
+  }, [effectiveCompanyFilter]);
 
   const loadCompanies = useCallback(async () => {
     const { data } = await supabase.from("companies").select("id, name").order("name");
@@ -431,13 +438,15 @@ export function AdminUsers() {
                 <Label>CPF</Label>
                 <Input value={addCpf} onChange={(e) => setAddCpf(e.target.value)} placeholder="000.000.000-00" />
               </div>
-              <div className="space-y-2">
-                <Label>Empresa *</Label>
-                <select value={addCompanyId} onChange={(e) => setAddCompanyId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
-                  <option value="">Selecione...</option>
-                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
+              {!companyId && (
+                <div className="space-y-2">
+                  <Label>Empresa *</Label>
+                  <select value={addCompanyId} onChange={(e) => setAddCompanyId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                    <option value="">Selecione...</option>
+                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="md:col-span-2">
                 <Button type="submit" disabled={addSaving}>{addSaving ? "Criando..." : "Criar e vincular"}</Button>
               </div>
@@ -500,10 +509,12 @@ export function AdminUsers() {
       {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap">
         <Input placeholder="Buscar por nome, CPF ou e-mail..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-        <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-          <option value="">Todas as empresas</option>
-          {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        {!companyId && (
+          <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <option value="">Todas as empresas</option>
+            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Users table */}
