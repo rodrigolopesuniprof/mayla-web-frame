@@ -43,7 +43,11 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [selectedAlert, setSelectedAlert] = useState<NotificationItem | null>(null);
   const [profilePoints, setProfilePoints] = useState(0);
   const [profileLevel, setProfileLevel] = useState("Colaborador");
-  
+
+  // Questionnaire state
+  const [latestQuestionnaire, setLatestQuestionnaire] = useState<{ id: string; title: string } | null>(null);
+  const [alreadyAnswered, setAlreadyAnswered] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
 
   // Team state
   const [myTeam, setMyTeam] = useState<TeamInfo | null>(null);
