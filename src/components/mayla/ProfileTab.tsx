@@ -689,3 +689,256 @@ function MeuTime({ userId }: { userId?: string }) {
     </div>
   );
 }
+
+// Medicamentos sub-view
+function Medicamentos({ userId }: { userId?: string }) {
+  const [meds, setMeds] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: "", dosage: "", frequency: "daily" });
+  const [saving, setSaving] = useState(false);
+
+  const frequencyLabels: Record<string, string> = {
+    daily: "1x ao dia",
+    "12h": "A cada 12h",
+    "8h": "A cada 8h",
+    weekly: "Semanal",
+  };
+
+  const fetchMeds = async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("user_medications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    setMeds(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchMeds(); }, [userId]);
+
+  const handleAdd = async () => {
+    if (!userId || !form.name.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("user_medications").insert({
+      user_id: userId,
+      name: form.name.trim(),
+      dosage: form.dosage.trim() || null,
+      frequency: form.frequency,
+    } as any);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
+    } else {
+      setForm({ name: "", dosage: "", frequency: "daily" });
+      setShowAdd(false);
+      toast({ title: "Medicamento adicionado!" });
+      fetchMeds();
+    }
+  };
+
+  const toggleActive = async (med: any) => {
+    await supabase.from("user_medications").update({ active: !med.active } as any).eq("id", med.id);
+    fetchMeds();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remover este medicamento?")) return;
+    await supabase.from("user_medications").delete().eq("id", id);
+    fetchMeds();
+  };
+
+  if (loading) return <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-lg font-medium text-foreground">Medicamentos</h3>
+        <Button variant="outline" size="sm" onClick={() => setShowAdd(!showAdd)}>
+          {showAdd ? "Cancelar" : "+ Adicionar"}
+        </Button>
+      </div>
+
+      {showAdd && (
+        <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome do medicamento</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Losartana" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Dosagem</Label>
+            <Input value={form.dosage} onChange={(e) => setForm({ ...form, dosage: e.target.value })} placeholder="Ex: 50mg" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Frequência</Label>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(frequencyLabels).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setForm({ ...form, frequency: key })}
+                  className={`text-xs px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
+                    form.frequency === key ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button onClick={handleAdd} disabled={saving || !form.name.trim()} className="w-full">
+            {saving ? "Salvando..." : "Adicionar medicamento"}
+          </Button>
+        </div>
+      )}
+
+      {meds.length === 0 && !showAdd && (
+        <div className="flex flex-col items-center py-12 gap-3">
+          <span className="text-4xl">💊</span>
+          <p className="text-sm text-muted-foreground">Nenhum medicamento cadastrado.</p>
+          <p className="text-[11px] text-muted-foreground text-center">Adicione seus medicamentos para receber lembretes diários e acumular pontos.</p>
+        </div>
+      )}
+
+      {meds.map((med) => (
+        <div key={med.id} className={`bg-card rounded-2xl p-4 border transition-colors ${med.active ? "border-border" : "border-border/50 opacity-60"}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-semibold text-foreground truncate">{med.name}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {med.dosage && `${med.dosage} · `}{frequencyLabels[med.frequency] || med.frequency}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleActive(med)}
+                className={`text-[10px] px-2.5 py-1 rounded-full border cursor-pointer ${
+                  med.active ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-muted border-border text-muted-foreground"
+                }`}
+              >
+                {med.active ? "Ativo" : "Inativo"}
+              </button>
+              <button onClick={() => handleDelete(med.id)} className="text-destructive text-[11px] bg-transparent border-none cursor-pointer">✕</button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Configurações sub-view
+function Configuracoes({ userId, userEmail }: { userId?: string; userEmail?: string }) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("profiles").select("full_name, avatar_url").eq("user_id", userId).maybeSingle().then(({ data }) => {
+      if (data) {
+        setName((data as any).full_name || "");
+        setAvatarUrl((data as any).avatar_url || null);
+      }
+    });
+  }, [userId]);
+
+  const handleSaveName = async () => {
+    if (!userId) return;
+    setSaving(true);
+    const { error } = await supabase.from("profiles").update({ full_name: name }).eq("user_id", userId);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Nome atualizado!" });
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!userId || !avatarFile) return;
+    setSaving(true);
+    const ext = avatarFile.name.split(".").pop();
+    const path = `${userId}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("validation-photos").upload(path, avatarFile, { upsert: true });
+    if (uploadError) {
+      toast({ title: "Erro no upload", description: uploadError.message, variant: "destructive" });
+      setSaving(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("validation-photos").getPublicUrl(path);
+    const url = `${data.publicUrl}?v=${Date.now()}`;
+    await supabase.from("profiles").update({ avatar_url: url } as any).eq("user_id", userId);
+    setAvatarUrl(url);
+    setAvatarFile(null);
+    setSaving(false);
+    toast({ title: "Foto atualizada!" });
+  };
+
+  const handleResetPassword = async () => {
+    if (!userEmail) return;
+    setSendingReset(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setSendingReset(false);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Email enviado!", description: "Verifique sua caixa de entrada para redefinir a senha." });
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h3 className="font-display text-lg font-medium text-foreground">Configurações</h3>
+
+      {/* Avatar */}
+      <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase">Foto de perfil</p>
+        <div className="flex items-center gap-4">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-border" />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl">👤</div>
+          )}
+          <div className="flex-1 space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+              className="text-xs w-full"
+            />
+            {avatarFile && (
+              <Button size="sm" onClick={handleAvatarUpload} disabled={saving}>
+                {saving ? "Enviando..." : "Salvar foto"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Name */}
+      <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase">Nome</p>
+        <Input value={name} onChange={(e) => setName(e.target.value)} />
+        <Button size="sm" onClick={handleSaveName} disabled={saving}>
+          {saving ? "Salvando..." : "Salvar nome"}
+        </Button>
+      </div>
+
+      {/* Reset password */}
+      <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase">Senha</p>
+        <p className="text-[12px] text-muted-foreground">Um email será enviado para <strong>{userEmail}</strong> com o link para redefinição de senha.</p>
+        <Button variant="outline" size="sm" onClick={handleResetPassword} disabled={sendingReset}>
+          {sendingReset ? "Enviando..." : "🔑 Redefinir senha"}
+        </Button>
+      </div>
+    </div>
+  );
+}
