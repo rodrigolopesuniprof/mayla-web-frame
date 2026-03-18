@@ -105,12 +105,8 @@ export function ProfileTab({ onRetakeSurvey }: { onRetakeSurvey?: () => void } =
           {subView === "medicoes" && <HistoricoMedicoes userId={user?.id} />}
           {subView === "consultas" && <ConsultasAgendadas userId={user?.id} />}
           {subView === "meutime" && <MeuTime userId={user?.id} />}
-          {(subView === "medicamentos" || subView === "exames" || subView === "notificacoes" || subView === "configuracoes") && (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <span className="text-4xl">🚧</span>
-              <p className="text-sm text-muted-foreground">Em breve</p>
-            </div>
-          )}
+          {subView === "medicamentos" && <Medicamentos userId={user?.id} />}
+          {subView === "configuracoes" && <Configuracoes userId={user?.id} userEmail={user?.email} />}
         </div>
       </div>
     );
