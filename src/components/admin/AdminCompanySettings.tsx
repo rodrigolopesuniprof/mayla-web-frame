@@ -104,7 +104,7 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
   };
 
   const copyDashboardLink = () => {
-    const url = `${window.location.origin}/painel/${company.slug}`;
+    const url = `${PUBLISHED_DOMAIN}/painel/${company.slug}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link do painel copiado!", description: url });
   };
