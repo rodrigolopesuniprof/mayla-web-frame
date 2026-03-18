@@ -248,9 +248,6 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
     <div className="flex flex-col items-center py-16 gap-3">
       <span className="text-4xl">🩺</span>
       <p className="text-sm text-muted-foreground">Questionário não preenchido ainda.</p>
-      {onRetakeSurvey && (
-        <Button onClick={onRetakeSurvey} variant="outline" className="mt-2">Preencher agora</Button>
-      )}
     </div>
   );
 
