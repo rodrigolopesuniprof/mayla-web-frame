@@ -139,7 +139,7 @@ export function ProfileTab() {
           </div>
         )}
         {!esfInfo && !loadingProfile && (
-          <p className="text-[11px] text-muted-foreground text-center mt-1">Não vinculado a nenhuma ESF</p>
+          <p className="text-[11px] text-muted-foreground text-center mt-1">Não vinculado a nenhum Time</p>
         )}
       </div>
 
