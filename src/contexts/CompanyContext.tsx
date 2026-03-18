@@ -55,8 +55,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      // Fallback: try user_metadata if profile doesn't exist yet
-      const companyId = profile?.company_id || (user.user_metadata as any)?.company_id || null;
+      const metaCompanyId = (user.user_metadata as any)?.company_id || null;
+
+      // If profile doesn't exist but user has company_id in metadata, create it
+      if (!profile && metaCompanyId) {
+        await supabase.from("profiles").upsert({
+          user_id: user.id,
+          full_name: (user.user_metadata as any)?.full_name || "",
+          cpf: (user.user_metadata as any)?.cpf || null,
+          company_id: metaCompanyId,
+        }, { onConflict: "user_id" });
+      }
+
+      const companyId = profile?.company_id || metaCompanyId || null;
       const isFallback = !companyId;
 
       // Auto-sync company_id to profile if found via user_metadata but missing in profile
