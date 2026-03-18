@@ -75,7 +75,7 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
   const [addName, setAddName] = useState("");
   const [addEmail, setAddEmail] = useState("");
   const [addCpf, setAddCpf] = useState("");
-  const [addCompanyId, setAddCompanyId] = useState("");
+  const [addCompanyId, setAddCompanyId] = useState(companyId || "");
   const [addSaving, setAddSaving] = useState(false);
 
   // CSV
