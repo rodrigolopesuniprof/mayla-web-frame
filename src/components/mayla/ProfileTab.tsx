@@ -882,7 +882,7 @@ function Configuracoes({ userId, userEmail }: { userId?: string; userEmail?: str
   const handleResetPassword = async () => {
     if (!userEmail) return;
     setSendingReset(true);
-    const { error } = await supabase.auth.resetPasswordForEmail!(userEmail, {
+    const { error } = await (supabase.auth as any).resetPasswordForEmail(userEmail, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setSendingReset(false);

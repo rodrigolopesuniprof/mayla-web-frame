@@ -194,12 +194,15 @@ export default function ProfessionalDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="queue">
-          <TabsList className="w-full grid grid-cols-3">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="queue" className="text-xs sm:text-sm">
               🔔 Fila {queueCount > 0 && `(${queueCount})`}
             </TabsTrigger>
             <TabsTrigger value="today" className="text-xs sm:text-sm">
               📅 Hoje
+            </TabsTrigger>
+            <TabsTrigger value="availability" className="text-xs sm:text-sm">
+              🕐 Horários
             </TabsTrigger>
             <TabsTrigger value="history" className="text-xs sm:text-sm">
               📋 Histórico
@@ -218,6 +221,13 @@ export default function ProfessionalDashboard() {
             <TodayConsultations
               partnerId={partner.id}
               onStartCall={(c) => setActiveCall(c)}
+            />
+          </TabsContent>
+
+          <TabsContent value="availability" className="mt-4">
+            <AvailabilityEditor
+              partnerId={partner.id}
+              specialties={partner.specialty ? [partner.specialty] : ["Clínico Geral"]}
             />
           </TabsContent>
 
