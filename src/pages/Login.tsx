@@ -8,11 +8,6 @@ import { toast } from "@/hooks/use-toast";
 
 type Mode = "login" | "signup" | "forgot";
 
-interface CompanyOption {
-  id: string;
-  name: string;
-}
-
 export default function Login() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("login");
