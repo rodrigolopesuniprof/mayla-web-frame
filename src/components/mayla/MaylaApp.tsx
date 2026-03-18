@@ -19,6 +19,31 @@ import { supabase } from "@/integrations/supabase/client";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "survey" | "main";
 
+async function checkSurveyStatus(userId: string): Promise<AppPhase> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("health_survey_completed, health_survey_completed_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const profile = data as any;
+  if (profile?.health_survey_completed) {
+    if (profile.health_survey_completed_at) {
+      const completedAt = new Date(profile.health_survey_completed_at);
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      if (completedAt > sixMonthsAgo) return "main";
+      // Expired — reset
+      await supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", userId);
+      return "splash";
+    }
+    // Legacy backfill
+    await supabase.from("profiles").update({ health_survey_completed_at: new Date().toISOString() }).eq("user_id", userId);
+    return "main";
+  }
+  return "splash";
+}
+
 export function MaylaApp() {
   const { user } = useAuth();
   const [phase, setPhase] = useState<AppPhase>("loading");
@@ -30,45 +55,32 @@ export function MaylaApp() {
   const [showOnDemand, setShowOnDemand] = useState(false);
   const [consultOnlineMode, setConsultOnlineMode] = useState(false);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
+  const [hasChecked, setHasChecked] = useState(false);
 
-  // On mount, check if user already completed the survey — skip splash/onboarding if so
   useEffect(() => {
-    if (!user) {
-      setPhase("splash");
+    const uid = user?.id;
+    if (!uid) {
+      if (!hasChecked) { setPhase("splash"); setHasChecked(true); }
       return;
     }
+    if (hasChecked) return;
 
-    supabase
-      .from("profiles")
-      .select("health_survey_completed, health_survey_completed_at")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        const profile = data as any;
-        if (profile?.health_survey_completed) {
-          // Check 6-month expiration only if we have a timestamp
-          if (profile.health_survey_completed_at) {
-            const completedAt = new Date(profile.health_survey_completed_at);
-            const sixMonthsAgo = new Date();
-            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-            if (completedAt > sixMonthsAgo) {
-              setPhase("main");
-              return;
-            }
-            // Expired — reset and require new survey
-            supabase.from("profiles").update({ health_survey_completed: false }).eq("user_id", user.id).then(() => setPhase("splash"));
-            return;
-          }
-          // Legacy: completed but no timestamp — go to main, backfill timestamp
-          supabase.from("profiles").update({ health_survey_completed_at: new Date().toISOString() }).eq("user_id", user.id);
-          setPhase("main");
-        } else {
-          setPhase("splash");
-        }
-      });
-  }, [user]);
+    let cancelled = false;
+    checkSurveyStatus(uid).then((p) => {
+      if (!cancelled) { setPhase(p); setHasChecked(true); }
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, hasChecked]);
 
-  const handleOnboardingDone = () => setPhase("survey");
+  const handleOnboardingDone = async () => {
+    // Re-verify before showing survey — prevents repeat if already completed
+    if (user?.id) {
+      const resolved = await checkSurveyStatus(user.id);
+      if (resolved === "main") { setPhase("main"); return; }
+    }
+    setPhase("survey");
+  };
+
   const handleSurveyDone = () => { setIsRetake(false); setPhase("main"); };
 
   const handleRetakeSurvey = async () => {
