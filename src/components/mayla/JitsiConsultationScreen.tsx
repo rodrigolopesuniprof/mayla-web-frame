@@ -105,12 +105,14 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
     const setupSharesListener = async () => {
       const { data: consultData } = await supabase
         .from("consultations")
-        .select("user_id")
+        .select("user_id, professional_id")
         .eq("id", consultation.id)
         .single();
 
       const patientUserId = consultData?.user_id;
       if (!patientUserId) return;
+
+      setConsultationMeta({ professionalId: consultData.professional_id, patientUserId });
 
       // Initial check: find valid shares from this patient
       const { data: existing } = await supabase
