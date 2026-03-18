@@ -107,7 +107,7 @@ export function AdminNotifications({ companyId }: AdminNotificationsProps = {}) 
 
   function openCreate() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, company_id: companyId || "" });
     setDialogOpen(true);
   }
 
