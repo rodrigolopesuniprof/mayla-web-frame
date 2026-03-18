@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useShareHealthData } from "@/hooks/useShareHealthData";
+import { DocumentSender } from "@/components/professional/DocumentSender";
 
 interface ConsultationInfo {
   id: string;
@@ -42,6 +43,7 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const joinedAtRef = useRef<string | null>(null);
   const [sharedToken, setSharedToken] = useState<string | null>(null);
+  const [consultationMeta, setConsultationMeta] = useState<{ professionalId: string; patientUserId: string } | null>(null);
 
   const roomName = `mayla-consulta-${consultation.id}`;
   const displayName = user?.user_metadata?.full_name || user?.email || "Paciente";
@@ -95,20 +97,39 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
     };
   }, [consultation.id, startedAt]);
 
-  // Professional: poll for shared health data from patient
+  // Professional: check for shared health data from patient
   useEffect(() => {
     if (!isProfessional) return;
-    const checkShares = async () => {
-      const { data } = await supabase
+
+    // Get the consultation's user_id to filter shares correctly
+    const setupSharesListener = async () => {
+      const { data: consultData } = await supabase
+        .from("consultations")
+        .select("user_id, professional_id")
+        .eq("id", consultation.id)
+        .single();
+
+      const patientUserId = consultData?.user_id;
+      if (!patientUserId) return;
+
+      setConsultationMeta({ professionalId: consultData.professional_id, patientUserId });
+
+      // Initial check: find valid shares from this patient
+      const { data: existing } = await supabase
         .from("report_shares")
         .select("token, expires_at")
-        .eq("professional_id", consultation.id.split("-")[0] === "mayla" ? "" : "")
+        .eq("user_id", patientUserId)
         .order("created_at", { ascending: false })
         .limit(1);
-      // We need to query by professional's partner_id, but we don't have it here
-      // Instead, query shares related to this consultation's user
+
+      if (existing && existing.length > 0 && new Date(existing[0].expires_at) > new Date()) {
+        setSharedToken(existing[0].token);
+      }
     };
-    // Use a simpler approach: subscribe to report_shares changes
+
+    setupSharesListener();
+
+    // Subscribe to realtime inserts on report_shares
     const channel = supabase
       .channel(`shares-${consultation.id}`)
       .on(
@@ -122,19 +143,6 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
         }
       )
       .subscribe();
-
-    // Also do an initial check
-    const initialCheck = async () => {
-      const { data } = await supabase
-        .from("report_shares")
-        .select("token, expires_at")
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (data && data.length > 0 && new Date(data[0].expires_at) > new Date()) {
-        setSharedToken(data[0].token);
-      }
-    };
-    initialCheck();
 
     return () => { supabase.removeChannel(channel); };
   }, [isProfessional, consultation.id]);
@@ -282,6 +290,16 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
             >
               {sharing ? "..." : shared ? "✅ Compartilhado" : "📋 Compartilhar dados"}
             </button>
+          )}
+          {isProfessional && consultationMeta && (
+            <div className="ml-auto">
+              <DocumentSender
+                consultationId={consultation.id}
+                professionalId={consultationMeta.professionalId}
+                patientUserId={consultationMeta.patientUserId}
+                patientName={patientName}
+              />
+            </div>
           )}
         </div>
       </div>

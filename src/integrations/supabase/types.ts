@@ -597,6 +597,48 @@ export type Database = {
           },
         ]
       }
+      consultation_documents: {
+        Row: {
+          consultation_id: string
+          content: string | null
+          created_at: string
+          document_type: string
+          file_url: string | null
+          id: string
+          professional_id: string
+          sent_at: string | null
+          sent_to_email: boolean
+          title: string
+          user_id: string
+        }
+        Insert: {
+          consultation_id: string
+          content?: string | null
+          created_at?: string
+          document_type: string
+          file_url?: string | null
+          id?: string
+          professional_id: string
+          sent_at?: string | null
+          sent_to_email?: boolean
+          title: string
+          user_id: string
+        }
+        Update: {
+          consultation_id?: string
+          content?: string | null
+          created_at?: string
+          document_type?: string
+          file_url?: string | null
+          id?: string
+          professional_id?: string
+          sent_at?: string | null
+          sent_to_email?: boolean
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       consultations: {
         Row: {
           call_duration_seconds: number | null
@@ -1059,6 +1101,41 @@ export type Database = {
             columns: ["municipality_id"]
             isOneToOne: false
             referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medication_logs: {
+        Row: {
+          created_at: string
+          id: string
+          medication_id: string
+          points_awarded: number
+          taken_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          medication_id: string
+          points_awarded?: number
+          taken_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          medication_id?: string
+          points_awarded?: number
+          taken_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_logs_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "user_medications"
             referencedColumns: ["id"]
           },
         ]
@@ -2175,6 +2252,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_medications: {
+        Row: {
+          active: boolean
+          created_at: string
+          dosage: string | null
+          frequency: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          dosage?: string | null
+          frequency?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          dosage?: string | null
+          frequency?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_missions: {
         Row: {

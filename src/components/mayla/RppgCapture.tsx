@@ -317,14 +317,22 @@ function CapturingOverlay({
         </div>
       </div>
 
-      <div
-        className="w-48 h-64 rounded-[50%] border-[3px]"
-        style={{
-          borderColor: "rgba(232,87,74,.7)",
-          boxShadow:
-            "0 0 0 9999px rgba(0,0,0,.3), inset 0 0 40px rgba(232,87,74,.1)",
-        }}
-      />
+      <div className="flex flex-col items-center gap-2">
+        <div
+          className="w-48 h-64 rounded-[50%] border-[3px]"
+          style={{
+            borderColor: "rgba(232,87,74,.7)",
+            boxShadow:
+              "0 0 0 9999px rgba(0,0,0,.3), inset 0 0 40px rgba(232,87,74,.1)",
+          }}
+        />
+        <div
+          className="px-4 py-1.5 rounded-xl text-[11px] font-medium text-center"
+          style={{ background: "rgba(0,0,0,.5)", color: "rgba(255,255,255,.85)" }}
+        >
+          Centralize seu rosto para um resultado mais preciso
+        </div>
+      </div>
 
       <div className="w-full px-8">
         <div className="flex items-center justify-between mb-2">
