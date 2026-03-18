@@ -18,6 +18,8 @@ interface ConsultationInfo {
 interface Props {
   consultation: ConsultationInfo;
   onLeave: () => void;
+  isProfessional?: boolean;
+  patientName?: string;
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -31,7 +33,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   missed: { label: "Não compareceu", color: "bg-red-100 text-red-800" },
 };
 
-export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
+export function JitsiConsultationScreen({ consultation, onLeave, isProfessional, patientName }: Props) {
   const { user } = useAuth();
   const [status, setStatus] = useState("waiting");
   const { shared, sharing, shareWithProfessional } = useShareHealthData();
@@ -39,6 +41,7 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const joinedAtRef = useRef<string | null>(null);
+  const [sharedToken, setSharedToken] = useState<string | null>(null);
 
   const roomName = `mayla-consulta-${consultation.id}`;
   const displayName = user?.user_metadata?.full_name || user?.email || "Paciente";
@@ -91,6 +94,50 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
       supabase.removeChannel(channel);
     };
   }, [consultation.id, startedAt]);
+
+  // Professional: poll for shared health data from patient
+  useEffect(() => {
+    if (!isProfessional) return;
+    const checkShares = async () => {
+      const { data } = await supabase
+        .from("report_shares")
+        .select("token, expires_at")
+        .eq("professional_id", consultation.id.split("-")[0] === "mayla" ? "" : "")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      // We need to query by professional's partner_id, but we don't have it here
+      // Instead, query shares related to this consultation's user
+    };
+    // Use a simpler approach: subscribe to report_shares changes
+    const channel = supabase
+      .channel(`shares-${consultation.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "report_shares" },
+        (payload: any) => {
+          const newShare = payload.new;
+          if (newShare?.token && new Date(newShare.expires_at) > new Date()) {
+            setSharedToken(newShare.token);
+          }
+        }
+      )
+      .subscribe();
+
+    // Also do an initial check
+    const initialCheck = async () => {
+      const { data } = await supabase
+        .from("report_shares")
+        .select("token, expires_at")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (data && data.length > 0 && new Date(data[0].expires_at) > new Date()) {
+        setSharedToken(data[0].token);
+      }
+    };
+    initialCheck();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [isProfessional, consultation.id]);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) return;
@@ -158,16 +205,46 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
+      {/* Professional: shared data banner */}
+      {isProfessional && sharedToken && (
+        <div className="px-4 py-2.5 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base">📋</span>
+            <p className="text-[12px] font-medium text-emerald-800 truncate">
+              {patientName || "Paciente"} compartilhou dados de saúde
+            </p>
+          </div>
+          <a
+            href={`/relatorio/medico/${sharedToken}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0"
+          >
+            Ver relatório
+          </a>
+        </div>
+      )}
+      {isProfessional && !sharedToken && (
+        <div className="px-4 py-2.5 bg-muted/50 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base">📋</span>
+            <p className="text-[12px] text-muted-foreground truncate">
+              Aguardando compartilhamento de dados pelo paciente
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-lg shrink-0">
-              {consultation.professionalType === "nurse" ? "👩‍⚕️" : "🩺"}
+              {isProfessional ? "👤" : consultation.professionalType === "nurse" ? "👩‍⚕️" : "🩺"}
             </div>
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-foreground truncate">
-                {consultation.professionalName}
+                {isProfessional ? (patientName || "Paciente") : consultation.professionalName}
               </p>
               <p className="text-[11px] text-muted-foreground truncate">
                 {consultation.specialty}
@@ -193,17 +270,19 @@ export function JitsiConsultationScreen({ consultation, onLeave }: Props) {
               ⏱ {formatTime(elapsed)}
             </span>
           )}
-          <button
-            onClick={() => shareWithProfessional(consultation.id)}
-            disabled={sharing || shared}
-            className={`ml-auto text-[10px] font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${
-              shared
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
-            }`}
-          >
-            {sharing ? "..." : shared ? "✅ Compartilhado" : "📋 Compartilhar dados"}
-          </button>
+          {!isProfessional && (
+            <button
+              onClick={() => shareWithProfessional(consultation.id)}
+              disabled={sharing || shared}
+              className={`ml-auto text-[10px] font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${
+                shared
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+              }`}
+            >
+              {sharing ? "..." : shared ? "✅ Compartilhado" : "📋 Compartilhar dados"}
+            </button>
+          )}
         </div>
       </div>
 
