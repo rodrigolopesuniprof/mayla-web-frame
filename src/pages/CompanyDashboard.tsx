@@ -373,6 +373,10 @@ export default function CompanyDashboard() {
               </p>
             </TabsContent>
 
+            <TabsContent value="users">
+              <CompanyUsersTab companyId={company.id} primaryColor={primaryHsl} />
+            </TabsContent>
+
             <TabsContent value="wellbeing">
               <AggregatedDashboard
                 companyId={company.id}
