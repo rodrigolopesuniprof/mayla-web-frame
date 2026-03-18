@@ -68,7 +68,11 @@ const emptyForm = {
   expires_at: "",
 };
 
-export function AdminNotifications() {
+interface AdminNotificationsProps {
+  companyId?: string;
+}
+
+export function AdminNotifications({ companyId }: AdminNotificationsProps = {}) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
