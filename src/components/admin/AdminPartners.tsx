@@ -47,6 +47,7 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
   const [detailPartner, setDetailPartner] = useState<any | null>(null);
   const [csvOpen, setCsvOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
   useEffect(() => {
     loadPartners();
