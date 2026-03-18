@@ -245,6 +245,7 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
                       >
                         {p.active ? "⏸" : "▶️"}
                       </Button>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(p)}>🗑️</Button>
                     </div>
                   </TableCell>
                 </TableRow>
