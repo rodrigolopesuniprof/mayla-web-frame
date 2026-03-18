@@ -88,11 +88,16 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Update profile with company_id (trigger handle_new_user already created it)
-      await supabaseAdmin
+      // Upsert profile to handle cases where trigger didn't fire
+      const { error: profileErr } = await supabaseAdmin
         .from("profiles")
-        .update({ company_id, full_name: full_name || "" })
-        .eq("user_id", newUser.user.id);
+        .upsert(
+          { user_id: newUser.user.id, company_id, full_name: full_name || "" },
+          { onConflict: "user_id" }
+        );
+      if (profileErr) {
+        console.error("Profile upsert error:", profileErr.message);
+      }
 
       // Insert company_admin role
       const { error: roleErr } = await supabaseAdmin
