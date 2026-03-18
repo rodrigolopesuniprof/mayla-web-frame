@@ -86,13 +86,28 @@ Deno.serve(async (req) => {
       const payloadSizeKB = Math.round(JSON.stringify(limitedFrames).length / 1024);
       console.log(`rPPG session started: ${sessionId}, frames: ${limitedFrames.length}, maxChunk: ${maxChunkSize}, payloadKB: ${payloadSizeKB}`);
 
-      // 2. Wait 500ms for backend to register session, then connect via WebSocket
-      await new Promise(r => setTimeout(r, 500));
+      // 2. Wait 2000ms for backend to register session
+      await new Promise(r => setTimeout(r, 2000));
+
+      // 3. Health-check: verify session exists before opening WS
+      try {
+        const statusRes = await fetch(`${RPPG_BACKEND}/sessions/${sessionId}/status`);
+        console.log("Session status check:", statusRes.status);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          console.log("Session status:", JSON.stringify(statusData));
+        } else {
+          console.warn("Session status check returned:", statusRes.status);
+        }
+      } catch (e) {
+        console.warn("Session status endpoint not available, proceeding anyway");
+      }
 
       const wsUrl = `${RPPG_BACKEND.replace("https://", "wss://").replace("http://", "ws://")}/ws/sessions/${sessionId}`;
+      const MAX_WS_RETRIES = 2;
 
-      const measurement = await new Promise<Record<string, unknown>>(
-        (resolve, reject) => {
+      const connectAndMeasure = (attempt: number): Promise<Record<string, unknown>> =>
+        new Promise((resolve, reject) => {
           const timeout = setTimeout(
             () => reject(new Error("WebSocket timeout (60s)")),
             60000
@@ -106,14 +121,11 @@ Deno.serve(async (req) => {
 
             const sendNextChunk = () => {
               if (frameCursor >= totalFrames) {
-                // All frames sent, signal end
                 ws.send(JSON.stringify({ type: "end" }));
                 return;
               }
-
               const end = Math.min(frameCursor + maxChunkSize, totalFrames);
               const chunkFrames = limitedFrames.slice(frameCursor, end);
-
               ws.send(
                 JSON.stringify({
                   chunk_seq: chunkSeq,
@@ -121,13 +133,12 @@ Deno.serve(async (req) => {
                   frames: chunkFrames,
                 })
               );
-
               frameCursor = end;
               chunkSeq++;
             };
 
             ws.onopen = () => {
-              console.log("WS connected, sending first chunk");
+              console.log(`WS connected (attempt ${attempt + 1}), sending first chunk`);
               sendNextChunk();
             };
 
@@ -136,8 +147,7 @@ Deno.serve(async (req) => {
                 const msg = JSON.parse(event.data);
                 console.log("WS msg type:", msg.type || "unknown");
 
-                if (msg.type === "ack") {
-                  // Backend acknowledged chunk, send next
+                if (msg.type === "ack" || msg.type === "progress") {
                   sendNextChunk();
                 } else if (msg.type === "result" || msg.bpm !== undefined) {
                   clearTimeout(timeout);
@@ -146,7 +156,19 @@ Deno.serve(async (req) => {
                 } else if (msg.type === "error") {
                   clearTimeout(timeout);
                   ws.close();
-                  reject(new Error(msg.message || msg.error || "Backend WS error"));
+                  const errMsg = msg.message || msg.error || "Backend WS error";
+                  // Retry on session_not_found
+                  if (
+                    attempt < MAX_WS_RETRIES &&
+                    errMsg.includes("session_not_found")
+                  ) {
+                    console.warn(`session_not_found on attempt ${attempt + 1}, retrying in 1.5s...`);
+                    setTimeout(() => {
+                      connectAndMeasure(attempt + 1).then(resolve).catch(reject);
+                    }, 1500);
+                  } else {
+                    reject(new Error(errMsg));
+                  }
                 }
               } catch (e) {
                 console.error("WS message parse error:", e);
@@ -155,13 +177,27 @@ Deno.serve(async (req) => {
 
             ws.onerror = (err) => {
               clearTimeout(timeout);
-              reject(new Error("WebSocket error: " + String(err)));
+              if (attempt < MAX_WS_RETRIES) {
+                console.warn(`WS error on attempt ${attempt + 1}, retrying in 1.5s...`);
+                setTimeout(() => {
+                  connectAndMeasure(attempt + 1).then(resolve).catch(reject);
+                }, 1500);
+              } else {
+                reject(new Error("WebSocket error: " + String(err)));
+              }
             };
 
             ws.onclose = (event) => {
               if (event.code === 4404) {
                 clearTimeout(timeout);
-                reject(new Error("Session not found or expired"));
+                if (attempt < MAX_WS_RETRIES) {
+                  console.warn(`WS 4404 on attempt ${attempt + 1}, retrying in 1.5s...`);
+                  setTimeout(() => {
+                    connectAndMeasure(attempt + 1).then(resolve).catch(reject);
+                  }, 1500);
+                } else {
+                  reject(new Error("Session not found or expired"));
+                }
               } else if (!event.wasClean) {
                 clearTimeout(timeout);
                 reject(new Error(`WebSocket closed: code=${event.code} reason=${event.reason}`));
@@ -171,8 +207,9 @@ Deno.serve(async (req) => {
             clearTimeout(timeout);
             reject(e);
           }
-        }
-      );
+        });
+
+      const measurement = await connectAndMeasure(0);
 
       console.log("rPPG result received:", JSON.stringify(measurement).slice(0, 200));
 
