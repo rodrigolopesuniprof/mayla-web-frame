@@ -91,8 +91,10 @@ Deno.serve(async (req) => {
           if (existing) {
             await supabaseAdmin
               .from("profiles")
-              .update({ company_id, cpf: cpf || undefined })
-              .eq("user_id", existing.id);
+              .upsert(
+                { user_id: existing.id, company_id, cpf: cpf || null, full_name: name || null },
+                { onConflict: "user_id" }
+              );
             results.push({ email, success: true, error: "Usuário já existia, vinculado à empresa" });
           } else {
             results.push({ email, success: false, error: userError.message });
