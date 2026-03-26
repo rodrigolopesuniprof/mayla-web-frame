@@ -88,9 +88,22 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
 
   const PUBLISHED_DOMAIN = "https://saude.saudecomvc.com.br";
 
-  const copyInviteLink = () => {
-    if (!token) { toast({ title: "Token não encontrado", variant: "destructive" }); return; }
-    const url = `${PUBLISHED_DOMAIN}/cadastro/${token}`;
+  const copyInviteLink = async () => {
+    let currentToken = token;
+    if (!currentToken) {
+      const { data, error } = await supabase
+        .from("company_invite_tokens")
+        .insert({ company_id: company.id })
+        .select("token")
+        .single();
+      if (error || !data) {
+        toast({ title: "Erro ao gerar token", variant: "destructive" });
+        return;
+      }
+      currentToken = data.token;
+      onCompanyUpdated();
+    }
+    const url = `${PUBLISHED_DOMAIN}/cadastro/${currentToken}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link de cadastro copiado!", description: url });
   };
