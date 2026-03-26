@@ -1,46 +1,45 @@
 
 
-# Plano: Corrigir usuários não aparecendo após cadastro
+# Plano: Corrigir "Token não encontrado" para empresas novas
 
 ## Diagnóstico
 
-A função `import-users` cria o usuário auth e depois faz um `UPDATE` no perfil para definir `company_id`. Porém:
+A empresa MEDDIT não possui token na tabela `company_invite_tokens`. O trigger `auto_create_invite_token` que gera tokens automaticamente ao criar empresas existe, mas pode ter falhado ou a empresa foi criada antes do trigger.
 
-1. O trigger `handle_new_user` usa `ON CONFLICT (user_id) DO NOTHING` — se já existir um perfil (de tentativa anterior), ele não atualiza o `company_id`
-2. O `UPDATE` subsequente não verifica se retornou `0 rows affected`
-3. Se o perfil não existir ainda (race condition), o UPDATE também falha silenciosamente
+O botão "Regenerar link" já resolve o problema manualmente, mas o fluxo deveria ser mais robusto: se não existe token, o botão "Copiar link de cadastro" deveria **criar um automaticamente** em vez de apenas mostrar um erro.
 
 ## Correção
 
-Alterar a função `import-users` para usar **UPSERT** em vez de UPDATE, garantindo que o perfil sempre seja criado/atualizado com o `company_id` correto.
+Alterar `copyInviteLink` no `AdminCompanySettings.tsx` para, quando `token` for `null`, criar o token automaticamente antes de copiar o link — em vez de simplesmente exibir o erro.
 
-### Mudança na edge function `supabase/functions/import-users/index.ts`
-
-Substituir o bloco de UPDATE (linhas 107-114) por um **upsert**:
+### Mudança no `AdminCompanySettings.tsx`
 
 ```typescript
-await supabaseAdmin
-  .from("profiles")
-  .upsert(
-    {
-      user_id: userData.user.id,
-      company_id,
-      cpf: cpf || null,
-      full_name: name || null,
-    },
-    { onConflict: "user_id" }
-  );
+const copyInviteLink = async () => {
+  let currentToken = token;
+  if (!currentToken) {
+    // Auto-criar token se não existir
+    const { data, error } = await supabase
+      .from("company_invite_tokens")
+      .insert({ company_id: company.id })
+      .select("token")
+      .single();
+    if (error || !data) {
+      toast({ title: "Erro ao gerar token", variant: "destructive" });
+      return;
+    }
+    currentToken = data.token;
+    onCompanyUpdated(); // recarregar dados
+  }
+  const url = `${PUBLISHED_DOMAIN}/cadastro/${currentToken}`;
+  navigator.clipboard.writeText(url);
+  toast({ title: "Link de cadastro copiado!", description: url });
+};
 ```
-
-Isso garante que:
-- Se o perfil já existe → atualiza `company_id`, `cpf`, `full_name`
-- Se o perfil não existe → cria com todos os campos
-
-Mesma correção no bloco de "usuário já existia" (linhas 92-95): trocar `update` por `upsert`.
 
 ## Arquivo
 
 | Ação | Arquivo |
 |------|---------|
-| Editar | `supabase/functions/import-users/index.ts` — trocar UPDATE por UPSERT |
+| Editar | `src/components/admin/AdminCompanySettings.tsx` — auto-criar token no copyInviteLink |
 
