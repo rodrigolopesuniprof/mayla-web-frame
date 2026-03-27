@@ -150,7 +150,7 @@ export function OnDemandFlow({ onBack }: Props) {
     const { data: consultData, error } = await supabase
       .from("consultations")
       .insert(insertPayload)
-      .select("id")
+      .select("id, room_token")
       .single();
 
     if (error || !consultData?.id) {
@@ -161,6 +161,7 @@ export function OnDemandFlow({ onBack }: Props) {
     }
 
     setConsultationId(consultData.id);
+    setRoomToken((consultData as any).room_token || null);
     setStep("waiting_room");
   };
 
