@@ -18,7 +18,7 @@ interface WaitingConsultation {
 
 interface Props {
   partnerId: string;
-  onStartCall: (consultation: { id: string; patientName: string; specialty: string }) => void;
+  onStartCall: (consultation: { id: string; patientName: string; specialty: string; roomToken?: string }) => void;
   onQueueCountChange?: (count: number) => void;
 }
 
