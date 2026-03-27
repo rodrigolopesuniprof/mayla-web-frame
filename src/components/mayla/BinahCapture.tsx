@@ -339,11 +339,6 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                 </div>
               )}
 
-              {isDemoMode && (
-                <div className="text-center py-2 px-4 rounded-xl text-sm font-medium bg-accent/10 text-accent">
-                  🎭 Modo demonstração — analisando...
-                </div>
-              )}
 
               <div className="space-y-2">
                 <div className="flex justify-between text-[11px] text-muted-foreground">
