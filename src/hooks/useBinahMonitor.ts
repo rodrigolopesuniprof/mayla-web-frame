@@ -108,7 +108,7 @@ export function useBinahMonitor(): UseBinahMonitorReturn {
 
     // Check crossOriginIsolated — required for SharedArrayBuffer
     if (!crossOriginIsolated) {
-      console.log("[Binah] crossOriginIsolated=false → demo mode");
+      console.warn("[Binah] crossOriginIsolated=false → demo mode. Verifique se o Nginx tem os headers COOP/COEP configurados:\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: require-corp");
       enterDemoMode();
       return;
     }
