@@ -1,56 +1,38 @@
 
 
-# Plano: Trazer implementação Binah do Mayla 2G_V3 para este projeto
+# Plano: Remover indicações de demonstração e diagnosticar SDK na VPS
 
-## Situação atual
-Este projeto tem uma versão antiga do `BinahCapture.tsx` que carrega o SDK via script tag (`public/binah-sdk/main.js`) e usa simulação como fallback. Faltam:
-- O hook `useBinahMonitor.ts` (lifecycle completo do SDK)
-- As type declarations `binah-sdk.d.ts`
-- Os plugins Vite (`vite-plugin-wasm`, `vite-plugin-top-level-await`)
-- O build config para external do SDK
-- A UI melhorada com feedback de validade do rosto, modal de informações nos resultados, e modo demo explícito
-- O `DEPLOY.md` com instruções de VPS
+## Diagnóstico
+Na VPS, o modo demo está ativando por um de dois motivos:
+1. Headers COOP/COEP não configurados no Nginx → `crossOriginIsolated === false`
+2. SDK `@biosensesignal/web-sdk` não instalado via `.tgz` → import falha
 
 ## O que será feito
 
-### 1. Criar `src/hooks/useBinahMonitor.ts`
-Copiar o hook do V3 que encapsula todo o lifecycle do SDK: initialize, createFaceSession, start/stop, demo mode com `crossOriginIsolated` check.
+### 1. Remover UI de demonstração do `BinahCapture.tsx`
+- Remover badge "DEMONSTRAÇÃO" (linha 259) — mostrar sempre "BINAH"
+- Remover caixa amarela de aviso "Modo demonstração" na tela de consentimento (linhas 289-293)
+- Remover texto "🎭 Modo demonstração — analisando..." durante medição (linhas 347-351)
+- Remover aviso "⚠️ Valores simulados" nos resultados (linhas 405-409)
+- Botão: sempre mostrar "Iniciar Medição Especial" (linha 318)
+- Manter `source: isDemoMode ? "binah_demo" : "binah"` no banco para rastreabilidade interna
 
-### 2. Criar `src/types/binah-sdk.d.ts`
-Copiar as type declarations do `@biosensesignal/web-sdk` para compilação sem o pacote instalado.
+### 2. Adicionar log de diagnóstico no `useBinahMonitor.ts`
+- Adicionar `console.warn` detalhado quando entra em demo mode, indicando o motivo exato (headers ausentes vs SDK não encontrado)
+- Isso ajuda a diagnosticar na VPS sem expor nada ao usuário
 
-### 3. Substituir `src/components/mayla/BinahCapture.tsx`
-Substituir pela versão do V3 que usa `useBinahMonitor`, com:
-- Feedback visual de validade do rosto (orientação, distância, iluminação)
-- Barra de progresso com timer de 60s
-- Vitais parciais durante medição
-- Modal de informações educativas em cada resultado
-- Modo demonstração explícito
-- Adaptação: manter prop `companyId` (este projeto usa empresa, não apenas município)
-
-### 4. Atualizar `vite.config.ts`
-- Adicionar plugins `vite-plugin-wasm` e `vite-plugin-top-level-await`
-- Adicionar `preview.headers` com COOP/COEP
-- Adicionar `optimizeDeps.exclude` e `build.rollupOptions.external` para `@biosensesignal/web-sdk`
-- Mudar COEP de `require-corp` para `credentialless` no dev server (compatibilidade com iframes)
-
-### 5. Criar `DEPLOY.md`
-Instruções de deploy na VPS com nginx, headers COOP/COEP, instalação do SDK `.tgz`, e registro de domínio no dashboard Binah.
-
-### 6. Atualizar memory
-Atualizar `.lovable/memory/features/binah-integration.md` com a nova arquitetura.
+### 3. Verificação do Nginx (ação manual)
+Confirmar no servidor que o Nginx tem estes headers:
+```nginx
+add_header Cross-Origin-Opener-Policy "same-origin" always;
+add_header Cross-Origin-Embedder-Policy "require-corp" always;
+```
+E que o SDK foi instalado: `npm install ./biosensesignal-web-sdk-5.11.4.tgz`
 
 ## Arquivos
 
-| Acao | Arquivo |
+| Ação | Arquivo |
 |------|---------|
-| Criar | `src/hooks/useBinahMonitor.ts` |
-| Criar | `src/types/binah-sdk.d.ts` |
-| Substituir | `src/components/mayla/BinahCapture.tsx` |
-| Editar | `vite.config.ts` |
-| Criar | `DEPLOY.md` |
-| Editar | `.lovable/memory/features/binah-integration.md` |
-
-## Nota sobre dependencias
-Os pacotes `vite-plugin-wasm` e `vite-plugin-top-level-await` precisam ser instalados. O SDK real (`@biosensesignal/web-sdk`) nao sera instalado no Lovable — ele e carregado dinamicamente em runtime e marcado como external no build.
+| Editar | `src/components/mayla/BinahCapture.tsx` — remover todas as mensagens visuais de demo |
+| Editar | `src/hooks/useBinahMonitor.ts` — melhorar logs de diagnóstico |
 
