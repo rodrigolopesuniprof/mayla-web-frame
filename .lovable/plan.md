@@ -1,62 +1,35 @@
 
 
-# Plano: Fase 1 — Migrar para servidor Jitsi próprio com room_token UUID
+# Plano: Corrigir UX do Jitsi — login obrigatório e tela de propaganda
 
-## Resumo
-Migrar de `meet.jit.si` para `teleconsulta.saudecomvc.com.br`, usando um `room_token` UUID único e imprevisível por consulta. Sem JWT nesta fase.
+## Problemas identificados
 
-## 1. Migração SQL
+### Problema 1: "Asking to join meeting... no moderators have arrived"
+O servidor Jitsi está configurado com autenticação que exige moderadores. Como não estamos usando JWT ainda, o servidor precisa ser configurado para permitir acesso anônimo. Isso é uma **configuração do servidor VPS**, não do frontend.
 
-Adicionar coluna `room_token` à tabela `consultations`:
-
-```sql
-ALTER TABLE consultations 
-ADD COLUMN room_token uuid DEFAULT gen_random_uuid() NOT NULL;
+**Ação no servidor** (`/etc/prosody/conf.avail/teleconsulta.saudecomvc.com.br.cfg.lua`):
+```text
+VirtualHost "teleconsulta.saudecomvc.com.br"
+    authentication = "anonymous"
 ```
 
-Registros existentes receberão UUID automaticamente pelo `DEFAULT`.
+E no `/etc/jitsi/jicofo/jicofo.conf`, garantir que não há lobby obrigatório.
 
-## 2. Editar `JitsiConsultationScreen.tsx`
+### Problema 2: Tela de propaganda do Jitsi ao encerrar
+Após a chamada, o Jitsi exibe uma página promocional (8x8 / "Build your video experience") dentro do iframe. Podemos corrigir no frontend:
 
-- Adicionar `roomToken` à interface `ConsultationInfo`
-- Trocar domínio de `meet.jit.si` para `teleconsulta.saudecomvc.com.br`
-- Trocar `roomName` de `mayla-consulta-${consultation.id}` para `mayla-${consultation.roomToken}`
+**Editar `JitsiConsultationScreen.tsx`:**
+- Adicionar `SHOW_PROMOTIONAL_CLOSE_PAGE: false` ao `interfaceConfigOverwrite`
+- Adicionar `enableClosePage: false` e `enableFeedbackAnimation: false` ao `configOverwrite`
+- No evento `readyToClose`, chamar `onLeave()` imediatamente para que o app volte à tela inicial antes do Jitsi mostrar qualquer coisa
 
-## 3. Passar `roomToken` em todos os pontos de chamada
-
-### `ConsultationFlow.tsx`
-- Ao criar consulta (insert), buscar `room_token` no retorno (`select("id, room_token")`)
-- Passar `roomToken` ao montar `JitsiConsultationScreen`
-
-### `OnDemandFlow.tsx`
-- Ao criar consulta, buscar `room_token` no retorno
-- Armazenar em state e passar ao `JitsiConsultationScreen`
-
-### `WaitingQueue.tsx` (profissional)
-- Incluir `room_token` na query de busca
-- Passar no callback `onStartCall`
-
-### `TodayConsultations.tsx` (profissional)
-- Incluir `room_token` na query
-- Passar no callback `onStartCall`
-
-### `ProfessionalDashboard.tsx`
-- Adicionar `roomToken` à interface `activeCall`
-- Passar ao `JitsiConsultationScreen`
-
-### `MaylaApp.tsx`
-- Garantir que `activeVideoCall` inclua `roomToken`
-
-## Arquivos modificados
+## Arquivos
 
 | Ação | Arquivo |
 |------|---------|
-| Migração SQL | Adicionar `room_token` em `consultations` |
-| Editar | `src/components/mayla/JitsiConsultationScreen.tsx` |
-| Editar | `src/components/mayla/ConsultationFlow.tsx` |
-| Editar | `src/components/mayla/OnDemandFlow.tsx` |
-| Editar | `src/components/professional/WaitingQueue.tsx` |
-| Editar | `src/components/professional/TodayConsultations.tsx` |
-| Editar | `src/pages/ProfessionalDashboard.tsx` |
-| Editar | `src/components/mayla/MaylaApp.tsx` |
+| Editar | `src/components/mayla/JitsiConsultationScreen.tsx` — adicionar configs para suprimir promo page |
+| Config servidor (manual) | Prosody: `authentication = "anonymous"` |
+
+## Nota importante
+O problema 1 (tela de login/moderador) **não pode ser resolvido pelo código do app** — é uma configuração do seu servidor Jitsi. Vou te passar os comandos exatos para rodar no VPS após aprovar o plano.
 
