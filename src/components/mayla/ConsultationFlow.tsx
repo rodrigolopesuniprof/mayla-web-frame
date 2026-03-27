@@ -1066,6 +1066,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           <JitsiConsultationScreen
             consultation={{
               id: activeConsultationId,
+              roomToken: activeRoomToken || undefined,
               professionalName: selectedDoctor.name,
               professionalType: selectedDoctor.partner_type === "clinic" ? "doctor" : "doctor",
               specialty: selectedSpecialty,
