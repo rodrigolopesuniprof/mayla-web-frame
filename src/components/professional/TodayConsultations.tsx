@@ -109,6 +109,7 @@ export function TodayConsultations({ partnerId, onStartCall }: Props) {
       id: c.id,
       patientName: c.patient_name || "Paciente",
       specialty: c.specialty || "Clínico Geral",
+      roomToken: (c as any).room_token || undefined,
     });
   };
 

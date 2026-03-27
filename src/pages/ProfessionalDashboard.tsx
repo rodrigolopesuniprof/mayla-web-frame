@@ -125,6 +125,7 @@ export default function ProfessionalDashboard() {
         <JitsiConsultationScreen
           consultation={{
             id: activeCall.id,
+            roomToken: activeCall.roomToken,
             professionalName: partner.name,
             professionalType: partner.partner_type === "doctor" ? "doctor" : "nurse",
             specialty: activeCall.specialty,

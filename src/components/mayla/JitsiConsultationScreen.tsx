@@ -308,7 +308,7 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
       {/* Jitsi Meeting */}
       <div className="flex-1 relative">
         <JitsiMeeting
-          domain="meet.jit.si"
+          domain="teleconsulta.saudecomvc.com.br"
           roomName={roomName}
           configOverwrite={{
             startWithAudioMuted: false,

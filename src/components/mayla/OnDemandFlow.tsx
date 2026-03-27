@@ -170,6 +170,7 @@ export function OnDemandFlow({ onBack }: Props) {
         <JitsiConsultationScreen
           consultation={{
             id: consultationId,
+            roomToken: roomToken || undefined,
             professionalName: matched.name,
             professionalType: profType || "doctor",
             specialty: matched.specialty || "Clínico Geral",

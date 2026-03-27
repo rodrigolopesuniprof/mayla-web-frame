@@ -89,6 +89,7 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
       id: consultation.id,
       patientName: consultation.patient_name || "Paciente",
       specialty: consultation.specialty || "Clínico Geral",
+      roomToken: (consultation as any).room_token || undefined,
     });
   };
 

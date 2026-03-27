@@ -26,7 +26,7 @@ export function MaylaApp() {
   const [showEsfLink, setShowEsfLink] = useState(false);
   const [showOnDemand, setShowOnDemand] = useState(false);
   const [consultOnlineMode, setConsultOnlineMode] = useState(false);
-  const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
+  const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
