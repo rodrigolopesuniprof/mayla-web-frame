@@ -689,6 +689,7 @@ export type Database = {
           professional_id: string
           professional_type: Database["public"]["Enums"]["consultation_professional_type"]
           queue_position: number | null
+          room_token: string
           scheduled_at: string | null
           specialty: string | null
           started_at: string | null
@@ -711,6 +712,7 @@ export type Database = {
           professional_id: string
           professional_type?: Database["public"]["Enums"]["consultation_professional_type"]
           queue_position?: number | null
+          room_token?: string
           scheduled_at?: string | null
           specialty?: string | null
           started_at?: string | null
@@ -733,6 +735,7 @@ export type Database = {
           professional_id?: string
           professional_type?: Database["public"]["Enums"]["consultation_professional_type"]
           queue_position?: number | null
+          room_token?: string
           scheduled_at?: string | null
           specialty?: string | null
           started_at?: string | null

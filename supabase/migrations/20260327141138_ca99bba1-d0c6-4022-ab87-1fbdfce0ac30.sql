@@ -1,0 +1,1 @@
+ALTER TABLE public.consultations ADD COLUMN room_token uuid DEFAULT gen_random_uuid() NOT NULL;
