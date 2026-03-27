@@ -310,7 +310,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                   boxShadow: "0 8px 24px rgba(26,92,138,.3)",
                 }}
               >
-                {isDemoMode ? "Iniciar Demonstração" : "Iniciar Medição Especial"}
+                Iniciar Medição Especial
               </button>
             </div>
           )}
