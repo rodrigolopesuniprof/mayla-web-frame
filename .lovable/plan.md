@@ -1,64 +1,44 @@
 
 
-# Plano: Corrigir 404 na VPS (Hostinger)
+# Plano: Auto-vincular usuários órfãos à empresa MAYLA
 
 ## Problema
-
-Em uma VPS, o servidor web (Nginx ou Apache) não sabe que deve redirecionar todas as rotas para o `index.html` da SPA React. Quando o usuário acessa `/admin/painel` diretamente, o servidor procura um arquivo físico e retorna 404.
+Usuários sem `company_id` no perfil e sem `company_id` no metadata ficam "soltos", sem aparecer em nenhuma empresa.
 
 ## Solução
+No `CompanyContext.tsx`, após determinar que `companyId` é `null`, buscar a empresa MAYLA pelo slug e vincular automaticamente o perfil do usuário.
 
-Depende do servidor web instalado na VPS. São duas opções:
+### Mudança em `src/contexts/CompanyContext.tsx`
 
-### Opção A — Nginx (mais comum em VPS)
+Após a linha `const isFallback = !companyId;` (linha 71), inserir:
 
-Editar o arquivo de configuração do site (geralmente `/etc/nginx/sites-available/default` ou similar):
+```typescript
+// Auto-vincular usuários sem empresa à MAYLA
+if (!companyId) {
+  const { data: maylaCompany } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("slug", "mayla")
+    .maybeSingle();
 
-```text
-server {
-    listen 80;
-    server_name saude.saudecomvc.com.br;
-    root /var/www/html;   # pasta onde está o dist/
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
+  if (maylaCompany) {
+    await supabase.from("profiles")
+      .upsert({ user_id: user.id, company_id: maylaCompany.id }, { onConflict: "user_id" });
+    companyId = maylaCompany.id;
+  }
 }
 ```
 
-Depois: `sudo nginx -t && sudo systemctl reload nginx`
+Isso faz `companyId` deixar de ser `const` — precisa virar `let`.
 
-### Opção B — Apache
+### Mudança em `src/pages/Login.tsx`
 
-Criar o arquivo `.htaccess` dentro da pasta `dist/` (ou usar o `public/.htaccess` que será copiado no build):
+Remover o modo `signup`: eliminar o botão "Cadastre-se", os campos de nome/CPF, e a função `handleSignup`. Manter apenas login + recuperar senha.
 
-```apache
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
-```
-
-E garantir que `AllowOverride All` está habilitado no VirtualHost do Apache.
-
-## O que criar no projeto
-
-Criar `public/.htaccess` para que o Vite inclua no build automaticamente (cobre o caso Apache). Para Nginx, a configuração é feita diretamente no servidor.
-
-## Passos
-
-1. Criar `public/.htaccess` no projeto
-2. Fazer novo build (`npm run build`)
-3. Enviar o conteúdo de `dist/` para a VPS
-4. Configurar o servidor web (Nginx ou Apache) conforme acima
-5. Recarregar o servidor: `sudo systemctl reload nginx` ou `sudo systemctl reload apache2`
+## Arquivos
 
 | Ação | Arquivo |
 |------|---------|
-| Criar | `public/.htaccess` |
+| Editar | `src/contexts/CompanyContext.tsx` — auto-vincular órfãos à MAYLA |
+| Editar | `src/pages/Login.tsx` — remover modo signup |
 
