@@ -327,17 +327,15 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
           {/* Measuring */}
           {phase === "measuring" && (
             <div className="w-full space-y-4 mt-4">
-              {!isDemoMode && (
-                <div
-                  className={`text-center py-2 px-4 rounded-xl text-sm font-medium ${
-                    imageValidity === ImageValidity.VALID
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                  }`}
-                >
-                  {validityInfo.emoji} {validityInfo.text}
-                </div>
-              )}
+              <div
+                className={`text-center py-2 px-4 rounded-xl text-sm font-medium ${
+                  imageValidity === ImageValidity.VALID
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                }`}
+              >
+                {validityInfo.emoji} {validityInfo.text}
+              </div>
 
 
               <div className="space-y-2">

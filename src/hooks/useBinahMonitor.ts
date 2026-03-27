@@ -166,6 +166,7 @@ export function useBinahMonitor(): UseBinahMonitorReturn {
         err?.message?.includes("Cannot find module") ||
         err?.code === "ERR_MODULE_NOT_FOUND"
       ) {
+        console.warn(`[Binah] Fallback para demo mode. Motivo: ${err?.message}. Verifique se o SDK foi instalado: npm install ./biosensesignal-web-sdk-5.11.4.tgz`);
         enterDemoMode();
       } else {
         setErrorMessage(err?.message || "Erro ao inicializar o SDK");
