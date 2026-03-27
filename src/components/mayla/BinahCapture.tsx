@@ -286,11 +286,6 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                 incluindo <strong>pressão arterial</strong>, <strong>hemoglobina</strong>,{" "}
                 <strong>variabilidade cardíaca</strong> e mais.
               </p>
-              {isDemoMode && (
-                <div className="bg-accent/10 border border-accent/20 rounded-xl px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
-                  ⚠️ <strong>Modo demonstração</strong> — os valores gerados são simulados e não representam dados médicos reais.
-                </div>
-              )}
               <div className="grid grid-cols-3 gap-2 text-center">
                 {["❤️ FC", "🩺 PA", "💧 SpO2", "🫁 Resp", "😰 Estresse", "✨ Bem-estar"].map(
                   (item, i) => (
