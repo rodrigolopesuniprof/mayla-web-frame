@@ -256,7 +256,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
         </button>
         <h2 className="font-display text-lg font-semibold text-foreground">Medição Especial</h2>
         <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium">
-          {isDemoMode ? "DEMONSTRAÇÃO" : "BINAH"}
+          BINAH
         </span>
       </div>
 
@@ -286,11 +286,6 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                 incluindo <strong>pressão arterial</strong>, <strong>hemoglobina</strong>,{" "}
                 <strong>variabilidade cardíaca</strong> e mais.
               </p>
-              {isDemoMode && (
-                <div className="bg-accent/10 border border-accent/20 rounded-xl px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
-                  ⚠️ <strong>Modo demonstração</strong> — os valores gerados são simulados e não representam dados médicos reais.
-                </div>
-              )}
               <div className="grid grid-cols-3 gap-2 text-center">
                 {["❤️ FC", "🩺 PA", "💧 SpO2", "🫁 Resp", "😰 Estresse", "✨ Bem-estar"].map(
                   (item, i) => (
@@ -315,7 +310,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                   boxShadow: "0 8px 24px rgba(26,92,138,.3)",
                 }}
               >
-                {isDemoMode ? "Iniciar Demonstração" : "Iniciar Medição Especial"}
+                Iniciar Medição Especial
               </button>
             </div>
           )}
@@ -332,23 +327,16 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
           {/* Measuring */}
           {phase === "measuring" && (
             <div className="w-full space-y-4 mt-4">
-              {!isDemoMode && (
-                <div
-                  className={`text-center py-2 px-4 rounded-xl text-sm font-medium ${
-                    imageValidity === ImageValidity.VALID
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                  }`}
-                >
-                  {validityInfo.emoji} {validityInfo.text}
-                </div>
-              )}
+              <div
+                className={`text-center py-2 px-4 rounded-xl text-sm font-medium ${
+                  imageValidity === ImageValidity.VALID
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                }`}
+              >
+                {validityInfo.emoji} {validityInfo.text}
+              </div>
 
-              {isDemoMode && (
-                <div className="text-center py-2 px-4 rounded-xl text-sm font-medium bg-accent/10 text-accent">
-                  🎭 Modo demonstração — analisando...
-                </div>
-              )}
 
               <div className="space-y-2">
                 <div className="flex justify-between text-[11px] text-muted-foreground">
@@ -402,11 +390,6 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                 <h3 className="font-display text-lg font-semibold text-foreground">
                   Resultados da Medição
                 </h3>
-                {isDemoMode && (
-                  <p className="text-[11px] text-accent mt-1 font-medium">
-                    ⚠️ Valores simulados — modo demonstração
-                  </p>
-                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {resultItems.map((item, i) => (

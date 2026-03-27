@@ -108,7 +108,7 @@ export function useBinahMonitor(): UseBinahMonitorReturn {
 
     // Check crossOriginIsolated — required for SharedArrayBuffer
     if (!crossOriginIsolated) {
-      console.log("[Binah] crossOriginIsolated=false → demo mode");
+      console.warn("[Binah] crossOriginIsolated=false → demo mode. Verifique se o Nginx tem os headers COOP/COEP configurados:\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: require-corp");
       enterDemoMode();
       return;
     }
@@ -166,6 +166,7 @@ export function useBinahMonitor(): UseBinahMonitorReturn {
         err?.message?.includes("Cannot find module") ||
         err?.code === "ERR_MODULE_NOT_FOUND"
       ) {
+        console.warn(`[Binah] Fallback para demo mode. Motivo: ${err?.message}. Verifique se o SDK foi instalado: npm install ./biosensesignal-web-sdk-5.11.4.tgz`);
         enterDemoMode();
       } else {
         setErrorMessage(err?.message || "Erro ao inicializar o SDK");
