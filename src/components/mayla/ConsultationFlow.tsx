@@ -550,7 +550,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           triage_notes: patientNotes || null,
           company_id: (company as any)?.id || null,
         } as any)
-        .select("id")
+        .select("id, room_token")
         .single();
 
       setBooking(false);
