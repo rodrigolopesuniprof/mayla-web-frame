@@ -198,6 +198,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
   const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
   const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
+  const [activeRoomToken, setActiveRoomToken] = useState<string | null>(null);
 
   // Geolocation
   useEffect(() => {
