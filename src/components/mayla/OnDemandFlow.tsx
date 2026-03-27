@@ -29,6 +29,7 @@ export function OnDemandFlow({ onBack }: Props) {
   const [profType, setProfType] = useState<ProfType | null>(null);
   const [matched, setMatched] = useState<MatchedProfessional | null>(null);
   const [consultationId, setConsultationId] = useState<string | null>(null);
+  const [roomToken, setRoomToken] = useState<string | null>(null);
   const [waitSeconds, setWaitSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
