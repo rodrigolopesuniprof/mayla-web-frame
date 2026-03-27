@@ -47,7 +47,7 @@ export function TodayConsultations({ partnerId, onStartCall }: Props) {
 
       const { data } = await supabase
         .from("consultations")
-        .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, scheduled_at, created_at, started_at, ended_at, call_duration_seconds, triage_notes")
+        .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, scheduled_at, created_at, started_at, ended_at, call_duration_seconds, triage_notes, room_token")
         .eq("professional_id", partnerId)
         .gte("created_at", todayStart)
         .lt("created_at", todayEnd)
