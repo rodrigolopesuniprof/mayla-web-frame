@@ -29,6 +29,7 @@ export function OnDemandFlow({ onBack }: Props) {
   const [profType, setProfType] = useState<ProfType | null>(null);
   const [matched, setMatched] = useState<MatchedProfessional | null>(null);
   const [consultationId, setConsultationId] = useState<string | null>(null);
+  const [roomToken, setRoomToken] = useState<string | null>(null);
   const [waitSeconds, setWaitSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -149,7 +150,7 @@ export function OnDemandFlow({ onBack }: Props) {
     const { data: consultData, error } = await supabase
       .from("consultations")
       .insert(insertPayload)
-      .select("id")
+      .select("id, room_token")
       .single();
 
     if (error || !consultData?.id) {
@@ -160,6 +161,7 @@ export function OnDemandFlow({ onBack }: Props) {
     }
 
     setConsultationId(consultData.id);
+    setRoomToken((consultData as any).room_token || null);
     setStep("waiting_room");
   };
 
@@ -170,6 +172,7 @@ export function OnDemandFlow({ onBack }: Props) {
         <JitsiConsultationScreen
           consultation={{
             id: consultationId,
+            roomToken: roomToken || undefined,
             professionalName: matched.name,
             professionalType: profType || "doctor",
             specialty: matched.specialty || "Clínico Geral",

@@ -198,6 +198,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
   const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
   const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
+  const [activeRoomToken, setActiveRoomToken] = useState<string | null>(null);
 
   // Geolocation
   useEffect(() => {
@@ -478,7 +479,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     const { data: consultData, error } = await supabase
       .from("consultations")
       .insert(insertPayload)
-      .select("id")
+      .select("id, room_token")
       .single();
 
     setLoading(false);
@@ -492,6 +493,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     // Go to waiting room
     setSelectedDoctor({ id: best.id, name: best.name, specialty: best.specialty } as Doctor);
     setWaitingConsultationId(consultData.id);
+    setActiveRoomToken((consultData as any).room_token || null);
     setStep("waiting_room");
     toast({ title: "Profissional encontrado! ⚡", description: `${best.name} foi notificado e atenderá você em breve.` });
   };
@@ -548,7 +550,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           triage_notes: patientNotes || null,
           company_id: (company as any)?.id || null,
         } as any)
-        .select("id")
+        .select("id, room_token")
         .single();
 
       setBooking(false);
@@ -560,6 +562,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       } else {
         // Go to waiting room instead of done
         setWaitingConsultationId(consultData2?.id || null);
+        setActiveRoomToken((consultData2 as any)?.room_token || null);
         setWaitingStatus("confirmed");
         setWaitingSeconds(0);
         toast({ title: "Consulta online agendada! ✅" });
@@ -1063,6 +1066,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           <JitsiConsultationScreen
             consultation={{
               id: activeConsultationId,
+              roomToken: activeRoomToken || undefined,
               professionalName: selectedDoctor.name,
               professionalType: selectedDoctor.partner_type === "clinic" ? "doctor" : "doctor",
               specialty: selectedSpecialty,

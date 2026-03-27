@@ -21,7 +21,7 @@ interface Consultation {
 
 interface Props {
   partnerId: string;
-  onStartCall: (consultation: { id: string; patientName: string; specialty: string }) => void;
+  onStartCall: (consultation: { id: string; patientName: string; specialty: string; roomToken?: string }) => void;
 }
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
@@ -47,7 +47,7 @@ export function TodayConsultations({ partnerId, onStartCall }: Props) {
 
       const { data } = await supabase
         .from("consultations")
-        .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, scheduled_at, created_at, started_at, ended_at, call_duration_seconds, triage_notes")
+        .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, scheduled_at, created_at, started_at, ended_at, call_duration_seconds, triage_notes, room_token")
         .eq("professional_id", partnerId)
         .gte("created_at", todayStart)
         .lt("created_at", todayEnd)
@@ -109,6 +109,7 @@ export function TodayConsultations({ partnerId, onStartCall }: Props) {
       id: c.id,
       patientName: c.patient_name || "Paciente",
       specialty: c.specialty || "Clínico Geral",
+      roomToken: (c as any).room_token || undefined,
     });
   };
 

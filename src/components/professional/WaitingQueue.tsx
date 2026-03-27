@@ -18,7 +18,7 @@ interface WaitingConsultation {
 
 interface Props {
   partnerId: string;
-  onStartCall: (consultation: { id: string; patientName: string; specialty: string }) => void;
+  onStartCall: (consultation: { id: string; patientName: string; specialty: string; roomToken?: string }) => void;
   onQueueCountChange?: (count: number) => void;
 }
 
@@ -29,7 +29,7 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
   const fetchQueue = useCallback(async () => {
     const { data } = await supabase
       .from("consultations")
-      .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, created_at, triage_notes, scheduled_at")
+      .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, created_at, triage_notes, scheduled_at, room_token")
       .eq("professional_id", partnerId)
       .in("status", ["confirmed", "waiting", "pending"] as any[])
       .order("created_at", { ascending: true });
@@ -89,6 +89,7 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
       id: consultation.id,
       patientName: consultation.patient_name || "Paciente",
       specialty: consultation.specialty || "Clínico Geral",
+      roomToken: (consultation as any).room_token || undefined,
     });
   };
 
