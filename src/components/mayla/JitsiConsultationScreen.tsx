@@ -340,6 +340,7 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
             MOBILE_APP_PROMO: false,
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
+            SHOW_PROMOTIONAL_CLOSE_PAGE: false,
             DEFAULT_BACKGROUND: "#1a1a2e",
             ENABLE_LOBBY_CHAT: false,
           }}
