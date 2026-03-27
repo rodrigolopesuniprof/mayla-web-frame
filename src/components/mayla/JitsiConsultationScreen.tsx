@@ -9,6 +9,7 @@ import { DocumentSender } from "@/components/professional/DocumentSender";
 
 interface ConsultationInfo {
   id: string;
+  roomToken?: string;
   professionalName: string;
   professionalType: string;
   specialty: string;
