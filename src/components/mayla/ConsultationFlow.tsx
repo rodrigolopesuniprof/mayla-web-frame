@@ -479,7 +479,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     const { data: consultData, error } = await supabase
       .from("consultations")
       .insert(insertPayload)
-      .select("id")
+      .select("id, room_token")
       .single();
 
     setLoading(false);
