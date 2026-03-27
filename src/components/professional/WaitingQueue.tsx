@@ -29,7 +29,7 @@ export function WaitingQueue({ partnerId, onStartCall, onQueueCountChange }: Pro
   const fetchQueue = useCallback(async () => {
     const { data } = await supabase
       .from("consultations")
-      .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, created_at, triage_notes, scheduled_at")
+      .select("id, user_id, specialty, consultation_mode, consultation_flow_type, status, created_at, triage_notes, scheduled_at, room_token")
       .eq("professional_id", partnerId)
       .in("status", ["confirmed", "waiting", "pending"] as any[])
       .order("created_at", { ascending: true });
