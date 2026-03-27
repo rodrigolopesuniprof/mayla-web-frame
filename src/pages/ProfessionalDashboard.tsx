@@ -34,7 +34,7 @@ export default function ProfessionalDashboard() {
   const [partner, setPartner] = useState<PartnerProfile | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus | null>(null);
   const [loadingPartner, setLoadingPartner] = useState(true);
-  const [activeCall, setActiveCall] = useState<{ id: string; patientName: string; specialty: string } | null>(null);
+  const [activeCall, setActiveCall] = useState<{ id: string; patientName: string; specialty: string; roomToken?: string } | null>(null);
   const [queueCount, setQueueCount] = useState(0);
 
   useEffect(() => {
