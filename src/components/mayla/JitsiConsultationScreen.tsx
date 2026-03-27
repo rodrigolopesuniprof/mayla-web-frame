@@ -321,6 +321,8 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
             enableLobbyChat: false,
             hideLobbyButton: true,
             requireDisplayName: false,
+            enableClosePage: false,
+            enableFeedbackAnimation: false,
             toolbarButtons: [
               "microphone",
               "camera",
