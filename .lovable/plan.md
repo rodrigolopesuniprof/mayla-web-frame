@@ -1,98 +1,62 @@
 
 
-# Plano: Migrar teleconsulta para servidor Jitsi próprio com salas seguras
+# Plano: Fase 1 — Migrar para servidor Jitsi próprio com room_token UUID
 
-## Situação atual
-- O sistema usa `meet.jit.si` (servidor público) como domínio Jitsi
-- O nome da sala é `mayla-consulta-{consultation_id}` — previsível e fixo (coluna gerada no banco)
-- Qualquer pessoa que adivinhe o nome da sala pode entrar
+## Resumo
+Migrar de `meet.jit.si` para `teleconsulta.saudecomvc.com.br`, usando um `room_token` UUID único e imprevisível por consulta. Sem JWT nesta fase.
 
-## Solução
+## 1. Migração SQL
 
-### 1. Gerar token único por consulta (banco de dados)
-
-Criar uma nova coluna `room_token` na tabela `consultations` com um UUID aleatório gerado automaticamente. Esse token será usado no nome da sala em vez do ID da consulta.
+Adicionar coluna `room_token` à tabela `consultations`:
 
 ```sql
 ALTER TABLE consultations 
 ADD COLUMN room_token uuid DEFAULT gen_random_uuid() NOT NULL;
-
--- Preencher registros existentes
-UPDATE consultations SET room_token = gen_random_uuid() WHERE room_token IS NULL;
 ```
 
-O nome da sala passará a ser: `mayla-{room_token}` — único, imprevisível e usado uma única vez por consulta.
+Registros existentes receberão UUID automaticamente pelo `DEFAULT`.
 
-### 2. Apontar para o servidor próprio (`JitsiConsultationScreen.tsx`)
+## 2. Editar `JitsiConsultationScreen.tsx`
 
-Trocar o domínio de `meet.jit.si` para `teleconsulta.saudecomvc.com.br` e usar `room_token` no nome da sala:
+- Adicionar `roomToken` à interface `ConsultationInfo`
+- Trocar domínio de `meet.jit.si` para `teleconsulta.saudecomvc.com.br`
+- Trocar `roomName` de `mayla-consulta-${consultation.id}` para `mayla-${consultation.roomToken}`
 
-```typescript
-// Antes
-domain="meet.jit.si"
-roomName={`mayla-consulta-${consultation.id}`}
+## 3. Passar `roomToken` em todos os pontos de chamada
 
-// Depois
-domain="teleconsulta.saudecomvc.com.br"
-roomName={`mayla-${consultation.roomToken}`}
-```
+### `ConsultationFlow.tsx`
+- Ao criar consulta (insert), buscar `room_token` no retorno (`select("id, room_token")`)
+- Passar `roomToken` ao montar `JitsiConsultationScreen`
 
-### 3. Passar `roomToken` nos fluxos existentes
+### `OnDemandFlow.tsx`
+- Ao criar consulta, buscar `room_token` no retorno
+- Armazenar em state e passar ao `JitsiConsultationScreen`
 
-Atualizar a interface `ConsultationInfo` para incluir `roomToken` e garantir que todos os pontos que criam/abrem a tela de consulta passem esse dado:
-- `ConsultationFlow.tsx` / `OnDemandFlow.tsx` — ao montar `JitsiConsultationScreen`
-- `WaitingRoom.tsx` → `onEnterCall`
-- `WaitingQueue.tsx` / `TodayConsultations.tsx` (profissional) — ao chamar `onStartCall`
-- `ProfessionalDashboard.tsx` — ao abrir `JitsiConsultationScreen`
+### `WaitingQueue.tsx` (profissional)
+- Incluir `room_token` na query de busca
+- Passar no callback `onStartCall`
 
-### 4. Proteger o servidor Jitsi (configuração no servidor VPS)
+### `TodayConsultations.tsx` (profissional)
+- Incluir `room_token` na query
+- Passar no callback `onStartCall`
 
-No arquivo `/etc/prosody/conf.avail/teleconsulta.saudecomvc.com.br.cfg.lua` do servidor Jitsi, configurar autenticação para impedir uso externo:
+### `ProfessionalDashboard.tsx`
+- Adicionar `roomToken` à interface `activeCall`
+- Passar ao `JitsiConsultationScreen`
 
-```text
-VirtualHost "teleconsulta.saudecomvc.com.br"
-    authentication = "token"           -- JWT authentication
-    app_id = "mayla"
-    app_secret = "SUA_CHAVE_SECRETA"   -- segredo compartilhado
-    allow_empty_token = false
-```
+### `MaylaApp.tsx`
+- Garantir que `activeVideoCall` inclua `roomToken`
 
-E gerar um JWT no app (via edge function) para cada consulta, passando-o ao `JitsiMeeting` via `jwt` prop. Isso garante que apenas usuários autenticados no sistema Mayla consigam entrar nas salas.
-
-### 5. Edge function para gerar JWT do Jitsi
-
-Criar `supabase/functions/jitsi-token/index.ts` que:
-- Valida que o usuário autenticado é participante da consulta (paciente ou profissional)
-- Gera um JWT com `app_id`, `app_secret`, `room` e `exp` (curta duração, ex: 2h)
-- Retorna o token para o frontend usar na prop `jwt` do `JitsiMeeting`
-
-### 6. Uso no frontend
-
-```typescript
-// Antes de abrir a sala, buscar o JWT
-const { data } = await supabase.functions.invoke("jitsi-token", {
-  body: { consultationId: consultation.id }
-});
-
-// Passar ao JitsiMeeting
-<JitsiMeeting
-  domain="teleconsulta.saudecomvc.com.br"
-  roomName={`mayla-${consultation.roomToken}`}
-  jwt={data.token}
-  ...
-/>
-```
-
-## Arquivos
+## Arquivos modificados
 
 | Ação | Arquivo |
 |------|---------|
-| Migração SQL | Adicionar coluna `room_token` em `consultations` |
-| Criar | `supabase/functions/jitsi-token/index.ts` — gerar JWT |
-| Editar | `src/components/mayla/JitsiConsultationScreen.tsx` — domínio + roomToken + JWT |
-| Editar | Fluxos que passam dados para JitsiConsultationScreen (ConsultationFlow, OnDemandFlow, ProfessionalDashboard, WaitingQueue, TodayConsultations) |
-
-## Pré-requisito do servidor
-- Configurar autenticação JWT no Prosody do servidor Jitsi
-- Definir o `app_secret` como secret na edge function
+| Migração SQL | Adicionar `room_token` em `consultations` |
+| Editar | `src/components/mayla/JitsiConsultationScreen.tsx` |
+| Editar | `src/components/mayla/ConsultationFlow.tsx` |
+| Editar | `src/components/mayla/OnDemandFlow.tsx` |
+| Editar | `src/components/professional/WaitingQueue.tsx` |
+| Editar | `src/components/professional/TodayConsultations.tsx` |
+| Editar | `src/pages/ProfessionalDashboard.tsx` |
+| Editar | `src/components/mayla/MaylaApp.tsx` |
 
