@@ -46,7 +46,7 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
   const [sharedToken, setSharedToken] = useState<string | null>(null);
   const [consultationMeta, setConsultationMeta] = useState<{ professionalId: string; patientUserId: string } | null>(null);
 
-  const roomName = `mayla-consulta-${consultation.id}`;
+  const roomName = consultation.roomToken ? `mayla-${consultation.roomToken}` : `mayla-consulta-${consultation.id}`;
   const displayName = user?.user_metadata?.full_name || user?.email || "Paciente";
   const userEmail = user?.email || "";
 
