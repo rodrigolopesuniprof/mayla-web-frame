@@ -67,8 +67,23 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }, { onConflict: "user_id" });
       }
 
-      const companyId = profile?.company_id || metaCompanyId || null;
+      let companyId = profile?.company_id || metaCompanyId || null;
       const isFallback = !companyId;
+
+      // Auto-vincular usuários sem empresa à MAYLA
+      if (!companyId) {
+        const { data: maylaCompany } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("slug", "mayla")
+          .maybeSingle();
+
+        if (maylaCompany) {
+          await supabase.from("profiles")
+            .upsert({ user_id: user.id, company_id: maylaCompany.id }, { onConflict: "user_id" });
+          companyId = maylaCompany.id;
+        }
+      }
 
       // Auto-sync company_id to profile if found via user_metadata but missing in profile
       if (companyId && profile && !profile.company_id) {
