@@ -2,17 +2,20 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useBinahMonitor, ImageValidity, type BinahVitalSigns } from "@/hooks/useBinahMonitor";
+import { Progress } from "@/components/ui/progress";
+import { HelpCircle, X } from "lucide-react";
 
 interface BinahCaptureProps {
   onClose: () => void;
   onComplete: () => void;
   municipalityId: string | null;
-  companyId: string | null;
+  companyId?: string | null;
 }
 
-type CapturePhase = "consent" | "preparing" | "capturing" | "processing" | "result" | "error";
+type CapturePhase = "consent" | "camera" | "measuring" | "result" | "error";
 
-interface BinahResult {
+interface MappedResult {
   heart_rate?: number;
   blood_pressure_sys?: number;
   blood_pressure_dia?: number;
@@ -27,235 +30,161 @@ interface BinahResult {
   cardiac_workload?: number;
 }
 
-// Binah SDK types (from @biosensesignal/web-sdk)
-interface BinahVitalSigns {
-  pulseRate?: { value?: number };
-  oxygenSaturation?: { value?: number };
-  respirationRate?: { value?: number };
-  sdnn?: { value?: number };
-  stressLevel?: { value?: number };
-  bloodPressure?: { value?: { systolic: number; diastolic: number } };
-  hemoglobin?: { value?: number };
-  hemoglobinA1c?: { value?: number };
-  wellnessLevel?: { value?: number };
-  wellnessIndex?: { value?: number };
-  prq?: { value?: number };
-  cardiacWorkload?: { value?: number };
+function mapVitalsToResult(vitals: BinahVitalSigns): MappedResult {
+  return {
+    heart_rate: vitals.pulseRate?.value,
+    respiratory_rate: vitals.respirationRate?.value,
+    stress_level: vitals.stressLevel?.value,
+    hrv_sdnn: vitals.sdnn?.value,
+    blood_pressure_sys: vitals.bloodPressure?.value?.systolic,
+    blood_pressure_dia: vitals.bloodPressure?.value?.diastolic,
+    spo2: vitals.oxygenSaturation?.value,
+    wellness_score: vitals.wellnessIndex?.value,
+    hemoglobin: vitals.hemoglobin?.value,
+    hba1c: vitals.hemoglobinA1c?.value,
+    prq: vitals.prq?.value,
+    cardiac_workload: vitals.cardiacWorkload?.value,
+  };
 }
 
-interface BinahSDK {
-  initialize(opts: { licenseKey: string }): Promise<void>;
-  createFaceSession(opts: {
-    input: HTMLVideoElement;
-    cameraDeviceId: string;
-    processingTime: number;
-    onVitalSign?: (vs: BinahVitalSigns) => void;
-    onFinalResults?: (res: { results: BinahVitalSigns }) => void;
-    onError?: (err: { code: number; message?: string }) => void;
-    onWarning?: (warn: { code: number; message?: string }) => void;
-    onFaceDetected?: (detected: boolean) => void;
-    onStateChange?: (state: number) => void;
-  }): Promise<{ start(): void; stop(): void; terminate(): void }>;
-  reset(): void;
-}
+const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
+  [ImageValidity.VALID]: { text: "Rosto detectado ✓", emoji: "✅" },
+  [ImageValidity.FACE_ORIENTATION]: { text: "Olhe para a câmera", emoji: "👀" },
+  [ImageValidity.INVALID_ROI]: { text: "Centralize o rosto", emoji: "🎯" },
+  [ImageValidity.TILTED_HEAD]: { text: "Mantenha a cabeça reta", emoji: "↕️" },
+  [ImageValidity.FACE_TOO_FAR]: { text: "Aproxime o rosto", emoji: "🔍" },
+  [ImageValidity.FACE_TOO_CLOSE]: { text: "Afaste o rosto", emoji: "↔️" },
+  [ImageValidity.UNEVEN_LIGHT]: { text: "Melhore a iluminação", emoji: "💡" },
+};
 
-const BINAH_LICENSE_KEY = "9FE0E4-F8E4ED-48B396-2CF86D-322751-1B04DE";
-
-function loadBinahSDK(): Promise<BinahSDK> {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if ((window as any).__binahSDK) {
-      resolve((window as any).__binahSDK);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "/binah-sdk/main.js";
-    script.async = true;
-    script.onload = () => {
-      // The SDK may export via module pattern or global
-      const sdk = (window as any).HealthMonitorManager ||
-                  (window as any).BinahSDK ||
-                  (window as any).__binahSDK;
-      if (sdk) {
-        (window as any).__binahSDK = sdk;
-        resolve(sdk);
-      } else {
-        reject(new Error("SDK carregado mas HealthMonitorManager não encontrado no escopo global"));
-      }
-    };
-    script.onerror = () => reject(new Error("Falha ao carregar o SDK da Binah"));
-    document.head.appendChild(script);
-  });
-}
+const PROCESSING_TIME = 60;
 
 export function BinahCapture({ onClose, onComplete, municipalityId, companyId }: BinahCaptureProps) {
   const { user } = useAuth();
-  const [phase, setPhase] = useState<CapturePhase>("consent");
-  const [result, setResult] = useState<BinahResult | null>(null);
-  const [liveVitals, setLiveVitals] = useState<BinahResult>({});
-  const [errorMsg, setErrorMsg] = useState("");
-  const [progress, setProgress] = useState(0);
-  const [faceDetected, setFaceDetected] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const sessionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const cleanup = useCallback(() => {
-    if (sessionRef.current) {
-      try { sessionRef.current.terminate(); } catch {}
-      sessionRef.current = null;
+  const [phase, setPhase] = useState<CapturePhase>("consent");
+  const [elapsed, setElapsed] = useState(0);
+  const [mappedResult, setMappedResult] = useState<MappedResult | null>(null);
+
+  const {
+    status,
+    partialVitals,
+    finalResults,
+    imageValidity,
+    errorMessage,
+    isDemoMode,
+    initialize,
+    startMeasurement,
+    stopMeasurement,
+    cleanup,
+  } = useBinahMonitor();
+
+  // Map final results when completed
+  useEffect(() => {
+    if (status === "completed" && finalResults) {
+      setMappedResult(mapVitalsToResult(finalResults));
+      setPhase("result");
+      stopTimer();
+      stopCamera();
     }
+  }, [status, finalResults]);
+
+  // Handle SDK errors
+  useEffect(() => {
+    if (status === "error") {
+      setPhase("error");
+      stopTimer();
+    }
+  }, [status]);
+
+  // Auto-start measurement when SDK is ready
+  useEffect(() => {
+    if (status === "ready" && phase === "camera") {
+      handleStartMeasurement();
+    }
+  }, [status, phase]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopTimer();
+      stopCamera();
+      cleanup();
+    };
+  }, [cleanup]);
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
-  }, []);
+  };
 
-  useEffect(() => () => cleanup(), [cleanup]);
-
-  const mapVitals = (vs: BinahVitalSigns): BinahResult => ({
-    heart_rate: vs.pulseRate?.value,
-    spo2: vs.oxygenSaturation?.value,
-    respiratory_rate: vs.respirationRate?.value,
-    hrv_sdnn: vs.sdnn?.value,
-    stress_level: vs.stressLevel?.value,
-    blood_pressure_sys: vs.bloodPressure?.value?.systolic,
-    blood_pressure_dia: vs.bloodPressure?.value?.diastolic,
-    hemoglobin: vs.hemoglobin?.value,
-    hba1c: vs.hemoglobinA1c?.value,
-    wellness_score: vs.wellnessLevel?.value ?? vs.wellnessIndex?.value,
-    prq: vs.prq?.value,
-    cardiac_workload: vs.cardiacWorkload?.value,
-  });
-
-  const startCapture = async () => {
-    setPhase("preparing");
-    setLiveVitals({});
-    setProgress(0);
-    setFaceDetected(false);
-
+  const openCamera = useCallback(async () => {
+    setPhase("camera");
     try {
-      // Get camera
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
       });
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        const deviceId = stream.getVideoTracks()[0]?.getSettings()?.deviceId || "";
+        await initialize(videoRef.current, deviceId);
       }
-
-      const videoTrack = stream.getVideoTracks()[0];
-      const cameraDeviceId = videoTrack.getSettings().deviceId || "";
-
-      // Load SDK
-      let sdk: BinahSDK;
-      try {
-        sdk = await loadBinahSDK();
-      } catch {
-        // SDK failed to load - fall back to simulation
-        console.warn("Binah SDK not available, using simulation mode");
-        runSimulation();
-        return;
-      }
-
-      // Initialize
-      await sdk.initialize({ licenseKey: BINAH_LICENSE_KEY });
-
-      const processingTime = 60; // seconds
-      let elapsed = 0;
-      const timer = setInterval(() => {
-        elapsed++;
-        setProgress(Math.min((elapsed / processingTime) * 100, 100));
-      }, 1000);
-
-      // Create session
-      const session = await sdk.createFaceSession({
-        input: videoRef.current!,
-        cameraDeviceId,
-        processingTime,
-        onVitalSign: (vs) => {
-          setLiveVitals(prev => ({ ...prev, ...mapVitals(vs) }));
-        },
-        onFinalResults: (res) => {
-          clearInterval(timer);
-          setPhase("processing");
-          const finalResult = mapVitals(res.results);
-          setTimeout(() => {
-            setResult(finalResult);
-            setPhase("result");
-          }, 1500);
-        },
-        onError: (err) => {
-          clearInterval(timer);
-          cleanup();
-          setErrorMsg(`Erro ${err.code}: ${err.message || "Erro na medição"}`);
-          setPhase("error");
-        },
-        onFaceDetected: (detected) => setFaceDetected(detected),
-        onStateChange: (state) => {
-          if (state === 2) setPhase("capturing"); // MEASURING
-        },
-      });
-
-      sessionRef.current = session;
-      session.start();
-      setPhase("capturing");
     } catch (err: any) {
-      cleanup();
-      if (err.name === "NotAllowedError") {
-        setErrorMsg("Permissão da câmera negada. Habilite a câmera nas configurações do navegador.");
-      } else {
-        setErrorMsg(err.message || "Erro ao iniciar medição");
-      }
+      console.error("Camera error:", err);
       setPhase("error");
     }
-  };
+  }, [initialize]);
 
-  const runSimulation = () => {
-    setPhase("capturing");
-    let elapsed = 0;
-    const interval = setInterval(() => {
-      elapsed++;
-      setProgress(Math.min((elapsed / 30) * 100, 100));
-      setFaceDetected(true);
-      setLiveVitals({
-        heart_rate: 68 + Math.floor(Math.random() * 8),
-        spo2: 97 + Math.floor(Math.random() * 2),
-        respiratory_rate: 14 + Math.floor(Math.random() * 4),
-        stress_level: 20 + Math.floor(Math.random() * 10),
+  const handleStartMeasurement = async () => {
+    setPhase("measuring");
+    setElapsed(0);
+
+    timerRef.current = setInterval(() => {
+      setElapsed((prev) => {
+        if (prev >= PROCESSING_TIME) {
+          stopTimer();
+          return PROCESSING_TIME;
+        }
+        return prev + 1;
       });
     }, 1000);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      setPhase("processing");
-      setTimeout(() => {
-        setResult({
-          heart_rate: 72,
-          blood_pressure_sys: 120,
-          blood_pressure_dia: 80,
-          spo2: 98,
-          respiratory_rate: 16,
-          stress_level: 25,
-          wellness_score: 85,
-        });
-        setPhase("result");
-      }, 1500);
-    }, 10000);
+    await startMeasurement();
+  };
+
+  const handleCancel = () => {
+    stopMeasurement();
+    stopTimer();
+    stopCamera();
+    cleanup();
+    onClose();
   };
 
   const saveResult = async () => {
-    if (!user || !result) return;
+    if (!user || !mappedResult) return;
 
     const { error } = await supabase.from("special_measurements").insert({
       user_id: user.id,
       municipality_id: municipalityId,
-      company_id: companyId,
-      measurement_data: result as any,
-      source: "binah",
+      company_id: companyId || null,
+      measurement_data: mappedResult as any,
+      source: isDemoMode ? "binah_demo" : "binah",
     });
 
     if (error) {
@@ -263,209 +192,312 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       return;
     }
 
-    toast({ title: "Medição salva! 🎉", description: "+100 pontos de saúde" });
-    cleanup();
+    toast({ title: "Medição especial salva! 🎉", description: "+100 pontos de saúde" });
     onComplete();
     onClose();
   };
 
-  const handleClose = () => {
-    cleanup();
-    onClose();
-  };
+  const validityInfo = VALIDITY_MESSAGES[imageValidity] || VALIDITY_MESSAGES[ImageValidity.VALID];
+  const partialMapped = partialVitals ? mapVitalsToResult(partialVitals) : null;
+  const progressPercent = Math.min((elapsed / PROCESSING_TIME) * 100, 100);
 
-  const resultItems = result
+  const resultItems = mappedResult
     ? [
-        { label: "Freq. Cardíaca", value: result.heart_rate, unit: "bpm", emoji: "❤️" },
-        { label: "Pressão Arterial", value: result.blood_pressure_sys && result.blood_pressure_dia ? `${result.blood_pressure_sys}/${result.blood_pressure_dia}` : null, unit: "mmHg", emoji: "🩺" },
-        { label: "SpO2", value: result.spo2, unit: "%", emoji: "💧" },
-        { label: "Respiração", value: result.respiratory_rate, unit: "rpm", emoji: "🫁" },
-        { label: "Estresse", value: result.stress_level, unit: "%", emoji: "😰" },
-        { label: "Bem-estar", value: result.wellness_score, unit: "pts", emoji: "✨" },
-        { label: "HRV (SDNN)", value: result.hrv_sdnn, unit: "ms", emoji: "📊" },
-        { label: "Hemoglobina", value: result.hemoglobin, unit: "g/dL", emoji: "🩸" },
-        { label: "HbA1c", value: result.hba1c, unit: "%", emoji: "🔬" },
-        { label: "PRQ", value: result.prq, unit: "", emoji: "💓" },
+        {
+          label: "Freq. Cardíaca", value: mappedResult.heart_rate, unit: "bpm", emoji: "❤️",
+          info: "Quantas vezes o coração bate por minuto.\n\nNormal em repouso: 60–100 bpm.\nAbaixo de 60: pode indicar bradicardia.\nAcima de 100: pode indicar taquicardia.",
+        },
+        {
+          label: "Pressão Arterial",
+          value: mappedResult.blood_pressure_sys && mappedResult.blood_pressure_dia
+            ? `${mappedResult.blood_pressure_sys}/${mappedResult.blood_pressure_dia}` : null,
+          unit: "mmHg", emoji: "🩺",
+          info: "Mede a força do sangue nas artérias.\n\nIdeal: abaixo de 120/80 mmHg.\n120–139/80–89: pré-hipertensão.\n≥140/90: hipertensão.",
+        },
+        {
+          label: "SpO2", value: mappedResult.spo2, unit: "%", emoji: "💧",
+          info: "Indica a oxigenação do sangue.\n\nNormal: 95–100%.\nAbaixo de 95%: requer atenção médica.\nAbaixo de 90%: emergência.",
+        },
+        {
+          label: "Respiração", value: mappedResult.respiratory_rate, unit: "rpm", emoji: "🫁",
+          info: "Quantas respirações por minuto.\n\nNormal: 12–20 rpm.\nAbaixo de 12: pode indicar depressão respiratória.\nAcima de 20: pode indicar taquipneia.",
+        },
+        {
+          label: "Estresse", value: mappedResult.stress_level, unit: "%", emoji: "😰",
+          info: "Índice estimado via variabilidade cardíaca.\n\n0–30%: estresse baixo.\n30–60%: moderado.\n60–100%: elevado — considere técnicas de relaxamento.",
+        },
+        {
+          label: "HRV SDNN", value: mappedResult.hrv_sdnn, unit: "ms", emoji: "📊",
+          info: "Variabilidade da frequência cardíaca — mede o equilíbrio do sistema nervoso.\n\n<30 ms: estresse elevado.\n30–50 ms: moderado.\n>50 ms: ótimo — boa capacidade de recuperação.",
+        },
+        {
+          label: "Bem-estar", value: mappedResult.wellness_score, unit: "pts", emoji: "✨",
+          info: "Índice composto calculado pelo algoritmo.\n\n70+: bom.\n80+: muito bom.\n90+: excelente.",
+        },
+        {
+          label: "Hemoglobina", value: mappedResult.hemoglobin, unit: "g/dL", emoji: "🩸",
+          info: "Proteína que transporta oxigênio no sangue.\n\nHomens: 13.5–17.5 g/dL.\nMulheres: 12.0–16.0 g/dL.\nValores baixos podem indicar anemia.",
+        },
+        {
+          label: "HbA1c", value: mappedResult.hba1c, unit: "%", emoji: "🧬",
+          info: "Média da glicose nos últimos 2–3 meses.\n\n<5.7%: normal.\n5.7–6.4%: pré-diabetes.\n≥6.5%: diabetes — procure orientação médica.",
+        },
       ].filter((i) => i.value != null)
     : [];
 
+  const [infoItem, setInfoItem] = useState<{ label: string; emoji: string; info: string } | null>(null);
+
   return (
-    <div className="flex-1 flex flex-col bg-background">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-4 pb-3">
-        <button onClick={handleClose} className="text-muted-foreground text-lg border-none bg-transparent cursor-pointer">✕</button>
+      <div className="flex items-center gap-3 px-5 pt-4 pb-3 shrink-0">
+        <button onClick={handleCancel} className="text-muted-foreground text-lg">
+          ✕
+        </button>
         <h2 className="font-display text-lg font-semibold text-foreground">Medição Especial</h2>
-        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium">BINAH</span>
+        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium">
+          {isDemoMode ? "DEMONSTRAÇÃO" : "BINAH"}
+        </span>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        {/* Consent */}
-        {phase === "consent" && (
-          <div className="text-center space-y-5">
-            <div className="text-6xl">🔬</div>
-            <h3 className="font-display text-xl font-semibold text-foreground">Análise Completa de Saúde</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Esta medição analisa múltiplos indicadores pela câmera, incluindo{" "}
-              <strong>pressão arterial</strong>, <strong>hemoglobina</strong>, <strong>variabilidade cardíaca</strong> e mais.
-            </p>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {["❤️ FC", "🩺 PA", "💧 SpO2", "🫁 Resp", "😰 Estresse", "✨ Bem-estar"].map((item, i) => (
-                <div key={i} className="bg-secondary rounded-xl py-2 px-1 text-[11px] font-medium text-muted-foreground">
-                  {item}
+      {/* Video element */}
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        className={
+          phase === "camera" || phase === "measuring"
+            ? "w-full max-h-[300px] object-cover rounded-2xl mx-auto px-4 shrink-0"
+            : "hidden"
+        }
+      />
+
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
+        <div className="flex flex-col items-center justify-center min-h-full">
+          {/* Consent */}
+          {phase === "consent" && (
+            <div className="text-center space-y-5">
+              <div className="text-6xl">🔬</div>
+              <h3 className="font-display text-xl font-semibold text-foreground">
+                Análise Completa de Saúde
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Esta medição especial analisa múltiplos indicadores de saúde pela câmera do celular,
+                incluindo <strong>pressão arterial</strong>, <strong>hemoglobina</strong>,{" "}
+                <strong>variabilidade cardíaca</strong> e mais.
+              </p>
+              {isDemoMode && (
+                <div className="bg-accent/10 border border-accent/20 rounded-xl px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
+                  ⚠️ <strong>Modo demonstração</strong> — os valores gerados são simulados e não representam dados médicos reais.
                 </div>
-              ))}
+              )}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {["❤️ FC", "🩺 PA", "💧 SpO2", "🫁 Resp", "😰 Estresse", "✨ Bem-estar"].map(
+                  (item, i) => (
+                    <div
+                      key={i}
+                      className="bg-secondary rounded-xl py-2 px-1 text-[11px] font-medium text-muted-foreground"
+                    >
+                      {item}
+                    </div>
+                  )
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Duração: ~60 segundos · Necessário boa iluminação
+              </p>
+              <button
+                onClick={openCamera}
+                className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
+                style={{
+                  background:
+                    "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
+                  boxShadow: "0 8px 24px rgba(26,92,138,.3)",
+                }}
+              >
+                {isDemoMode ? "Iniciar Demonstração" : "Iniciar Medição Especial"}
+              </button>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Duração: ~60 segundos · Necessário boa iluminação
-            </p>
-            <button
-              onClick={startCapture}
-              className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white border-none cursor-pointer"
-              style={{
-                background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
-                boxShadow: "0 8px 24px rgba(26,92,138,.3)",
-              }}
-            >
-              Iniciar Medição
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* Preparing */}
-        {phase === "preparing" && (
-          <div className="text-center space-y-4">
-            <div className="text-5xl animate-pulse">📡</div>
-            <p className="text-sm font-medium text-foreground">Preparando câmera...</p>
-            <p className="text-[12px] text-muted-foreground">Conectando ao SDK de análise</p>
-          </div>
-        )}
+          {/* Camera initializing / SDK loading */}
+          {phase === "camera" && status !== "ready" && (
+            <div className="text-center space-y-4 mt-4">
+              <div className="text-4xl animate-pulse">📡</div>
+              <p className="text-sm font-medium text-foreground">Preparando análise...</p>
+              <p className="text-[12px] text-muted-foreground">Inicializando o SDK de medição</p>
+            </div>
+          )}
 
-        {/* Capturing */}
-        {phase === "capturing" && (
-          <div className="w-full space-y-4">
-            {/* Video feed */}
-            <div className="relative w-48 h-48 mx-auto rounded-full overflow-hidden border-4 border-accent/30">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-                style={{ transform: "scaleX(-1)" }}
-              />
-              {!faceDetected && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                  <p className="text-xs text-foreground font-medium">Posicione o rosto</p>
+          {/* Measuring */}
+          {phase === "measuring" && (
+            <div className="w-full space-y-4 mt-4">
+              {!isDemoMode && (
+                <div
+                  className={`text-center py-2 px-4 rounded-xl text-sm font-medium ${
+                    imageValidity === ImageValidity.VALID
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                  }`}
+                >
+                  {validityInfo.emoji} {validityInfo.text}
+                </div>
+              )}
+
+              {isDemoMode && (
+                <div className="text-center py-2 px-4 rounded-xl text-sm font-medium bg-accent/10 text-accent">
+                  🎭 Modo demonstração — analisando...
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>Medindo sinais vitais...</span>
+                  <span>
+                    {elapsed}s / {PROCESSING_TIME}s
+                  </span>
+                </div>
+                <Progress value={progressPercent} className="h-2" />
+              </div>
+
+              {partialMapped && (
+                <div className="grid grid-cols-3 gap-2">
+                  {partialMapped.heart_rate && (
+                    <div className="bg-secondary rounded-xl p-2.5 text-center">
+                      <span className="text-base">❤️</span>
+                      <div className="font-display text-lg font-bold text-foreground">
+                        {Math.round(partialMapped.heart_rate)}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">bpm</span>
+                    </div>
+                  )}
+                  {partialMapped.respiratory_rate && (
+                    <div className="bg-secondary rounded-xl p-2.5 text-center">
+                      <span className="text-base">🫁</span>
+                      <div className="font-display text-lg font-bold text-foreground">
+                        {Math.round(partialMapped.respiratory_rate)}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">rpm</span>
+                    </div>
+                  )}
+                  {partialMapped.stress_level != null && (
+                    <div className="bg-secondary rounded-xl p-2.5 text-center">
+                      <span className="text-base">😰</span>
+                      <div className="font-display text-lg font-bold text-foreground">
+                        {Math.round(partialMapped.stress_level)}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">%</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+          )}
 
-            <div className="text-center">
-              <p className="text-sm font-medium text-foreground">
-                {faceDetected ? "Analisando..." : "Posicione o rosto na câmera"}
-              </p>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-48 h-1.5 bg-secondary rounded-full mx-auto overflow-hidden">
-              <div
-                className="h-full bg-accent rounded-full transition-all duration-1000"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground text-center">{Math.round(progress)}%</p>
-
-            {/* Live vitals */}
-            {(liveVitals.heart_rate || liveVitals.spo2) && (
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {liveVitals.heart_rate && (
-                  <div className="bg-secondary rounded-xl p-2.5 text-center">
-                    <span className="text-xs text-muted-foreground">❤️ FC</span>
-                    <div className="font-display text-lg font-bold text-foreground">{liveVitals.heart_rate}</div>
-                  </div>
-                )}
-                {liveVitals.spo2 && (
-                  <div className="bg-secondary rounded-xl p-2.5 text-center">
-                    <span className="text-xs text-muted-foreground">💧 SpO2</span>
-                    <div className="font-display text-lg font-bold text-foreground">{liveVitals.spo2}%</div>
-                  </div>
+          {/* Result */}
+          {phase === "result" && mappedResult && (
+            <div className="w-full space-y-4 py-2">
+              <div className="text-center mb-2">
+                <div className="text-4xl mb-2">✅</div>
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  Resultados da Medição
+                </h3>
+                {isDemoMode && (
+                  <p className="text-[11px] text-accent mt-1 font-medium">
+                    ⚠️ Valores simulados — modo demonstração
+                  </p>
                 )}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Processing */}
-        {phase === "processing" && (
-          <div className="text-center space-y-4">
-            <div className="text-5xl animate-spin-slow">⚙️</div>
-            <p className="text-sm font-medium text-foreground">Processando resultados...</p>
-          </div>
-        )}
-
-        {/* Result */}
-        {phase === "result" && result && (
-          <div className="w-full space-y-4">
-            <div className="text-center mb-2">
-              <div className="text-4xl mb-2">✅</div>
-              <h3 className="font-display text-lg font-semibold text-foreground">Resultados</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {resultItems.map((item, i) => (
-                <div key={i} className="bg-secondary rounded-2xl p-3.5">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-base">{item.emoji}</span>
-                    <span className="text-[11px] text-muted-foreground">{item.label}</span>
+              <div className="grid grid-cols-2 gap-3">
+                {resultItems.map((item, i) => (
+                  <div key={i} className="bg-secondary rounded-2xl p-3.5 relative">
+                    <button
+                      onClick={() => setInfoItem(item)}
+                      className="absolute top-2.5 right-2.5 text-muted-foreground/50 hover:text-foreground transition-colors active:scale-95"
+                      aria-label={`Informações sobre ${item.label}`}
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-base">{item.emoji}</span>
+                      <span className="text-[11px] text-muted-foreground">{item.label}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-display text-xl font-bold text-foreground">
+                        {item.value}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">{item.unit}</span>
+                    </div>
                   </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-display text-xl font-bold text-foreground">{item.value}</span>
-                    <span className="text-[10px] text-muted-foreground">{item.unit}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <button
+                onClick={saveResult}
+                className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white mt-2"
+                style={{
+                  background:
+                    "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
+                }}
+              >
+                Salvar Medição
+              </button>
             </div>
-            <button
-              onClick={saveResult}
-              className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white mt-2 border-none cursor-pointer"
-              style={{
-                background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
-              }}
-            >
-              Salvar Medição
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* Error */}
-        {phase === "error" && (
-          <div className="text-center space-y-4">
-            <div className="text-5xl">⚠️</div>
-            <p className="text-sm font-medium text-foreground">Medição não concluída</p>
-            <p className="text-[12px] text-muted-foreground leading-relaxed">{errorMsg}</p>
-            <button
-              onClick={() => { cleanup(); setPhase("consent"); }}
-              className="rounded-2xl px-6 py-2.5 text-sm font-medium bg-secondary text-foreground border-none cursor-pointer"
-            >
-              Tentar novamente
-            </button>
-          </div>
-        )}
+          {/* Error */}
+          {phase === "error" && (
+            <div className="text-center space-y-4">
+              <div className="text-5xl">⚠️</div>
+              <p className="text-sm font-medium text-foreground">Medição não concluída</p>
+              <p className="text-[12px] text-muted-foreground leading-relaxed">
+                {errorMessage || "Erro desconhecido"}
+              </p>
+              <button
+                onClick={() => {
+                  cleanup();
+                  setPhase("consent");
+                }}
+                className="rounded-2xl px-6 py-2.5 text-sm font-medium bg-secondary text-foreground"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Hidden video element for SDK when not in capturing phase */}
-      {phase !== "capturing" && (
-        <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-      )}
-
-      {/* Cancel button */}
-      {phase !== "result" && phase !== "consent" && (
-        <div className="px-6 pb-6">
+      {/* Cancel button during measurement */}
+      {(phase === "camera" || phase === "measuring") && (
+        <div className="px-6 pb-6 shrink-0">
           <button
-            onClick={handleClose}
-            className="w-full rounded-2xl py-3 text-sm font-medium bg-secondary text-muted-foreground border-none cursor-pointer"
+            onClick={handleCancel}
+            className="w-full rounded-2xl py-3 text-sm font-medium bg-secondary text-muted-foreground"
           >
             Cancelar
           </button>
+        </div>
+      )}
+
+      {/* Info Modal */}
+      {infoItem && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40" onClick={() => setInfoItem(null)}>
+          <div
+            className="w-full max-w-md bg-background rounded-t-3xl p-6 pb-8 animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{infoItem.emoji}</span>
+                <h3 className="font-display text-lg font-semibold text-foreground">{infoItem.label}</h3>
+              </div>
+              <button onClick={() => setInfoItem(null)} className="text-muted-foreground hover:text-foreground active:scale-95">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+              {infoItem.info}
+            </div>
+          </div>
         </div>
       )}
     </div>
