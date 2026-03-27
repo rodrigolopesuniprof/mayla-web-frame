@@ -562,6 +562,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       } else {
         // Go to waiting room instead of done
         setWaitingConsultationId(consultData2?.id || null);
+        setActiveRoomToken((consultData2 as any)?.room_token || null);
         setWaitingStatus("confirmed");
         setWaitingSeconds(0);
         toast({ title: "Consulta online agendada! ✅" });
