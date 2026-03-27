@@ -21,7 +21,7 @@ interface Consultation {
 
 interface Props {
   partnerId: string;
-  onStartCall: (consultation: { id: string; patientName: string; specialty: string }) => void;
+  onStartCall: (consultation: { id: string; patientName: string; specialty: string; roomToken?: string }) => void;
 }
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
