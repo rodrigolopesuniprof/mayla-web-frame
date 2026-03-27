@@ -819,9 +819,11 @@ function Medicamentos({ userId }: { userId?: string }) {
 function Configuracoes({ userId, userEmail }: { userId?: string; userEmail?: string }) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [sendingReset, setSendingReset] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -867,17 +869,28 @@ function Configuracoes({ userId, userEmail }: { userId?: string; userEmail?: str
     toast({ title: "Foto atualizada!" });
   };
 
-  const handleResetPassword = async () => {
-    if (!userEmail) return;
-    setSendingReset(true);
-    const { error } = await (supabase.auth as any).resetPasswordForEmail(userEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setSendingReset(false);
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "A senha deve ter pelo menos 6 caracteres", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "As senhas não coincidem", variant: "destructive" });
+      return;
+    }
+    setSavingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPassword(false);
     if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao alterar senha", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Email enviado!", description: "Verifique sua caixa de entrada para redefinir a senha." });
+      toast({ title: "Senha alterada com sucesso!" });
+      setNewPassword("");
+      setConfirmPassword("");
     }
   };
 
@@ -919,12 +932,32 @@ function Configuracoes({ userId, userEmail }: { userId?: string; userEmail?: str
         </Button>
       </div>
 
-      {/* Reset password */}
+      {/* Change password directly */}
       <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
-        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase">Senha</p>
-        <p className="text-[12px] text-muted-foreground">Um email será enviado para <strong>{userEmail}</strong> com o link para redefinição de senha.</p>
-        <Button variant="outline" size="sm" onClick={handleResetPassword} disabled={sendingReset}>
-          {sendingReset ? "Enviando..." : "🔑 Redefinir senha"}
+        <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase">Alterar senha</p>
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Nova senha</Label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              minLength={6}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Confirmar nova senha</Label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repita a nova senha"
+            />
+          </div>
+        </div>
+        <Button size="sm" onClick={handleChangePassword} disabled={savingPassword}>
+          {savingPassword ? "Salvando..." : "🔑 Alterar senha"}
         </Button>
       </div>
     </div>
