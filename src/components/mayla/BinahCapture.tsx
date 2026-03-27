@@ -392,11 +392,6 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                 <h3 className="font-display text-lg font-semibold text-foreground">
                   Resultados da Medição
                 </h3>
-                {isDemoMode && (
-                  <p className="text-[11px] text-accent mt-1 font-medium">
-                    ⚠️ Valores simulados — modo demonstração
-                  </p>
-                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {resultItems.map((item, i) => (
