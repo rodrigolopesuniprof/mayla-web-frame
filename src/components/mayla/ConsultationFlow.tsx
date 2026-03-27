@@ -493,6 +493,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     // Go to waiting room
     setSelectedDoctor({ id: best.id, name: best.name, specialty: best.specialty } as Doctor);
     setWaitingConsultationId(consultData.id);
+    setActiveRoomToken((consultData as any).room_token || null);
     setStep("waiting_room");
     toast({ title: "Profissional encontrado! ⚡", description: `${best.name} foi notificado e atenderá você em breve.` });
   };
