@@ -1960,7 +1960,9 @@ export type Database = {
           external_professional_name: string | null
           external_system: string
           id: string
+          internal_partner_id: string | null
           report_token: string
+          source_type: string
           updated_at: string
           user_id: string
         }
@@ -1974,7 +1976,9 @@ export type Database = {
           external_professional_name?: string | null
           external_system?: string
           id?: string
+          internal_partner_id?: string | null
           report_token?: string
+          source_type?: string
           updated_at?: string
           user_id: string
         }
@@ -1988,7 +1992,9 @@ export type Database = {
           external_professional_name?: string | null
           external_system?: string
           id?: string
+          internal_partner_id?: string | null
           report_token?: string
+          source_type?: string
           updated_at?: string
           user_id?: string
         }
@@ -1998,6 +2004,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prontuario_connections_internal_partner_id_fkey"
+            columns: ["internal_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]
