@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useBinahMonitor, ImageValidity, type BinahVitalSigns } from "@/hooks/useBinahMonitor";
+import { useVitalsMeasurement, ImageValidity, type VitalSigns } from "@/hooks/useVitalsMeasurement";
 import { Progress } from "@/components/ui/progress";
 import { HelpCircle, X } from "lucide-react";
 
@@ -30,7 +30,7 @@ interface MappedResult {
   cardiac_workload?: number;
 }
 
-function mapVitalsToResult(vitals: BinahVitalSigns): MappedResult {
+function mapVitalsToResult(vitals: VitalSigns): MappedResult {
   return {
     heart_rate: vitals.pulseRate?.value,
     respiratory_rate: vitals.respirationRate?.value,
@@ -76,11 +76,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     imageValidity,
     errorMessage,
     isDemoMode,
+    providerName,
     initialize,
     startMeasurement,
     stopMeasurement,
     cleanup,
-  } = useBinahMonitor();
+  } = useVitalsMeasurement(companyId);
 
   // Map final results when completed
   useEffect(() => {
@@ -184,7 +185,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       municipality_id: municipalityId,
       company_id: companyId || null,
       measurement_data: mappedResult as any,
-      source: isDemoMode ? "binah_demo" : "binah",
+      source: isDemoMode ? "vitals_demo" : "vitals_premium",
     });
 
     if (error) {
@@ -255,8 +256,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
           ✕
         </button>
         <h2 className="font-display text-lg font-semibold text-foreground">Medição Especial</h2>
-        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium">
-          BINAH
+        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium uppercase">
+          {providerName}
         </span>
       </div>
 
