@@ -76,11 +76,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     imageValidity,
     errorMessage,
     isDemoMode,
+    providerName,
     initialize,
     startMeasurement,
     stopMeasurement,
     cleanup,
-  } = useBinahMonitor();
+  } = useVitalsMeasurement(companyId);
 
   // Map final results when completed
   useEffect(() => {
