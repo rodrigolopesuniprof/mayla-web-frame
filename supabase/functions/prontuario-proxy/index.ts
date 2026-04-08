@@ -75,18 +75,18 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "specialities":
-        medditUrl = `${MEDDIT_BASE}/v1/clinics/specialities`;
+        medditUrl = `${medditBase}/v1/clinics/specialities`;
         break;
 
       case "professionals": {
         const specialityId = url.searchParams.get("specialityId") || "";
         const name = url.searchParams.get("name") || "";
-        medditUrl = `${MEDDIT_BASE}/v1/clinics/professional/search?specialityId=${specialityId}&name=${encodeURIComponent(name)}`;
+        medditUrl = `${medditBase}/v1/clinics/professional/search?specialityId=${specialityId}&name=${encodeURIComponent(name)}`;
         break;
       }
 
       case "offices":
-        medditUrl = `${MEDDIT_BASE}/v1/clinics/offices`;
+        medditUrl = `${medditBase}/v1/clinics/offices`;
         break;
 
       case "calendar": {
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         if (!professionalId || !officeId) {
           return new Response(JSON.stringify({ error: "professionalId e officeId são obrigatórios" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        medditUrl = `${MEDDIT_BASE}/v1/professionals/${professionalId}/office/${officeId}/calendar`;
+        medditUrl = `${medditBase}/v1/professionals/${professionalId}/office/${officeId}/calendar`;
         break;
       }
 
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         if (!profId || !patientId) {
           return new Response(JSON.stringify({ error: "professionalId e patientId são obrigatórios" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        medditUrl = `${MEDDIT_BASE}/v1/appointments/${qtdDays}/professional/${profId}/patient/${patientId}/check`;
+        medditUrl = `${medditBase}/v1/appointments/${qtdDays}/professional/${profId}/patient/${patientId}/check`;
         break;
       }
 
@@ -114,19 +114,19 @@ Deno.serve(async (req) => {
         if (req.method !== "POST") {
           return new Response(JSON.stringify({ error: "Use POST para register" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        medditUrl = `${MEDDIT_BASE}/v1/appointments/register`;
+        medditUrl = `${medditBase}/v1/appointments/register`;
         medditMethod = "POST";
         medditBody = await req.text();
         break;
       }
 
       case "patient": {
-        medditUrl = `${MEDDIT_BASE}/v1/users/cpf/${cpf}`;
+        medditUrl = `${medditBase}/v1/users/cpf/${cpf}`;
         break;
       }
 
       case "clinics": {
-        medditUrl = `${MEDDIT_BASE}/v1/clinics/user/cpf/${cpf}`;
+        medditUrl = `${medditBase}/v1/clinics/user/cpf/${cpf}`;
         break;
       }
 
