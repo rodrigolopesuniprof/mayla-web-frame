@@ -28,10 +28,16 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // Get user CPF from profile using service role
+    // Get user profile using service role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: profile } = await adminClient.from("profiles").select("cpf, company_id").eq("user_id", userId).single();
-    if (!profile?.cpf) {
+    const { data: profile } = await adminClient.from("profiles").select("cpf, company_id").eq("user_id", userId).maybeSingle();
+
+    // For test_connection, CPF is not required — check early
+    const urlCheck = new URL(req.url);
+    const actionCheck = urlCheck.searchParams.get("action");
+    if (actionCheck === "test_connection") {
+      // Skip CPF check, proceed directly to test_connection case below
+    } else if (!profile?.cpf) {
       return new Response(JSON.stringify({ error: "CPF não encontrado no perfil" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
