@@ -1,8 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 
-const MEDDIT_BASE = "http://meddit-api-clinic-nv.us-west-2.elasticbeanstalk.com";
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -18,7 +16,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const medditApiKey = Deno.env.get("MEDDIT_API_KEY")!;
+    const globalMedditApiKey = Deno.env.get("MEDDIT_API_KEY") || "";
 
     // Validate user
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -38,12 +36,28 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "CPF não encontrado no perfil" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Check feature flag
+    // Check feature flag and get provider config
+    let medditBase = "";
+    let medditApiKey = globalMedditApiKey;
+
     if (profile.company_id) {
-      const { data: feature } = await adminClient.from("company_features").select("enabled").eq("company_id", profile.company_id).eq("feature_key", "prontuario_conveniado").maybeSingle();
+      const { data: feature } = await adminClient.from("company_features")
+        .select("enabled, config")
+        .eq("company_id", profile.company_id)
+        .eq("feature_key", "prontuario_conveniado")
+        .maybeSingle();
       if (!feature?.enabled) {
         return new Response(JSON.stringify({ error: "Feature não habilitada para esta empresa" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      // Read per-company provider credentials from config
+      const cfg = (feature.config as Record<string, any>) || {};
+      if (cfg.base_url) medditBase = cfg.base_url;
+      if (cfg.api_key) medditApiKey = cfg.api_key;
+    }
+
+    // Fallback to hardcoded base URL if not set in company config
+    if (!medditBase) {
+      medditBase = "http://meddit-api-clinic-nv.us-west-2.elasticbeanstalk.com";
     }
 
     const url = new URL(req.url);
