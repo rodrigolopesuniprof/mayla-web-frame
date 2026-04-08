@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { FavoriteDoctors } from "./FavoriteDoctors";
 import { TopBar } from "./TopBar";
 import { Avatar } from "./MaylaIcons";
 import { useAuth } from "@/contexts/AuthContext";
