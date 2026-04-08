@@ -256,8 +256,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
           ✕
         </button>
         <h2 className="font-display text-lg font-semibold text-foreground">Medição Especial</h2>
-        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium">
-          BINAH
+        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium uppercase">
+          {providerName}
         </span>
       </div>
 
