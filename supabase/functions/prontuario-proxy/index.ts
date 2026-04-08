@@ -28,10 +28,16 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // Get user CPF from profile using service role
+    // Get user profile using service role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: profile } = await adminClient.from("profiles").select("cpf, company_id").eq("user_id", userId).single();
-    if (!profile?.cpf) {
+    const { data: profile } = await adminClient.from("profiles").select("cpf, company_id").eq("user_id", userId).maybeSingle();
+
+    // For test_connection, CPF is not required — check early
+    const urlCheck = new URL(req.url);
+    const actionCheck = urlCheck.searchParams.get("action");
+    if (actionCheck === "test_connection") {
+      // Skip CPF check, proceed directly to test_connection case below
+    } else if (!profile?.cpf) {
       return new Response(JSON.stringify({ error: "CPF não encontrado no perfil" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -74,16 +80,47 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "test_connection": {
-        // Admin connectivity test — hit specialities endpoint and return ok/error
-        const testResp = await fetch(`${medditBase}/v1/clinics/specialities`, {
-          method: "GET",
-          headers: medditHeaders,
-        });
-        const ok = testResp.ok;
-        return new Response(JSON.stringify({ ok, status: testResp.status }), {
-          status: ok ? 200 : 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        // Admin connectivity test — bypass CPF requirement
+        // Accept optional company_id override from query params
+        const testCompanyId = url.searchParams.get("company_id") || profile?.company_id;
+        if (testCompanyId) {
+          // Re-read config for the target company (admin may be editing a different company)
+          const { data: testFeature } = await adminClient.from("company_features")
+            .select("config")
+            .eq("company_id", testCompanyId)
+            .eq("feature_key", "prontuario_conveniado")
+            .maybeSingle();
+          const testCfg = (testFeature?.config as Record<string, any>) || {};
+          if (testCfg.base_url) medditBase = testCfg.base_url;
+          if (testCfg.api_key) medditApiKey = testCfg.api_key;
+        }
+        // Sanitize base URL – strip trailing /docs/ or /docs paths
+        medditBase = medditBase.replace(/\/docs\/?$/, "").replace(/\/+$/, "");
+        if (!medditBase) {
+          medditBase = "http://meddit-api-clinic-nv.us-west-2.elasticbeanstalk.com";
+        }
+        const testHeaders: Record<string, string> = {
+          "Authorization": medditApiKey,
+          "Content-Type": "application/json",
+        };
+        try {
+          const testResp = await fetch(`${medditBase}/v1/clinics/specialities`, {
+            method: "GET",
+            headers: testHeaders,
+          });
+          const ok = testResp.ok;
+          const bodyText = await testResp.text();
+          return new Response(JSON.stringify({ ok, status: testResp.status, body: bodyText.substring(0, 500) }), {
+            status: ok ? 200 : 502,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (fetchErr: any) {
+          console.error("test_connection fetch error:", fetchErr);
+          return new Response(JSON.stringify({ ok: false, status: 0, error: fetchErr.message }), {
+            status: 502,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       case "specialities":

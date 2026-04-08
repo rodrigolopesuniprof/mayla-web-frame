@@ -158,14 +158,14 @@ export function AdminIntegrations({ companyId }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       const projId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const resp = await fetch(
-        `https://${projId}.supabase.co/functions/v1/prontuario-proxy?action=test_connection`,
+        `https://${projId}.supabase.co/functions/v1/prontuario-proxy?action=test_connection&company_id=${companyId}`,
         { headers: { Authorization: `Bearer ${session?.access_token}` } }
       );
       const result = await resp.json();
       if (result.ok) {
         toast({ title: "✅ Conexão bem-sucedida!", description: "A API respondeu corretamente." });
       } else {
-        toast({ title: "❌ Falha na conexão", description: `Status: ${result.status}`, variant: "destructive" });
+        toast({ title: "❌ Falha na conexão", description: result.error || `Status HTTP: ${result.status}`, variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "❌ Erro de conexão", description: err.message, variant: "destructive" });
