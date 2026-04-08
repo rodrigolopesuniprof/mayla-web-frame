@@ -155,12 +155,6 @@ export function AdminIntegrations({ companyId }: Props) {
     try {
       // Save first so the edge function reads fresh credentials
       await handleProntuarioSave();
-      const { data, error } = await supabase.functions.invoke("prontuario-proxy", {
-        body: null,
-        headers: { "Content-Type": "application/json" },
-      });
-      // The function is invoked via POST but we pass action as query param
-      // We need to use fetch directly to pass query params
       const { data: { session } } = await supabase.auth.getSession();
       const projId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const resp = await fetch(
