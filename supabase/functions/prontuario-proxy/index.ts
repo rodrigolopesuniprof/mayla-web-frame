@@ -74,6 +74,19 @@ Deno.serve(async (req) => {
     let medditBody: string | undefined;
 
     switch (action) {
+      case "test_connection": {
+        // Admin connectivity test — hit specialities endpoint and return ok/error
+        const testResp = await fetch(`${medditBase}/v1/clinics/specialities`, {
+          method: "GET",
+          headers: medditHeaders,
+        });
+        const ok = testResp.ok;
+        return new Response(JSON.stringify({ ok, status: testResp.status }), {
+          status: ok ? 200 : 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "specialities":
         medditUrl = `${medditBase}/v1/clinics/specialities`;
         break;
