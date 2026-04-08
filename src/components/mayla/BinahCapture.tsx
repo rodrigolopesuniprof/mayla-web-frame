@@ -30,7 +30,7 @@ interface MappedResult {
   cardiac_workload?: number;
 }
 
-function mapVitalsToResult(vitals: BinahVitalSigns): MappedResult {
+function mapVitalsToResult(vitals: VitalSigns): MappedResult {
   return {
     heart_rate: vitals.pulseRate?.value,
     respiratory_rate: vitals.respirationRate?.value,
