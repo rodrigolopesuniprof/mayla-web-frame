@@ -161,6 +161,7 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
             </p>
           )}
           <BinahToggle companyId={company.id} />
+          <ProntuarioToggle companyId={company.id} />
         </CardContent>
       </Card>
 
@@ -277,6 +278,34 @@ function BinahToggle({ companyId }: { companyId: string }) {
           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={saveLimit}>OK</Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProntuarioToggle({ companyId }: { companyId: string }) {
+  const [enabled, setEnabled] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useState(() => {
+    supabase.from("company_features").select("enabled").eq("company_id", companyId).eq("feature_key", "prontuario_conveniado").maybeSingle()
+      .then(({ data }) => { if (data) setEnabled(data.enabled ?? false); setLoaded(true); });
+  });
+
+  const toggle = async (val: boolean) => {
+    setEnabled(val);
+    const { error } = await supabase.from("company_features").upsert(
+      { company_id: companyId, feature_key: "prontuario_conveniado", enabled: val, config: { system: "meddit" } },
+      { onConflict: "company_id,feature_key" }
+    );
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setEnabled(!val); }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div className="flex items-center gap-3 pt-2 border-t border-border">
+      <Switch checked={enabled} onCheckedChange={toggle} />
+      <span className="text-sm text-muted-foreground">🏥 Prontuário Conveniado (Meddit)</span>
     </div>
   );
 }

@@ -3,10 +3,12 @@ import { TopBar } from "./TopBar";
 import { ConsultationFlow } from "./ConsultationFlow";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { HealthPartnersMap } from "./HealthPartnersMap";
+import { ProntuarioConveniado } from "./ProntuarioConveniado";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProntuarioFeature } from "@/hooks/useProntuarioFeature";
 import { supabase } from "@/integrations/supabase/client";
 
-type SubView = "menu" | "consultation" | "appointment_legacy" | "history" | "partners";
+type SubView = "menu" | "consultation" | "appointment_legacy" | "history" | "partners" | "prontuario";
 
 interface Appointment {
   id: string;
@@ -19,6 +21,7 @@ interface Appointment {
 
 export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlineMode?: boolean; onClearOnlineMode?: () => void }) {
   const { user } = useAuth();
+  const { enabled: prontuarioEnabled } = useProntuarioFeature();
   const [subView, setSubView] = useState<SubView>(startOnlineMode ? "consultation" : "menu");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,6 +61,10 @@ export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlin
 
   if (subView === "partners") {
     return <HealthPartnersMap onBack={() => setSubView("menu")} />;
+  }
+
+  if (subView === "prontuario") {
+    return <ProntuarioConveniado onBack={() => setSubView("menu")} />;
   }
 
   if (subView === "history") {
@@ -133,6 +140,20 @@ export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlin
           </div>
           <span className="text-muted-foreground text-lg">›</span>
         </button>
+
+        {prontuarioEnabled && (
+          <button
+            onClick={() => setSubView("prontuario")}
+            className="w-full rounded-2xl p-4 border-2 border-primary/20 bg-primary/5 flex items-center gap-4 cursor-pointer text-left"
+          >
+            <span className="text-3xl">🏥</span>
+            <div className="flex-1">
+              <div className="text-[15px] font-semibold text-foreground">Prontuário Conveniado</div>
+              <div className="text-sm text-muted-foreground">Agende com médicos do sistema conveniado</div>
+            </div>
+            <span className="text-primary text-lg font-bold">›</span>
+          </button>
+        )}
 
         <h3 className="text-sm font-semibold text-muted-foreground tracking-[.08em] uppercase mt-6 mb-2">Marketplace</h3>
 

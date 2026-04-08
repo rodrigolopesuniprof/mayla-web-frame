@@ -1949,6 +1949,59 @@ export type Database = {
           },
         ]
       }
+      prontuario_connections: {
+        Row: {
+          active: boolean
+          company_id: string | null
+          created_at: string
+          external_clinic_name: string | null
+          external_patient_id: string | null
+          external_professional_id: string
+          external_professional_name: string | null
+          external_system: string
+          id: string
+          report_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          external_clinic_name?: string | null
+          external_patient_id?: string | null
+          external_professional_id: string
+          external_professional_name?: string | null
+          external_system?: string
+          id?: string
+          report_token?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          external_clinic_name?: string | null
+          external_patient_id?: string | null
+          external_professional_id?: string
+          external_professional_name?: string | null
+          external_system?: string
+          id?: string
+          report_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prontuario_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       questionnaire_questions: {
         Row: {
           category: string
