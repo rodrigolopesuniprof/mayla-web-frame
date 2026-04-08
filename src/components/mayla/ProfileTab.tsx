@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { FavoriteDoctors } from "./FavoriteDoctors";
 import { TopBar } from "./TopBar";
 import { Avatar } from "./MaylaIcons";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,7 +52,7 @@ interface HealthProfile {
   has_child_under_12: boolean | null;
 }
 
-type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime";
+type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime" | "meus_medicos";
 
 export function ProfileTab() {
   const navigate = useNavigate();
@@ -105,6 +106,7 @@ export function ProfileTab() {
           {subView === "medicoes" && <HistoricoMedicoes userId={user?.id} />}
           {subView === "consultas" && <ConsultasAgendadas userId={user?.id} />}
           {subView === "meutime" && <MeuTime userId={user?.id} />}
+          {subView === "meus_medicos" && <FavoriteDoctors onBack={() => setSubView(null)} />}
           {subView === "medicamentos" && <Medicamentos userId={user?.id} />}
           {subView === "configuracoes" && <Configuracoes userId={user?.id} userEmail={user?.email} />}
         </div>
@@ -150,6 +152,7 @@ export function ProfileTab() {
           { key: "medicoes" as SubView, emoji: "📊", label: "Histórico de medições" },
           { key: "relatorio" as any, emoji: "📈", label: "Relatório de saúde", navigate: true },
           { key: "consultas" as SubView, emoji: "📅", label: "Consultas agendadas" },
+          { key: "meus_medicos" as SubView, emoji: "👨‍⚕️", label: "Meus Médicos" },
           { key: "meutime" as SubView, emoji: "👥", label: "Meu Time" },
           { key: "medicamentos" as SubView, emoji: "💊", label: "Medicamentos" },
           { key: "configuracoes" as SubView, emoji: "⚙️", label: "Configurações" },
