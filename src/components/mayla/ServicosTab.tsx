@@ -63,6 +63,10 @@ export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlin
     return <HealthPartnersMap onBack={() => setSubView("menu")} />;
   }
 
+  if (subView === "prontuario") {
+    return <ProntuarioConveniado onBack={() => setSubView("menu")} />;
+  }
+
   if (subView === "history") {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
