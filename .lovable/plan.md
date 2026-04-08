@@ -1,31 +1,41 @@
 
 
-# Fix: "Testar conexão" do Prontuário Conveniado
+# Fix: `getClaims is not a function` no prontuario-proxy
 
 ## Problema
 
-O botão "Testar conexão" faz `fetch()` direto do browser para `http://meddit-api-clinic-nv...`. Isso falha por dois motivos:
-1. **CORS** — a API da Meddit não retorna headers `Access-Control-Allow-Origin`
-2. **Mixed content** — o app roda em HTTPS e a URL da Meddit é HTTP
+Os logs da Edge Function mostram:
+```
+TypeError: userClient.auth.getClaims is not a function
+```
+
+O método `getClaims()` não existe no supabase-js v2. A função nunca chega ao `test_connection` — falha antes, na validação do usuário.
 
 ## Solução
 
-Rotear o teste pela Edge Function `prontuario-proxy` que já existe, adicionando uma action `test_connection`.
+Substituir `getClaims(token)` por `getUser(token)` no `prontuario-proxy/index.ts`.
 
-### 1. `supabase/functions/prontuario-proxy/index.ts`
+### `supabase/functions/prontuario-proxy/index.ts`
 
-Adicionar case `"test_connection"` no switch que faz GET em `/v1/clinics/specialities` usando as credenciais do `config` da empresa e retorna `{ ok: true }` ou erro.
+Trocar linhas 25-30:
+```typescript
+// ANTES (não funciona)
+const token = authHeader.replace("Bearer ", "");
+const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+if (claimsError || !claimsData?.claims) { ... }
+const userId = claimsData.claims.sub as string;
 
-### 2. `src/components/admin/AdminIntegrations.tsx`
+// DEPOIS
+const { data: { user }, error: userError } = await userClient.auth.getUser();
+if (userError || !user) { ... }
+const userId = user.id;
+```
 
-Substituir o `fetch()` direto por `supabase.functions.invoke("prontuario-proxy", ...)` com `action=test_connection`. Como o admin pode estar testando credenciais ainda não salvas, primeiro salvar as configs e depois testar, ou enviar as credenciais no body do teste.
+Nenhuma configuração da Meddit é necessária — o erro é interno, a requisição nem chega à API deles.
 
-**Abordagem escolhida**: salvar primeiro (chamar `handleProntuarioSave`), depois invocar a edge function com `?action=test_connection`. A edge function já lê as credenciais do `company_features.config`.
-
-### Arquivos
+## Arquivos
 
 | Ação | Arquivo |
 |------|---------|
-| Editar | `supabase/functions/prontuario-proxy/index.ts` (add case test_connection) |
-| Editar | `src/components/admin/AdminIntegrations.tsx` (usar edge function em vez de fetch direto) |
+| Editar | `supabase/functions/prontuario-proxy/index.ts` (fix auth) |
 
