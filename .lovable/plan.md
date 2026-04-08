@@ -1,136 +1,76 @@
 
 
-# Plano: Integração Mayla <> Meddit (Prontuário Conveniado)
+# Plano: Seção "Integrações" unificada (Plug & Play)
 
 ## Resumo
 
-Integração bidirecional entre o Mayla e a API da Meddit para agendamento de consultas e compartilhamento de relatórios de saúde com médicos. A feature é habilitada por empresa via feature flag.
+Criar uma nova seção **"Integrações"** (🔌) no menu lateral do `AdminCompanyDetail`, centralizando Binah, Prontuário Conveniado (Meddit) e futuras integrações num único painel. Remover os toggles soltos do `AdminCompanySettings`.
 
-## API Meddit - Endpoints Mapeados
+## O que muda
 
-```text
-Base URL: http://meddit-api-clinic-nv.us-west-2.elasticbeanstalk.com
-Auth: Header "Authorization: meddit-atria-2026"
+### 1. Nova seção no sidebar — `AdminCompanyDetail.tsx`
 
-Users:
-  GET /v1/users/cpf/{nro}              → busca paciente por CPF
+- Adicionar `"integracoes"` ao tipo `Section` e ao array `SECTIONS` com emoji 🔌 e label "Integrações"
+- Renderizar novo componente `AdminIntegrations` quando ativo
 
-Clinics:
-  GET /v1/clinics/user/cpf/{nro}       → clínicas do paciente por CPF
-  GET /v1/clinics/specialities          → lista especialidades
-  GET /v1/clinics/search                → busca clínicas
-  GET /v1/clinics/speciality/search     → busca por especialidade
-  GET /v1/clinics/professional/search   → busca por profissional
-  GET /v1/clinics/offices               → lista consultórios
+### 2. Novo componente — `AdminIntegrations.tsx`
 
-Professionals:
-  GET /v1/professionals/{id}/office/{officeId}/calendar → agenda
-
-Appointments:
-  GET /v1/appointments/{qtddays}/professional/{id}/patient/{patientId}/check
-  POST /v1/appointments/register        → cria agendamento
-```
-
-## Arquitetura
+Interface unificada com cards para cada integração disponível:
 
 ```text
-┌──────────────────┐     ┌─────────────────────┐     ┌──────────────┐
-│  App Mayla (FE)  │────▶│  Edge Function       │────▶│  API Meddit  │
-│                  │     │  prontuario-proxy    │     │              │
-│                  │     │  (API key segura)     │     │              │
-└──────────────────┘     └─────────────────────┘     └──────────────┘
-                                  │
-                         ┌────────┴────────┐
-                         │  Supabase DB    │
-                         │  - prontuario_  │
-                         │    connections  │
-                         │  - report_shares│
-                         │  - appointments │
-                         └─────────────────┘
-
-┌──────────────────┐     ┌─────────────────────┐
-│  Sistema Meddit  │────▶│  Edge Function       │  Meddit chama p/ validar
-│  (embed iframe)  │     │  prontuario-verify   │  se médico X tem acesso
-│                  │     │  (API key compartilh)│  ao token Y
-└──────────────────┘     └─────────────────────┘
+┌─────────────────────────────────────────────────┐
+│ 🔌 Integrações                                  │
+│                                                  │
+│ ┌──────────────────────────────────────────────┐ │
+│ │ 🔬 Medição de Sinais Vitais                  │ │
+│ │ [Switch ON/OFF]                               │ │
+│ │ Limite mensal: [3] /mês                       │ │
+│ │ Status: Ativo ✅                              │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌──────────────────────────────────────────────┐ │
+│ │ 🏥 Prontuário Conveniado                     │ │
+│ │ [Switch ON/OFF]                               │ │
+│ │ Provedor: [Meddit ▾]                          │ │
+│ │ URL Base: [_______]                           │ │
+│ │ API Key: [•••••••]                            │ │
+│ │ [Testar conexão]                              │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [+ Adicionar Integração] (futuro, desabilitado) │
+└─────────────────────────────────────────────────┘
 ```
 
-## Etapas de Implementação
+Cada card:
+- Lê/escreve na tabela `company_features` (já existente) usando `feature_key` como identificador
+- Campos de configuração específicos salvos no `config` JSONB
+- Toggle geral de ativo/inativo
+- Para Prontuário: campos de provedor, URL base e API key
+- Para Binah: campo de limite mensal
 
-### 1. Secret + Banco de Dados
+### 3. Limpar `AdminCompanySettings.tsx`
 
-**Secret**: `MEDDIT_API_KEY` = `meddit-atria-2026`
+- Remover os componentes `BinahToggle` e `ProntuarioToggle` (linhas 244-311)
+- Remover as referências `<BinahToggle>` e `<ProntuarioToggle>` do JSX (linhas 163-164)
 
-**Migração SQL**:
-- Tabela `prontuario_connections` para vincular user_id (Mayla) a um professional_id externo e armazenar token permanente de acesso ao relatório
-- Colunas: `id`, `user_id`, `company_id`, `external_system` (ex: 'meddit'), `external_professional_id`, `external_professional_name`, `external_clinic_name`, `report_token` (UUID permanente), `active`, `created_at`
-- Feature flag: inserir registro em `company_features` com `feature_key = 'prontuario_conveniado'`
-- RLS: usuário lê/escreve os próprios registros; admins gerenciam tudo
+### 4. Ajustar `prontuario-proxy` Edge Function
 
-### 2. Edge Function `prontuario-proxy`
+- Ler credenciais do `config` JSONB da `company_features` da empresa do usuário
+- Fallback para o secret global `MEDDIT_API_KEY` se não houver config específica
 
-Proxy seguro que:
-- Recebe requests do front-end autenticado (JWT do Supabase)
-- Repassa para a API Meddit com a API key
-- Rotas: `GET /specialities`, `GET /professionals`, `GET /calendar`, `GET /check`, `POST /register`
-- Envia CPF do usuário (obtido do profile via service_role) para identificar paciente no Meddit
+## Arquivos afetados
 
-### 3. Edge Function `prontuario-verify`
-
-Endpoint público protegido por API key compartilhada com o Meddit:
-- `GET /prontuario-verify?token=XXX&professional_id=YYY`
-- Valida se existe registro ativo em `prontuario_connections` com aquele token e professional_id
-- Retorna: `{ authorized: true, report_url: "https://...relatorio/medico/TOKEN" }` ou `{ authorized: false }`
-
-### 4. Front-end: Seção "Prontuário Conveniado" no ServicosTab
-
-- Verificar feature flag `prontuario_conveniado` para a empresa do usuário
-- Se ativo, exibir botão "Prontuário Conveniado" no menu de Serviços
-- Fluxo:
-  1. Lista especialidades (GET specialities)
-  2. Busca profissionais por especialidade (GET professional/search)
-  3. Exibe agenda do profissional (GET calendar)
-  4. Verifica conflitos (GET check)
-  5. Confirma agendamento (POST register no Meddit + INSERT na tabela `appointments` do Mayla com `external_source: 'prontuario_system'`)
-
-### 5. Front-end: Favoritar e Autorizar no card do médico
-
-- Botão com icone Heart (Lucide) no card do profissional Meddit
-- Ao clicar: cria registro em `prontuario_connections` com token UUID permanente
-- Chama a Edge Function que envia o token + dados para o Meddit (POST ou endpoint definido)
-- UI mostra estado "Autorizado" com coração preenchido
-
-### 6. Ajuste no ProfessionalReport
-
-- Além de validar via `report_shares` (temporário, 48h), também validar via `prontuario_connections` (permanente)
-- Se o token vier de `prontuario_connections`, verificar se o `external_professional_id` bate
-
-### 7. Admin: Toggle da feature no painel da empresa
-
-- Na seção "Dados da Conta" do AdminCompanyDetail, adicionar toggle "Prontuário Conveniado"
-- Ao ativar, inserir/atualizar registro em `company_features` com `feature_key = 'prontuario_conveniado'`
-- Campo de configuração opcional para informações específicas do sistema externo
-
-## Arquivos Afetados
-
-| Acao | Arquivo |
+| Ação | Arquivo |
 |------|---------|
-| Criar | `supabase/functions/prontuario-proxy/index.ts` |
-| Criar | `supabase/functions/prontuario-verify/index.ts` |
-| Migração | Nova tabela `prontuario_connections` + RLS |
-| Criar | `src/components/mayla/ProntuarioConveniado.tsx` (fluxo completo) |
-| Editar | `src/components/mayla/ServicosTab.tsx` (adicionar botao) |
-| Editar | `src/components/report/ProfessionalReport.tsx` (validar token permanente) |
-| Editar | `src/components/admin/AdminCompanySettings.tsx` (toggle feature) |
-| Criar | `src/hooks/useProntuarioFeature.ts` (verificar feature flag) |
+| Criar | `src/components/admin/AdminIntegrations.tsx` |
+| Editar | `src/components/admin/AdminCompanyDetail.tsx` (add seção) |
+| Editar | `src/components/admin/AdminCompanySettings.tsx` (remover toggles) |
+| Editar | `supabase/functions/prontuario-proxy/index.ts` (ler config da empresa) |
 
-## Ordem de Execução
+## Ordem de execução
 
-1. Adicionar secret `MEDDIT_API_KEY`
-2. Criar migração (tabela + RLS)
-3. Criar Edge Functions (proxy + verify)
-4. Criar hook `useProntuarioFeature`
-5. Criar componente `ProntuarioConveniado` + integrar no ServicosTab
-6. Ajustar ProfessionalReport
-7. Adicionar toggle no Admin
+1. Criar `AdminIntegrations.tsx` com cards para Binah e Prontuário
+2. Registrar seção "integracoes" no sidebar do `AdminCompanyDetail`
+3. Remover toggles do `AdminCompanySettings`
+4. Atualizar Edge Function para ler credenciais do config da empresa
 
