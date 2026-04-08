@@ -160,8 +160,6 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
               {PUBLISHED_DOMAIN}/cadastro/{token}
             </p>
           )}
-          <BinahToggle companyId={company.id} />
-          <ProntuarioToggle companyId={company.id} />
         </CardContent>
       </Card>
 
