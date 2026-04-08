@@ -8,6 +8,7 @@ import { AdminNotifications } from "./AdminNotifications";
 import { AdminPartners } from "./AdminPartners";
 import { AdminSurveys } from "./AdminSurveys";
 import { AdminSupportTeams } from "./AdminSupportTeams";
+import { AdminIntegrations } from "./AdminIntegrations";
 import { ArrowLeft } from "lucide-react";
 
 interface Company {
