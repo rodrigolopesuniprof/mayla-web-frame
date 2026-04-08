@@ -1,43 +1,38 @@
 
-Diagnóstico breve
+Plano: corrigir o erro "Feature não habilitada para esta empresa" no teste do Prontuário
 
-Não, esse erro específico não indica necessidade de VPS nem, até aqui, uma exigência estrutural da Meddit.
+Resumo
+- O erro atual é interno, não aponta para necessidade de VPS.
+- A chamada já chega ao backend, mas o backend valida a feature pela empresa do admin logado antes de considerar a empresa que está aberta na tela.
+- Também há um segundo risco: a URL salva está com `/docs/`, e isso pode quebrar as chamadas reais da API depois.
 
-O que está acontecendo agora
-- O botão "Testar conexão" chama o backend da Mayla, não a Meddit direto do navegador.
-- O backend está devolvendo `{"error":"CPF não encontrado no perfil"}`.
-- Por isso o front mostra `status undefined`: ele esperava um campo `status`, mas recebeu apenas `error`.
+Implementação
+1. Refatorar `supabase/functions/prontuario-proxy/index.ts`
+   - Ler `action` e `company_id` logo no início.
+   - Para `test_connection`, usar a empresa alvo recebida da tela admin.
+   - Permitir esse override apenas para usuário com role `admin`.
+   - Não exigir CPF nem `enabled=true` no `test_connection`; nesse caso o objetivo é só validar credenciais/URL.
+   - Centralizar a normalização da `base_url` para remover `/docs` e barras finais.
+   - Reaproveitar essa normalização em todas as ações (`specialities`, `professionals`, etc.), para o fluxo real não quebrar depois.
+   - Padronizar a resposta de erro com `status`, `error` e trecho do body retornado pelo provedor.
 
-Conclusão prática
-- O teste nem chegou na Meddit.
-- Então o problema atual é interno da nossa lógica de teste, não de hospedagem.
+2. Ajustar `src/components/admin/AdminIntegrations.tsx`
+   - Fazer o save antes do teste de forma silenciosa e abortar se o save falhar.
+   - Continuar enviando o `companyId` da empresa aberta no admin.
+   - Exibir no toast a mensagem real retornada pelo backend/provedor, em vez de erro genérico.
+   - Normalizar a URL também no save para evitar persistir `/docs/`.
 
-Raiz do problema
-1. A rotina de teste está exigindo CPF do usuário logado, como se fosse um fluxo de paciente.
-2. Para "testar conexão" de uma integração administrativa, CPF não deveria ser obrigatório.
-3. A rotina também está usando a empresa do perfil do usuário logado para buscar a configuração, quando o admin pode estar editando outra empresa.
-4. Além disso, a URL salva no campo parece estar apontando para `/docs/`; isso normalmente é a documentação, não a base real da API.
+Validação
+- Testar no `/admin/painel` com um admin vinculado a outra empresa.
+- Confirmar que o teste deixa de retornar 403 indevido.
+- Confirmar que uma URL salva com `/docs/` passa a funcionar.
+- Confirmar que o fluxo do usuário final continua usando a empresa do próprio usuário, sem abrir brecha de segurança.
 
-Sobre a Meddit
-A Meddit só precisaria nos passar corretamente:
-- a URL base real da API
-- o formato de autenticação esperado
-- eventual whitelist de IP ou VPN, se eles exigirem isso
+Arquivos
+- `supabase/functions/prontuario-proxy/index.ts`
+- `src/components/admin/AdminIntegrations.tsx`
 
-Mas, repito: o erro atual não aponta para whitelist, VPS ou infra deles. Ele acontece antes.
-
-Sobre VPS
-- Não precisa subir isso numa VPS só para esse caso.
-- O backend atual já deveria ser suficiente para testar e consumir essa integração.
-- VPS só faria sentido se a Meddit exigisse túnel privado, IP fixo dedicado ou algum middleware específico.
-
-O ajuste certo, quando formos corrigir
-- Fazer o "Testar conexão" rodar em modo administrativo, sem exigir CPF
-- Fazer o teste usar a empresa que está sendo editada na tela, e não a empresa do usuário logado
-- Validar/sanitizar a URL para usar a base da API, não `/docs/`
-- Melhorar a mensagem do front para mostrar o erro real em vez de `status undefined`
-
-Em resumo
-- Não é, por enquanto, um problema de infraestrutura da Meddit
-- Não precisa VPS
-- É principalmente um problema de desenho do teste no nosso backend
+Impacto
+- Sem migration.
+- Sem VPS.
+- Depois desse ajuste, qualquer erro remanescente no teste já tende a ser erro real da integração do fornecedor (ex.: chave inválida, endpoint incorreto, whitelist), e não mais da nossa lógica interna.
