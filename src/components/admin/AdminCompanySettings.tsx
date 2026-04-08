@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { CompanyAdminManager } from "./CompanyAdminManager";
 
@@ -160,8 +159,6 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
               {PUBLISHED_DOMAIN}/cadastro/{token}
             </p>
           )}
-          <BinahToggle companyId={company.id} />
-          <ProntuarioToggle companyId={company.id} />
         </CardContent>
       </Card>
 
@@ -241,71 +238,3 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
   );
 }
 
-function BinahToggle({ companyId }: { companyId: string }) {
-  const [enabled, setEnabled] = useState(false);
-  const [limit, setLimit] = useState(3);
-  const [loaded, setLoaded] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-
-  useState(() => {
-    supabase.from("company_features").select("enabled, config").eq("company_id", companyId).eq("feature_key", "binah_special_measurement").maybeSingle()
-      .then(({ data }) => { if (data) { setEnabled(data.enabled ?? false); setLimit((data.config as any)?.monthly_limit ?? 3); } setLoaded(true); });
-  });
-
-  const toggle = async (val: boolean) => {
-    setEnabled(val);
-    const { error } = await supabase.from("company_features").upsert({ company_id: companyId, feature_key: "binah_special_measurement", enabled: val, config: { monthly_limit: limit } }, { onConflict: "company_id,feature_key" });
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setEnabled(!val); }
-  };
-
-  const saveLimit = async () => {
-    await supabase.from("company_features").upsert({ company_id: companyId, feature_key: "binah_special_measurement", enabled, config: { monthly_limit: limit } }, { onConflict: "company_id,feature_key" });
-    toast({ title: "Limite atualizado" }); setShowConfig(false);
-  };
-
-  if (!loaded) return null;
-
-  return (
-    <div className="flex items-center gap-3 pt-2 border-t border-border">
-      <Switch checked={enabled} onCheckedChange={toggle} />
-      <span className="text-sm text-muted-foreground">🔬 Binah</span>
-      {enabled && (
-        <button onClick={() => setShowConfig(!showConfig)} className="text-xs text-accent underline cursor-pointer bg-transparent border-none">{limit}/mês</button>
-      )}
-      {showConfig && (
-        <div className="flex items-center gap-1">
-          <Input type="number" value={limit} onChange={e => setLimit(parseInt(e.target.value) || 1)} className="w-16 h-7 text-xs" min={1} max={99} />
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={saveLimit}>OK</Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProntuarioToggle({ companyId }: { companyId: string }) {
-  const [enabled, setEnabled] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  useState(() => {
-    supabase.from("company_features").select("enabled").eq("company_id", companyId).eq("feature_key", "prontuario_conveniado").maybeSingle()
-      .then(({ data }) => { if (data) setEnabled(data.enabled ?? false); setLoaded(true); });
-  });
-
-  const toggle = async (val: boolean) => {
-    setEnabled(val);
-    const { error } = await supabase.from("company_features").upsert(
-      { company_id: companyId, feature_key: "prontuario_conveniado", enabled: val, config: { system: "meddit" } },
-      { onConflict: "company_id,feature_key" }
-    );
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setEnabled(!val); }
-  };
-
-  if (!loaded) return null;
-
-  return (
-    <div className="flex items-center gap-3 pt-2 border-t border-border">
-      <Switch checked={enabled} onCheckedChange={toggle} />
-      <span className="text-sm text-muted-foreground">🏥 Prontuário Conveniado (Meddit)</span>
-    </div>
-  );
-}

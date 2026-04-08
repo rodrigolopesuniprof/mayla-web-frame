@@ -8,6 +8,7 @@ import { AdminNotifications } from "./AdminNotifications";
 import { AdminPartners } from "./AdminPartners";
 import { AdminSurveys } from "./AdminSurveys";
 import { AdminSupportTeams } from "./AdminSupportTeams";
+import { AdminIntegrations } from "./AdminIntegrations";
 import { ArrowLeft } from "lucide-react";
 
 interface Company {
@@ -28,7 +29,7 @@ interface Company {
   secondary_color: string;
 }
 
-type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "notificacoes";
+type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "integracoes" | "notificacoes";
 
 const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "dados", label: "Dados da Conta", emoji: "🏢" },
@@ -37,6 +38,7 @@ const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "programas", label: "Programas de Saúde", emoji: "🌿" },
   { id: "servicos-medicos", label: "Serviços Médicos", emoji: "🩺" },
   { id: "servicos-gerais", label: "Serviços Gerais", emoji: "🏪" },
+  { id: "integracoes", label: "Integrações", emoji: "🔌" },
   { id: "notificacoes", label: "Notificações", emoji: "📢" },
 ];
 
@@ -144,6 +146,10 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
 
         {activeSection === "servicos-gerais" && (
           <AdminPartners filterTypes={["gym", "laboratory", "pharmacy"]} />
+        )}
+
+        {activeSection === "integracoes" && (
+          <AdminIntegrations companyId={company.id} />
         )}
 
         {activeSection === "notificacoes" && (
