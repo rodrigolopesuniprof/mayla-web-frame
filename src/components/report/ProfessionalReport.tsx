@@ -58,7 +58,7 @@ export default function ProfessionalReport() {
           .eq("active", true)
           .maybeSingle();
 
-        if (connData && typeof connData === "object" && "user_id" in connData) {
+        if (connData && typeof connData === "object" && connData !== null && "user_id" in connData) {
           setShare({ permanent: true, user_id: (connData as any).user_id });
           userId = (connData as any).user_id;
         }
