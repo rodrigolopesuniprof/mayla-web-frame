@@ -3,10 +3,12 @@ import { TopBar } from "./TopBar";
 import { ConsultationFlow } from "./ConsultationFlow";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { HealthPartnersMap } from "./HealthPartnersMap";
+import { ProntuarioConveniado } from "./ProntuarioConveniado";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProntuarioFeature } from "@/hooks/useProntuarioFeature";
 import { supabase } from "@/integrations/supabase/client";
 
-type SubView = "menu" | "consultation" | "appointment_legacy" | "history" | "partners";
+type SubView = "menu" | "consultation" | "appointment_legacy" | "history" | "partners" | "prontuario";
 
 interface Appointment {
   id: string;
