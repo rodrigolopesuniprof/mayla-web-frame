@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useBinahMonitor, ImageValidity, type BinahVitalSigns } from "@/hooks/useBinahMonitor";
+import { useVitalsMeasurement, ImageValidity, type VitalSigns } from "@/hooks/useVitalsMeasurement";
 import { Progress } from "@/components/ui/progress";
 import { HelpCircle, X } from "lucide-react";
 
