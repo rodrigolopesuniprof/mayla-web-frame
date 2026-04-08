@@ -140,9 +140,14 @@ export function AdminIntegrations({ companyId }: Props) {
     if (!ok) setProntuario(prev => ({ ...prev, enabled: !val }));
   };
 
-  const handleProntuarioSave = async () => {
-    const ok = await saveFeature(FEATURE_KEYS.prontuario, prontuario.enabled, prontuario.config);
-    if (ok) toast({ title: "Configurações salvas!" });
+  const normalizeUrl = (url: string) => url.replace(/\/docs\/?$/, "").replace(/\/+$/, "");
+
+  const handleProntuarioSave = async (silent = false) => {
+    const normalizedConfig = { ...prontuario.config, base_url: normalizeUrl(prontuario.config.base_url || "") };
+    setProntuario(prev => ({ ...prev, config: normalizedConfig }));
+    const ok = await saveFeature(FEATURE_KEYS.prontuario, prontuario.enabled, normalizedConfig);
+    if (ok && !silent) toast({ title: "Configurações salvas!" });
+    return ok;
   };
 
   const handleTestProntuarioConnection = async () => {
@@ -153,8 +158,14 @@ export function AdminIntegrations({ companyId }: Props) {
     }
     setTestingProntuario(true);
     try {
-      // Save first so the edge function reads fresh credentials
-      await handleProntuarioSave();
+      // Silent save so edge function reads fresh credentials
+      const saved = await handleProntuarioSave(true);
+      if (!saved) {
+        toast({ title: "❌ Erro ao salvar configurações antes do teste", variant: "destructive" });
+        setTestingProntuario(false);
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       const projId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const resp = await fetch(
@@ -163,9 +174,10 @@ export function AdminIntegrations({ companyId }: Props) {
       );
       const result = await resp.json();
       if (result.ok) {
-        toast({ title: "✅ Conexão bem-sucedida!", description: "A API respondeu corretamente." });
+        toast({ title: "✅ Conexão bem-sucedida!", description: `A API respondeu com status ${result.status}.` });
       } else {
-        toast({ title: "❌ Falha na conexão", description: result.error || `Status HTTP: ${result.status}`, variant: "destructive" });
+        const detail = result.error || (result.status ? `Status HTTP: ${result.status}` : "Erro desconhecido");
+        toast({ title: "❌ Falha na conexão", description: detail, variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "❌ Erro de conexão", description: err.message, variant: "destructive" });
@@ -374,7 +386,7 @@ export function AdminIntegrations({ companyId }: Props) {
                 </div>
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <Button size="sm" onClick={handleProntuarioSave}>Salvar configurações</Button>
+                <Button size="sm" onClick={() => handleProntuarioSave()}>Salvar configurações</Button>
                 <Button size="sm" variant="outline" onClick={handleTestProntuarioConnection} disabled={testingProntuario}>
                   <TestTube2 className="w-4 h-4 mr-1" />
                   {testingProntuario ? "Testando..." : "Testar conexão"}
