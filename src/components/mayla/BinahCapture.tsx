@@ -185,7 +185,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       municipality_id: municipalityId,
       company_id: companyId || null,
       measurement_data: mappedResult as any,
-      source: isDemoMode ? "binah_demo" : "binah",
+      source: isDemoMode ? "vitals_demo" : "vitals_premium",
     });
 
     if (error) {
