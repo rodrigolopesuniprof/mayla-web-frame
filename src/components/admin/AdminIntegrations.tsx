@@ -386,7 +386,7 @@ export function AdminIntegrations({ companyId }: Props) {
                 </div>
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <Button size="sm" onClick={handleProntuarioSave}>Salvar configurações</Button>
+                <Button size="sm" onClick={() => handleProntuarioSave()}>Salvar configurações</Button>
                 <Button size="sm" variant="outline" onClick={handleTestProntuarioConnection} disabled={testingProntuario}>
                   <TestTube2 className="w-4 h-4 mr-1" />
                   {testingProntuario ? "Testando..." : "Testar conexão"}
