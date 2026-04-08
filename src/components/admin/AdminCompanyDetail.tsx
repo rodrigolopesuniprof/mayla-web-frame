@@ -38,6 +38,7 @@ const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "programas", label: "Programas de Saúde", emoji: "🌿" },
   { id: "servicos-medicos", label: "Serviços Médicos", emoji: "🩺" },
   { id: "servicos-gerais", label: "Serviços Gerais", emoji: "🏪" },
+  { id: "integracoes", label: "Integrações", emoji: "🔌" },
   { id: "notificacoes", label: "Notificações", emoji: "📢" },
 ];
 
