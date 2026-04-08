@@ -39,29 +39,49 @@ export default function ProfessionalReport() {
   useEffect(() => {
     if (!token) return;
     (async () => {
+      // Try report_shares first (temporary 48h links)
       const { data: shareData } = await supabase.from("report_shares").select("*").eq("token", token).maybeSingle();
-      if (!shareData || new Date(shareData.expires_at) < new Date()) {
+      
+      let userId: string | null = null;
+
+      if (shareData && new Date(shareData.expires_at) >= new Date()) {
+        setShare(shareData);
+        userId = shareData.user_id;
+        if (!shareData.accessed_at) {
+          await supabase.from("report_shares").update({ accessed_at: new Date().toISOString() } as any).eq("id", shareData.id);
+        }
+      } else {
+        // Try prontuario_connections (permanent tokens)
+        const { data: connData } = await supabase.from("prontuario_connections" as any)
+          .select("*")
+          .eq("report_token", token)
+          .eq("active", true)
+          .maybeSingle();
+
+        if (connData) {
+          setShare({ ...connData, permanent: true });
+          userId = (connData as any).user_id;
+        }
+      }
+
+      if (!userId) {
         setExpired(true);
         setLoading(false);
         return;
       }
-      setShare(shareData);
-      // Mark as accessed
-      if (!shareData.accessed_at) {
-        await supabase.from("report_shares").update({ accessed_at: new Date().toISOString() } as any).eq("id", shareData.id);
-      }
+
       // Fetch patient data
       const { data: prof } = await supabase.from("profiles")
         .select("full_name, birth_date, has_hypertension, has_diabetes, biological_sex")
-        .eq("user_id", shareData.user_id).maybeSingle();
+        .eq("user_id", userId).maybeSingle();
       setProfile(prof);
 
       const { data: sc } = await supabase.from("health_scores").select("*")
-        .eq("user_id", shareData.user_id).order("generated_at", { ascending: false }).limit(1);
+        .eq("user_id", userId).order("generated_at", { ascending: false }).limit(1);
       if (sc && sc.length > 0) setScores(sc[0]);
 
       const { data: al } = await supabase.from("health_alerts").select("*")
-        .eq("user_id", shareData.user_id).is("dismissed_at", null)
+        .eq("user_id", userId).is("dismissed_at", null)
         .order("generated_at", { ascending: false }).limit(5);
       setAlerts(al || []);
 

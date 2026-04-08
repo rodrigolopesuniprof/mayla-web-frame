@@ -161,6 +161,7 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
             </p>
           )}
           <BinahToggle companyId={company.id} />
+          <ProntuarioToggle companyId={company.id} />
         </CardContent>
       </Card>
 
