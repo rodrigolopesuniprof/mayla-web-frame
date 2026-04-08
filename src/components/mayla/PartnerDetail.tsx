@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TopBar } from "./TopBar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,10 @@ import {
   TYPE_LABELS,
   formatDistance,
 } from "@/lib/partner-helpers";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { Heart } from "lucide-react";
 
 interface Props {
   partner: Partner;
@@ -16,6 +20,49 @@ interface Props {
 
 export function PartnerDetail({ partner: p, onBack }: Props) {
   const [showStore, setShowStore] = useState(false);
+  const { user } = useAuth();
+  const isFavoritable = p.partner_type === "doctor" || p.partner_type === "clinic";
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user || !isFavoritable) return;
+    supabase
+      .from("prontuario_connections")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("external_system", "mayla")
+      .eq("external_professional_id", p.id)
+      .eq("active", true)
+      .maybeSingle()
+      .then(({ data }) => setIsFavorited(!!data));
+  }, [user, p.id, isFavoritable]);
+
+  const toggleFavorite = async () => {
+    if (!user) { toast.error("Faça login para favoritar"); return; }
+    setFavLoading(true);
+    try {
+      const action = isFavorited ? "unfavorite" : "favorite";
+      const body: Record<string, string> = {
+        action,
+        external_system: "mayla",
+        external_professional_id: p.id,
+      };
+      if (!isFavorited) {
+        body.source_type = "mayla_partner";
+        body.internal_partner_id = p.id;
+      }
+      const { data, error } = await supabase.functions.invoke("prontuario-proxy", { body });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setIsFavorited(!isFavorited);
+      toast.success(isFavorited ? "Acesso revogado" : "Médico favoritado! Acesso permanente concedido.");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao atualizar favorito");
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   const hours = p.opening_hours && typeof p.opening_hours === "object" && !Array.isArray(p.opening_hours)
     ? Object.entries(p.opening_hours as Record<string, string>)
