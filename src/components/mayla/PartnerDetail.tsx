@@ -170,6 +170,17 @@ export function PartnerDetail({ partner: p, onBack }: Props) {
           )}
 
           <div className="space-y-2 pt-1 pb-4">
+            {isFavoritable && user && (
+              <Button
+                className="w-full"
+                variant={isFavorited ? "secondary" : "outline"}
+                disabled={favLoading}
+                onClick={toggleFavorite}
+              >
+                <Heart className={`h-4 w-4 mr-1 ${isFavorited ? "fill-current text-destructive" : ""}`} />
+                {favLoading ? "Aguarde..." : isFavorited ? "Médico Favoritado ✓" : "Favoritar Médico"}
+              </Button>
+            )}
             {virtualStoreUrl && (
               <Button className="w-full" variant="default" onClick={() => setShowStore(true)}>
                 🛒 Loja Virtual
