@@ -29,7 +29,7 @@ interface Company {
   secondary_color: string;
 }
 
-type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "notificacoes";
+type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "integracoes" | "notificacoes";
 
 const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "dados", label: "Dados da Conta", emoji: "🏢" },
