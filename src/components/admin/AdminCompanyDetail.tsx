@@ -148,6 +148,10 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
           <AdminPartners filterTypes={["gym", "laboratory", "pharmacy"]} />
         )}
 
+        {activeSection === "integracoes" && (
+          <AdminIntegrations companyId={company.id} />
+        )}
+
         {activeSection === "notificacoes" && (
           <AdminNotifications companyId={company.id} />
         )}
