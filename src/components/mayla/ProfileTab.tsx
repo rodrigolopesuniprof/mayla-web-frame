@@ -106,6 +106,7 @@ export function ProfileTab() {
           {subView === "medicoes" && <HistoricoMedicoes userId={user?.id} />}
           {subView === "consultas" && <ConsultasAgendadas userId={user?.id} />}
           {subView === "meutime" && <MeuTime userId={user?.id} />}
+          {subView === "meus_medicos" && <FavoriteDoctors onBack={() => setSubView(null)} />}
           {subView === "medicamentos" && <Medicamentos userId={user?.id} />}
           {subView === "configuracoes" && <Configuracoes userId={user?.id} userEmail={user?.email} />}
         </div>
