@@ -152,6 +152,7 @@ export function ProfileTab() {
           { key: "medicoes" as SubView, emoji: "📊", label: "Histórico de medições" },
           { key: "relatorio" as any, emoji: "📈", label: "Relatório de saúde", navigate: true },
           { key: "consultas" as SubView, emoji: "📅", label: "Consultas agendadas" },
+          { key: "meus_medicos" as SubView, emoji: "👨‍⚕️", label: "Meus Médicos" },
           { key: "meutime" as SubView, emoji: "👥", label: "Meu Time" },
           { key: "medicamentos" as SubView, emoji: "💊", label: "Medicamentos" },
           { key: "configuracoes" as SubView, emoji: "⚙️", label: "Configurações" },

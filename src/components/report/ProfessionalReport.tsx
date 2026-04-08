@@ -171,7 +171,8 @@ export default function ProfessionalReport() {
 
   return (
     <div className="report-shell">
-      {/* TOPBAR */}
+      {/* TOPBAR - hidden in embed mode */}
+      {!isEmbed && (
       <div className="rpt-topbar-dark">
         <div className="rpt-topbar-row1">
           <div className="rpt-mode-badge">
@@ -192,6 +193,19 @@ export default function ProfessionalReport() {
           <div className="rpt-week-chip-dark">{formatDateRange()}</div>
         </div>
       </div>
+      )}
+
+      {/* Compact header for embed */}
+      {isEmbed && (
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--rpt-border)", display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="rpt-avatar-dark" style={{ width: 32, height: 32, fontSize: 11 }}>{initials}</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--rpt-text-primary)" }}>{profile?.full_name || "Paciente"}</div>
+            <div style={{ fontSize: 11, color: "var(--rpt-text-secondary)" }}>{metaParts.join(" · ") || ""}</div>
+          </div>
+          <div className="rpt-week-chip-dark" style={{ marginLeft: "auto", fontSize: 10 }}>{formatDateRange()}</div>
+        </div>
+      )}
 
       {/* TABS */}
       <div className="rpt-tabs-wrap">

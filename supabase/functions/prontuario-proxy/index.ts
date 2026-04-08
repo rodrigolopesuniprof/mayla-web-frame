@@ -201,7 +201,37 @@ Deno.serve(async (req) => {
           return json({ error: "Use POST" }, 405);
         }
         const body = await req.json();
-        const { external_professional_id, external_professional_name, external_clinic_name, external_patient_id } = body;
+        const { external_professional_id, external_professional_name, external_clinic_name, external_patient_id, source_type, internal_partner_id } = body;
+
+        // For mayla_partner source, look up the partner
+        if (source_type === "mayla_partner" && internal_partner_id) {
+          const { data: partner } = await adminClient.from("partners").select("id, name").eq("id", internal_partner_id).maybeSingle();
+          if (!partner) {
+            return json({ error: "Parceiro não encontrado" }, 404);
+          }
+
+          const { data: conn, error: connErr } = await adminClient.from("prontuario_connections").upsert({
+            user_id: userId,
+            company_id: profile.company_id,
+            external_system: "mayla",
+            external_professional_id: internal_partner_id,
+            external_professional_name: partner.name,
+            external_clinic_name: external_clinic_name || null,
+            external_patient_id: null,
+            source_type: "mayla_partner",
+            internal_partner_id: internal_partner_id,
+            active: true,
+          }, { onConflict: "user_id,external_system,external_professional_id" }).select().single();
+
+          if (connErr) {
+            console.error("Favorite upsert error:", connErr);
+            return json({ error: "Erro ao salvar favorito" }, 500);
+          }
+
+          return json({ success: true, connection: conn });
+        }
+
+        // Default: external system (meddit)
         if (!external_professional_id) {
           return json({ error: "external_professional_id obrigatório" }, 400);
         }
@@ -214,6 +244,7 @@ Deno.serve(async (req) => {
           external_professional_name: external_professional_name || null,
           external_clinic_name: external_clinic_name || null,
           external_patient_id: external_patient_id ? String(external_patient_id) : null,
+          source_type: source_type || "meddit",
           active: true,
         }, { onConflict: "user_id,external_system,external_professional_id" }).select().single();
 
