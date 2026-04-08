@@ -153,13 +153,25 @@ export function AdminIntegrations({ companyId }: Props) {
     }
     setTestingProntuario(true);
     try {
-      const resp = await fetch(`${base_url}/v1/clinics/specialities`, {
-        headers: { Authorization: api_key },
+      // Save first so the edge function reads fresh credentials
+      await handleProntuarioSave();
+      const { data, error } = await supabase.functions.invoke("prontuario-proxy", {
+        body: null,
+        headers: { "Content-Type": "application/json" },
       });
-      if (resp.ok) {
+      // The function is invoked via POST but we pass action as query param
+      // We need to use fetch directly to pass query params
+      const { data: { session } } = await supabase.auth.getSession();
+      const projId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const resp = await fetch(
+        `https://${projId}.supabase.co/functions/v1/prontuario-proxy?action=test_connection`,
+        { headers: { Authorization: `Bearer ${session?.access_token}` } }
+      );
+      const result = await resp.json();
+      if (result.ok) {
         toast({ title: "✅ Conexão bem-sucedida!", description: "A API respondeu corretamente." });
       } else {
-        toast({ title: "❌ Falha na conexão", description: `Status: ${resp.status}`, variant: "destructive" });
+        toast({ title: "❌ Falha na conexão", description: `Status: ${result.status}`, variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "❌ Erro de conexão", description: err.message, variant: "destructive" });
