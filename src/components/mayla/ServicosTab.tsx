@@ -21,6 +21,7 @@ interface Appointment {
 
 export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlineMode?: boolean; onClearOnlineMode?: () => void }) {
   const { user } = useAuth();
+  const { enabled: prontuarioEnabled } = useProntuarioFeature();
   const [subView, setSubView] = useState<SubView>(startOnlineMode ? "consultation" : "menu");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
