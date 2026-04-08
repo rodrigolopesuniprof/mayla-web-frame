@@ -51,7 +51,7 @@ interface HealthProfile {
   has_child_under_12: boolean | null;
 }
 
-type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime";
+type SubView = null | "dados" | "autoavaliacao" | "medicoes" | "consultas" | "medicamentos" | "exames" | "notificacoes" | "configuracoes" | "meutime" | "meus_medicos";
 
 export function ProfileTab() {
   const navigate = useNavigate();

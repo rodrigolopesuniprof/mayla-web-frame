@@ -26,6 +26,8 @@ type TabId = "resumo" | "sinais" | "historico" | "nota";
 export default function ProfessionalReport() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const isEmbed = searchParams.get("view") === "embed";
   const [tab, setTab] = useState<TabId>("resumo");
   const [loading, setLoading] = useState(true);
   const [expired, setExpired] = useState(false);
