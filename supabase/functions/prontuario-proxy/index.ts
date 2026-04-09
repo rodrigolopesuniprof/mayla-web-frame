@@ -6,7 +6,7 @@ function sanitizeBaseUrl(raw: string): string {
   return raw.replace(/\/docs\/?$/, "").replace(/\/+$/, "");
 }
 
-const DEFAULT_BASE = "http://meddit-api-clinic-nv.us-west-2.elasticbeanstalk.com";
+const DEFAULT_BASE = "https://meddit-clinic-appointment.vercel.app";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
 
       const testHeaders: Record<string, string> = {
-        Authorization: medditApiKey,
+        "x-api-key": medditApiKey,
         "Content-Type": "application/json",
       };
 
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
     const cpf = profile.cpf.replace(/\D/g, "");
 
     const medditHeaders: Record<string, string> = {
-      Authorization: medditApiKey,
+      "x-api-key": medditApiKey,
       "Content-Type": "application/json",
     };
 
