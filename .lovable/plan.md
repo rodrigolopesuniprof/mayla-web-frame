@@ -1,33 +1,34 @@
 
 
-# Plano: Botão "Favoritar Médico" na tela de detalhe do parceiro interno
+# Plano: Atualizar conexão Meddit (nova URL + header)
 
-## Contexto
+## Mudanças detectadas
 
-Hoje o botão de favoritar só existe no `ProntuarioConveniado` (médicos Meddit). O backend (`prontuario-proxy` action `favorite` com `source_type=mayla_partner`) já está pronto. Falta apenas adicionar o botão na tela `PartnerDetail`, que é onde o usuário vê os detalhes de médicos/clínicas do marketplace interno.
+| Item | Antes | Agora |
+|------|-------|-------|
+| URL base | `http://meddit-api-clinic-nv.us-west-2.elasticbeanstalk.com` | `https://meddit-clinic-appointment.vercel.app` |
+| Header de auth | `Authorization: <key>` | `x-api-key: <key>` |
+| Chave | valor anterior do secret | `meddit-atria-2026` |
 
 ## Implementação
 
-### 1. Atualizar `PartnerDetail.tsx`
+### 1. Atualizar `prontuario-proxy/index.ts`
 
-- Adicionar botão ❤️ "Favoritar médico" para parceiros do tipo `doctor` (ou `clinic`)
-- Ao clicar, chamar a edge function `prontuario-proxy?action=favorite` com `source_type: "mayla_partner"` e `internal_partner_id: partner.id`
-- Mostrar estado de carregamento e feedback via toast
-- Se já estiver favoritado, mostrar botão como "Favoritado ✓" com opção de desfavoritar (`action=unfavorite`)
-- Ao montar o componente, consultar `prontuario_connections` para verificar se já existe vínculo ativo com aquele partner
+- Alterar `DEFAULT_BASE` para `https://meddit-clinic-appointment.vercel.app`
+- Trocar o header `Authorization` por `x-api-key` nas chamadas ao Meddit (em 2 locais: fluxo regular e `test_connection`)
+- Manter `Content-Type: application/json`
 
-### 2. Verificar vínculo existente
+### 2. Atualizar o secret `MEDDIT_API_KEY`
 
-- Query direta no Supabase: `prontuario_connections` filtrado por `user_id`, `external_system=mayla`, `external_professional_id=partner.id`, `active=true`
-- Evita necessidade de nova edge function só para checar estado
+- Atualizar o valor para `meddit-atria-2026` usando a ferramenta de secrets
+
+### 3. Deploy e teste
+
+- Deploy da edge function
+- Testar via `curl_edge_functions` chamando `?action=specialities` (ou `test_connection`) para validar a resposta
 
 ## Arquivos afetados
 
-- **Editar**: `src/components/mayla/PartnerDetail.tsx` — adicionar lógica de favoritar/desfavoritar com estado visual
-
-## Escopo
-
-- Sem migration (backend já suporta `mayla_partner`)
-- Sem alteração na edge function (action `favorite` e `unfavorite` já tratam `source_type=mayla_partner`)
-- Botão aparece apenas para `partner_type === "doctor"` ou `"clinic"`
+- **Editar**: `supabase/functions/prontuario-proxy/index.ts`
+- **Atualizar secret**: `MEDDIT_API_KEY`
 
