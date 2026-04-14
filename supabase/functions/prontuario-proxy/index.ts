@@ -173,6 +173,49 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── register — early-exit, body has everything ──────────
+    if (action === "register") {
+      if (req.method !== "POST") {
+        return json({ error: "Use POST para register" }, 405);
+      }
+
+      const { data: regProf } = await adminClient
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let medditBase = "";
+      let medditApiKey = globalMedditApiKey;
+
+      if (regProf?.company_id) {
+        const { data: feature } = await adminClient
+          .from("company_features")
+          .select("enabled, config")
+          .eq("company_id", regProf.company_id)
+          .eq("feature_key", "prontuario_conveniado")
+          .maybeSingle();
+
+        const cfg = (feature?.config as Record<string, any>) || {};
+        if (cfg.base_url) medditBase = cfg.base_url;
+        if (cfg.api_key) medditApiKey = cfg.api_key;
+      }
+
+      medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
+
+      const regBody = await req.text();
+      const regResp = await fetch(`${medditBase}/v1/appointments/register`, {
+        method: "POST",
+        headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+        body: regBody,
+      });
+      const regText = await regResp.text();
+      return new Response(regText, {
+        status: regResp.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── professionals — no CPF needed ───────────────────────────
     if (action === "professionals") {
       const { data: prof } = await adminClient

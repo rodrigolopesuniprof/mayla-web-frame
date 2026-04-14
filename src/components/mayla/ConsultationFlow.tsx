@@ -860,6 +860,43 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       return;
     }
 
+    // ── Send to Meddit API if external doctor ───────────────
+    if (selectedDoctor.source === "meddit" && selectedDoctor.meddit_id) {
+      try {
+        // 1. Get patient ID by CPF
+        const patientData = await proxyCall("patient");
+        const patientId =
+          patientData?.result?.user_id ??
+          patientData?.user_id ??
+          patientData?.id ??
+          (Array.isArray(patientData?.result) ? patientData.result[0]?.user_id : null);
+
+        if (!patientId) {
+          console.warn("Meddit: patient not found, skipping external register");
+          toast({ title: "Aviso", description: "Paciente não encontrado no sistema parceiro. Agendamento salvo apenas localmente." });
+        } else {
+          // 2. Register appointment on Meddit
+          const startAt = selectedSlotTime
+            ? `${format(selectedDate, "yyyy-MM-dd")} ${selectedSlotTime.split(" – ")[0]}:00`
+            : `${format(selectedDate, "yyyy-MM-dd")} 09:00:00`;
+
+          await proxyCall("register", {}, "POST", {
+            professionalId: selectedDoctor.meddit_id,
+            officeId: selectedDoctor.meddit_office_id || 1,
+            patientId,
+            startAt,
+            mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
+            interval: 30,
+            socialMidia: "mayla",
+          });
+          console.log("Meddit: appointment registered successfully");
+        }
+      } catch (medditErr: any) {
+        console.error("Meddit register error:", medditErr);
+        toast({ title: "Aviso", description: "Agendamento salvo localmente, mas houve erro ao enviar ao sistema parceiro." });
+      }
+    }
+
     // For online consultations, also create a consultations record and go to video call
     if (isOnline) {
       // join_window_starts_at = 15 minutes before scheduled time
