@@ -232,27 +232,27 @@ export default function HealthReport() {
         <div className="rpt-trend-grid">
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 3C10 3 6 7.5 6 11.5A4 4 0 0014 11.5C14 7.5 10 3 10 3Z" fill="var(--rpt-red)" opacity="0.8"/></svg>}
-            iconBg="var(--rpt-red-bg)" arrow="↑" arrowColor="var(--rpt-red)"
-            value="--" unit="bpm" name="Freq. cardíaca"
-            bars={[40,55,50,65,70,85,100]} barColor="var(--rpt-red)"
+            iconBg="var(--rpt-red-bg)" arrow={trendData.hrAvg ? "↑" : ""} arrowColor="var(--rpt-red)"
+            value={trendData.hrAvg != null ? String(trendData.hrAvg) : "--"} unit="bpm" name="Freq. cardíaca"
+            bars={trendData.hr.length > 0 ? trendData.hr : [40,55,50,65,70,85,100]} barColor="var(--rpt-red)"
           />
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="4" fill="var(--rpt-amber)" opacity="0.8"/><path d="M10 14V18M7 17L10 18L13 17" stroke="var(--rpt-amber)" strokeWidth="1.4" strokeLinecap="round"/></svg>}
-            iconBg="var(--rpt-amber-bg)" arrow="↑" arrowColor="var(--rpt-amber)"
-            value="--" unit="/100" name="Estresse"
-            bars={[30,55,60,70,78,88,100]} barColor="var(--rpt-amber)"
+            iconBg="var(--rpt-amber-bg)" arrow={trendData.stressAvg ? "↑" : ""} arrowColor="var(--rpt-amber)"
+            value={trendData.stressAvg != null ? String(trendData.stressAvg) : "--"} unit="/100" name="Estresse"
+            bars={trendData.stress.length > 0 ? trendData.stress : [30,55,60,70,78,88,100]} barColor="var(--rpt-amber)"
           />
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2C7 6 5 9 5 12a5 5 0 0010 0c0-3-2-6-5-10Z" fill="var(--rpt-purple)" opacity="0.7"/></svg>}
-            iconBg="var(--rpt-purple-bg)" arrow="↓" arrowColor="var(--rpt-purple)"
-            value="--" name="Sono médio"
-            bars={[90,80,70,60,55,48,38]} barColor="var(--rpt-purple)"
+            iconBg="var(--rpt-purple-bg)" arrow={trendData.sleepAvg ? "↓" : ""} arrowColor="var(--rpt-purple)"
+            value={trendData.sleepAvg || "--"} name="Sono médio"
+            bars={trendData.sleep.length > 0 ? trendData.sleep : [90,80,70,60,55,48,38]} barColor="var(--rpt-purple)"
           />
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="3" fill="none" stroke="var(--rpt-blue)" strokeWidth="1.5"/><path d="M10 11v7M7 15l3 3 3-3" stroke="var(--rpt-blue)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            iconBg="var(--rpt-blue-bg)" arrow="→" arrowColor="var(--rpt-blue)"
-            value="--" name="Passos/dia"
-            bars={[55,80,45,70,65,60,58]} barColor="var(--rpt-blue)"
+            iconBg="var(--rpt-blue-bg)" arrow={trendData.stepsAvg ? "→" : ""} arrowColor="var(--rpt-blue)"
+            value={trendData.stepsAvg != null ? String(trendData.stepsAvg) : "--"} name="Passos/dia"
+            bars={trendData.steps.length > 0 ? trendData.steps : [55,80,45,70,65,60,58]} barColor="var(--rpt-blue)"
           />
         </div>
       </div>
