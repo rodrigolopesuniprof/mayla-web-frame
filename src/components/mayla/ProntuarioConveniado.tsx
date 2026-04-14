@@ -179,16 +179,19 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
         try {
           const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(oid) });
           const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
-      calList.forEach((day: any) => {
-        if (day.slots && Array.isArray(day.slots)) {
-          day.slots.forEach((s: any) => {
-            parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: s });
+          const officeName = offices.find(o => o.id === oid)?.name || "";
+          calList.forEach((day: any) => {
+            if (day.slots && Array.isArray(day.slots)) {
+              day.slots.forEach((s: any) => {
+                parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: { ...s, officeName } });
+              });
+            } else if (day.date && day.time) {
+              parsed.push({ date: day.date, time: day.time, available: true, raw: { ...day, officeName } });
+            }
           });
-        } else if (day.date && day.time) {
-          parsed.push({ date: day.date, time: day.time, available: true, raw: day });
-        }
-      });
-      setSlots(parsed.length > 0 ? parsed : []);
+        } catch { /* skip this office */ }
+      }
+      setSlots(parsed);
     } catch (err: any) {
       setError(err.message);
     }
