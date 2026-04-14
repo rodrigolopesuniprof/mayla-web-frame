@@ -130,6 +130,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           doctor_name: string | null
+          external_appointment_id: string | null
           id: string
           municipality_id: string | null
           notes: string | null
@@ -145,6 +146,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           doctor_name?: string | null
+          external_appointment_id?: string | null
           id?: string
           municipality_id?: string | null
           notes?: string | null
@@ -160,6 +162,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           doctor_name?: string | null
+          external_appointment_id?: string | null
           id?: string
           municipality_id?: string | null
           notes?: string | null

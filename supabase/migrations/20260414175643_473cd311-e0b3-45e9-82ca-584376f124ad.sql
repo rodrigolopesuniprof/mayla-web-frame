@@ -1,0 +1,1 @@
+ALTER TABLE public.appointments ADD COLUMN external_appointment_id text DEFAULT NULL;
