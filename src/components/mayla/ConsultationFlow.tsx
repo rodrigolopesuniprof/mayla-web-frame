@@ -1011,9 +1011,15 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold text-foreground truncate">{d.name}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
-                                  ⭐ Novo
-                                </span>
+                                {d.source === "meddit" ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">
+                                    🏥 Parceiro
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
+                                    ⭐ Novo
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-muted-foreground mt-0.5">
                                 {d.partner_type === "clinic" ? "Clínica" : d.specialty}
