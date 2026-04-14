@@ -855,6 +855,17 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                         {/* Expanded: inline time slots */}
                         {isExpanded && (
                           <div className="px-3 pb-3 border-t border-border/50 pt-3 space-y-3">
+                            {/* Favorite button */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleFavoriteDoctor(d); }}
+                              className={`w-full py-2 rounded-xl text-[12px] font-semibold cursor-pointer transition-colors border ${
+                                favoritedIds.has(d.id)
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-600"
+                                  : "bg-card border-border hover:border-amber-500/40 text-foreground"
+                              }`}
+                            >
+                              {favoritedIds.has(d.id) ? "⭐ Favoritado" : "☆ Favoritar médico"}
+                            </button>
                             {upcomingDays.length === 0 ? (
                               <div className="text-center py-3">
                                 <span className="text-2xl block mb-1">📅</span>
