@@ -360,7 +360,10 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
   const [activeRoomToken, setActiveRoomToken] = useState<string | null>(null);
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
-  const [medditCalendar, setMedditCalendar] = useState<Record<string, string[]>>({});
+  /** Each Meddit slot now carries officeId, officeName and interval */
+  interface MedditSlot { time: string; officeId: number; officeName: string; interval: number }
+  const [medditCalendar, setMedditCalendar] = useState<Record<string, MedditSlot[]>>({});
+  const [selectedMedditSlot, setSelectedMedditSlot] = useState<MedditSlot | null>(null);
   const [medditOffices, setMedditOffices] = useState<any[]>([]);
   const [loadingMedditCalendar, setLoadingMedditCalendar] = useState(false);
 
