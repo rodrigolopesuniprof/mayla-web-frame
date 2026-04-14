@@ -218,10 +218,31 @@
 .rpt-trend-val { font-size: 23px; font-weight: 600; color: var(--rpt-text-primary); font-family: 'DM Mono', monospace; line-height: 1; }
 .rpt-trend-unit { font-size: 11px; color: var(--rpt-text-secondary); font-weight: 400; }
 .rpt-trend-name { font-size: 11px; color: var(--rpt-text-tertiary); margin-top: 5px; }
+.rpt-trend-ideal { font-size: 9px; color: var(--rpt-text-tertiary); margin-top: 2px; font-weight: 500; opacity: 0.7; }
 
 .rpt-mini-chart { margin-top: 10px; height: 30px; display: flex; align-items: flex-end; gap: 3px; }
-.rpt-bar { flex: 1; border-radius: 2px 2px 0 0; opacity: 0.45; }
+.rpt-bar { flex: 1; border-radius: 2px 2px 0 0; opacity: 0.45; transition: opacity 0.15s; }
+.rpt-bar:hover { opacity: 0.7; }
 .rpt-bar-today { flex: 1; border-radius: 2px 2px 0 0; opacity: 1; }
+
+.rpt-bar-tooltip {
+  margin-top: 6px; padding: 5px 8px; border-radius: 6px; background: var(--rpt-surface2);
+  border-left: 3px solid; display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  animation: rptFadeUp 0.15s ease both;
+}
+.rpt-bar-tooltip-label { font-size: 9px; color: var(--rpt-text-secondary); font-weight: 500; }
+.rpt-bar-tooltip-value { font-size: 10px; font-weight: 600; font-family: 'DM Mono', monospace; color: var(--rpt-text-primary); }
+
+.rpt-peak-valley { font-size: 9px; color: var(--rpt-text-tertiary); margin-top: 6px; text-align: center; font-weight: 500; }
+
+/* INFO BUTTON */
+.rpt-info-btn {
+  width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--rpt-border-md);
+  background: var(--rpt-surface); color: var(--rpt-text-tertiary); font-size: 10px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: all 0.15s; flex-shrink: 0; padding: 0; line-height: 1;
+}
+.rpt-info-btn:hover { border-color: var(--rpt-blue); color: var(--rpt-blue); }
 
 /* QUESTIONNAIRES */
 .rpt-q-list { display: flex; flex-direction: column; gap: 8px; }
