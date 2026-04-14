@@ -59,10 +59,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamEmoji, setNewTeamEmoji] = useState("🏃");
 
-  // Consultas dialog
-  const [showConsultasDialog, setShowConsultasDialog] = useState(false);
-  const [showConsultHistory, setShowConsultHistory] = useState(false);
-  const [consultHistory, setConsultHistory] = useState<any[]>([]);
+  // Direct consultation navigation (no intermediate dialog)
 
 
   useEffect(() => {
