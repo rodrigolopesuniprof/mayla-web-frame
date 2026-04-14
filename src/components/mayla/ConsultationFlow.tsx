@@ -1414,7 +1414,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                   </>
                 )}
               </>
-            )
+            )}
           </div>
         )}
 
