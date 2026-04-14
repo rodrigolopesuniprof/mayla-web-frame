@@ -22,7 +22,7 @@ export function useCompanyFeature(featureKey: string) {
         .eq("company_id", profile.company_id)
         .eq("feature_key", featureKey)
         .maybeSingle();
-      setEnabled(feature?.enabled ?? false);
+      setEnabled(feature?.enabled ?? true);
       setLoading(false);
     })();
   }, [user, featureKey]);

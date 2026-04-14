@@ -22,6 +22,8 @@ const FEATURE_KEYS = {
   binah: "binah_special_measurement",
   prontuario: "prontuario_conveniado",
   consulta: "consulta_servico",
+  consultaInternos: "consulta_medicos_internos",
+  consultaExternos: "consulta_medicos_externos",
 } as const;
 
 const DEFAULT_BINAH_CONFIG = {

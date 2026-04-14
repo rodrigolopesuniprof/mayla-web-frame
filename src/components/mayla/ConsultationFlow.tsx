@@ -696,22 +696,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
         {/* ── Step: Specialty (now second) ── */}
         {step === "specialty" && (
-          <div className="px-5 pt-3">
-            <h3 className="font-display text-lg font-medium text-foreground mb-1">Escolha a especialidade</h3>
-            <p className="text-xs text-muted-foreground mb-4">Qual tipo de consulta você precisa?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {SPECIALTIES.map((s) => (
-                <button
-                  key={s.value}
-                  onClick={() => handleSelectSpecialty(s.value)}
-                  className="flex items-center gap-3 p-3.5 bg-card rounded-2xl border border-border hover:border-primary/40 transition-colors cursor-pointer text-left"
-                >
-                  <span className="text-xl">{s.emoji}</span>
-                  <span className="text-[13px] font-semibold text-foreground">{s.value}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <SpecialtyStep onSelect={handleSelectSpecialty} />
         )}
 
         {step === "doctors" && (
