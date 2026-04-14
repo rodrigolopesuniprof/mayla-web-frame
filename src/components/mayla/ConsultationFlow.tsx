@@ -360,6 +360,9 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
   const [activeRoomToken, setActiveRoomToken] = useState<string | null>(null);
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+  const [medditCalendar, setMedditCalendar] = useState<Record<string, string[]>>({});
+  const [medditOffices, setMedditOffices] = useState<any[]>([]);
+  const [loadingMedditCalendar, setLoadingMedditCalendar] = useState(false);
 
   // Geolocation
   useEffect(() => {
@@ -387,6 +390,55 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
         if (data) setFavoritedIds(new Set(data.map((d: any) => d.internal_partner_id)));
       });
   }, [user]);
+
+  // Fetch Meddit offices + calendar when a Meddit doctor is expanded
+  useEffect(() => {
+    if (!expandedDoctorId) return;
+    const doc = doctors.find(d => d.id === expandedDoctorId);
+    if (!doc || doc.source !== "meddit" || !doc.meddit_id) return;
+
+    setLoadingMedditCalendar(true);
+    setMedditCalendar({});
+
+    (async () => {
+      try {
+        // 1. Fetch offices if not cached
+        let offices = medditOffices;
+        if (offices.length === 0) {
+          const offData = await proxyCall("offices");
+          offices = Array.isArray(offData) ? offData : Array.isArray(offData?.result) ? offData.result : [];
+          setMedditOffices(offices);
+        }
+
+        // 2. Fetch calendar for each office in parallel
+        const calendarMerged: Record<string, string[]> = {};
+        if (offices.length > 0) {
+          const calPromises = offices.map((o: any) =>
+            proxyCall("calendar", {
+              professionalId: String(doc.meddit_id),
+              officeId: String(o.office_id || o.officeInfo?.office_id),
+            }).catch(() => null)
+          );
+          const results = await Promise.all(calPromises);
+          for (const cal of results) {
+            if (!cal || typeof cal !== "object") continue;
+            for (const [dateStr, info] of Object.entries(cal)) {
+              const slots = (info as any)?.extraInfo;
+              if (Array.isArray(slots) && slots.length > 0) {
+                if (!calendarMerged[dateStr]) calendarMerged[dateStr] = [];
+                calendarMerged[dateStr].push(...slots.filter((s: string) => !calendarMerged[dateStr].includes(s)));
+              }
+            }
+          }
+        }
+        setMedditCalendar(calendarMerged);
+      } catch (err) {
+        console.warn("Failed to load Meddit calendar:", err);
+      } finally {
+        setLoadingMedditCalendar(false);
+      }
+    })();
+  }, [expandedDoctorId, doctors]);
 
   const handleFavoriteDoctor = async (doctor: Doctor) => {
     if (!user) return;
@@ -1097,18 +1149,60 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                               {favoritedIds.has(d.id) ? "⭐ Favoritado" : "☆ Favoritar médico"}
                             </button>
                             {d.source === "meddit" ? (
-                              /* Meddit doctor: show office info + go to schedule via API */
-                              <div className="text-center py-3">
-                                {d.meddit_office_name && (
-                                  <p className="text-xs text-muted-foreground mb-2">📍 {d.meddit_office_name}</p>
+                              /* Meddit doctor: show calendar from API */
+                              <div className="py-2">
+                                {loadingMedditCalendar ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                                    <span className="text-xs text-muted-foreground ml-2">Carregando agenda...</span>
+                                  </div>
+                                ) : Object.keys(medditCalendar).length === 0 ? (
+                                  <div className="text-center py-3">
+                                    <span className="text-2xl block mb-1">📅</span>
+                                    <p className="text-xs text-muted-foreground">Sem horários disponíveis no momento.</p>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-[11px] font-medium text-muted-foreground mb-2">Próximos horários disponíveis:</p>
+                                    {Object.entries(medditCalendar)
+                                      .sort(([a], [b]) => a.localeCompare(b))
+                                      .slice(0, 3)
+                                      .map(([dateStr, times]) => {
+                                        const dateObj = new Date(dateStr + "T00:00:00");
+                                        return (
+                                          <div key={dateStr} className="mb-2">
+                                            <p className="text-[11px] font-semibold text-foreground mb-1.5 capitalize">
+                                              {WEEKDAY_NAMES[dateObj.getDay()]} ({format(dateObj, "dd/MMM", { locale: ptBR })})
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {(times as string[]).sort().map((time, i) => (
+                                                <button
+                                                  key={i}
+                                                  onClick={() => {
+                                                    setSelectedDoctor(d);
+                                                    setSelectedDate(dateObj);
+                                                    setSelectedSlotTime(time.substring(0, 5));
+                                                    setStep("confirm");
+                                                  }}
+                                                  className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
+                                                >
+                                                  {time.substring(0, 5)}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-xs text-primary w-full mt-1"
+                                      onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}
+                                    >
+                                      Ver agenda completa →
+                                    </Button>
+                                  </>
                                 )}
-                                <Button
-                                  size="sm"
-                                  className="text-xs"
-                                  onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}
-                                >
-                                  Ver horários disponíveis
-                                </Button>
                               </div>
                             ) : upcomingDays.length === 0 ? (
                               <div className="text-center py-3">
@@ -1182,88 +1276,142 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
             </div>
 
             <h3 className="font-display text-base font-medium text-foreground mb-1">Escolha o dia</h3>
-            <p className="text-[11px] text-muted-foreground mb-3">
-              Dias disponíveis: {Array.from(availableWeekdays).map((w) => WEEKDAY_NAMES[w]).join(", ") || "Nenhum"}
-            </p>
 
-            {doctorSlots.length === 0 ? (
-              <div className="text-center py-6">
-                <span className="text-3xl block mb-2">📅</span>
-                <p className="text-sm text-muted-foreground">Este médico não possui horários cadastrados ainda.</p>
-              </div>
+            {selectedDoctor.source === "meddit" ? (
+              /* Meddit doctor schedule — date-based calendar from API */
+              loadingMedditCalendar ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                  <span className="text-xs text-muted-foreground ml-2">Carregando agenda...</span>
+                </div>
+              ) : Object.keys(medditCalendar).length === 0 ? (
+                <div className="text-center py-6">
+                  <span className="text-3xl block mb-2">📅</span>
+                  <p className="text-sm text-muted-foreground">Sem horários disponíveis no momento.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-muted-foreground mb-3">
+                    {Object.keys(medditCalendar).length} dia(s) com horários disponíveis
+                  </p>
+                  <div className="space-y-3">
+                    {Object.entries(medditCalendar)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([dateStr, times]) => {
+                        const dateObj = new Date(dateStr + "T00:00:00");
+                        const isSelected = selectedDate && isSameDay(dateObj, selectedDate);
+                        return (
+                          <div key={dateStr} className={`p-3 rounded-xl border transition-all ${isSelected ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                            <p className="text-[12px] font-semibold text-foreground mb-2 capitalize">
+                              {WEEKDAY_NAMES[dateObj.getDay()]} — {format(dateObj, "dd/MM/yyyy")}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(times as string[]).sort().map((time, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    setSelectedDate(dateObj);
+                                    setSelectedSlotTime(time.substring(0, 5));
+                                    setStep("confirm");
+                                  }}
+                                  className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
+                                >
+                                  {time.substring(0, 5)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </>
+              )
             ) : (
               <>
-                {/* Calendar */}
-                <div className="bg-card rounded-2xl border border-border p-3 mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">‹</button>
-                    <span className="text-sm font-semibold text-foreground capitalize">
-                      {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-                    </span>
-                    <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">›</button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 mb-1">
-                    {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
-                      <div key={i} className="text-center text-[10px] text-muted-foreground font-medium py-1">{d}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: calendarDays.startPad }).map((_, i) => <div key={`p-${i}`} />)}
-                    {calendarDays.days.map((day) => {
-                      const hasSlots = availableWeekdays.has(day.getDay());
-                      const isPast = isBefore(day, startOfDay(new Date())) && !isToday(day);
-                      const isSelected = selectedDate && isSameDay(day, selectedDate);
-                      return (
-                        <button
-                          key={day.toISOString()}
-                          onClick={() => handleSelectDate(day)}
-                          disabled={isPast || !hasSlots}
-                          className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center text-[12px] border-none cursor-pointer transition-all ${
-                            isSelected ? "bg-primary text-primary-foreground font-bold"
-                            : hasSlots && !isPast ? "bg-primary/10 text-primary font-semibold hover:bg-primary/20"
-                            : "text-muted-foreground/30 cursor-not-allowed bg-transparent"
-                          } ${isToday(day) && !isSelected ? "ring-1 ring-primary/40" : ""}`}
-                        >
-                          {day.getDate()}
-                          {hasSlots && !isPast && (
-                            <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-primary-foreground" : "bg-primary"}`} />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  Dias disponíveis: {Array.from(availableWeekdays).map((w) => WEEKDAY_NAMES[w]).join(", ") || "Nenhum"}
+                </p>
 
-                {/* Time windows */}
-                {selectedDate && (
-                  <div>
-                    <p className="text-[12px] font-semibold text-foreground mb-2">
-                      📅 {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
-                    </p>
-                    {windowsForDate.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Sem horários neste dia.</p>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {windowsForDate.map((tw, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSelectTime(tw)}
-                            className="flex flex-col items-center p-3 bg-card rounded-xl border border-border hover:border-primary/40 transition-colors cursor-pointer"
-                          >
-                            <span className="text-[13px] font-semibold text-foreground">
-                              {tw.start} – {tw.end}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground mt-0.5">{tw.duration} min</span>
-                            <Badge variant="outline" className="text-[9px] mt-1">
-                              {tw.consultation_mode === "online" ? "Online" : tw.consultation_mode === "presencial" ? "Presencial" : "Ambos"}
-                            </Badge>
-                          </button>
+                {doctorSlots.length === 0 ? (
+                  <div className="text-center py-6">
+                    <span className="text-3xl block mb-2">📅</span>
+                    <p className="text-sm text-muted-foreground">Este médico não possui horários cadastrados ainda.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Calendar */}
+                    <div className="bg-card rounded-2xl border border-border p-3 mb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                          className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">‹</button>
+                        <span className="text-sm font-semibold text-foreground capitalize">
+                          {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                        </span>
+                        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                          className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">›</button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 mb-1">
+                        {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
+                          <div key={i} className="text-center text-[10px] text-muted-foreground font-medium py-1">{d}</div>
                         ))}
                       </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {Array.from({ length: calendarDays.startPad }).map((_, i) => <div key={`p-${i}`} />)}
+                        {calendarDays.days.map((day) => {
+                          const hasSlots = availableWeekdays.has(day.getDay());
+                          const isPast = isBefore(day, startOfDay(new Date())) && !isToday(day);
+                          const isSelected = selectedDate && isSameDay(day, selectedDate);
+                          return (
+                            <button
+                              key={day.toISOString()}
+                              onClick={() => handleSelectDate(day)}
+                              disabled={isPast || !hasSlots}
+                              className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center text-[12px] border-none cursor-pointer transition-all ${
+                                isSelected ? "bg-primary text-primary-foreground font-bold"
+                                : hasSlots && !isPast ? "bg-primary/10 text-primary font-semibold hover:bg-primary/20"
+                                : "text-muted-foreground/30 cursor-not-allowed bg-transparent"
+                              } ${isToday(day) && !isSelected ? "ring-1 ring-primary/40" : ""}`}
+                            >
+                              {day.getDate()}
+                              {hasSlots && !isPast && (
+                                <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-primary-foreground" : "bg-primary"}`} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Time windows */}
+                    {selectedDate && (
+                      <div>
+                        <p className="text-[12px] font-semibold text-foreground mb-2">
+                          📅 {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                        </p>
+                        {windowsForDate.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Sem horários neste dia.</p>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {windowsForDate.map((tw, i) => (
+                              <button
+                                key={i}
+                                onClick={() => handleSelectTime(tw)}
+                                className="flex flex-col items-center p-3 bg-card rounded-xl border border-border hover:border-primary/40 transition-colors cursor-pointer"
+                              >
+                                <span className="text-[13px] font-semibold text-foreground">
+                                  {tw.start} – {tw.end}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground mt-0.5">{tw.duration} min</span>
+                                <Badge variant="outline" className="text-[9px] mt-1">
+                                  {tw.consultation_mode === "online" ? "Online" : tw.consultation_mode === "presencial" ? "Presencial" : "Ambos"}
+                                </Badge>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </>
             )}
