@@ -198,9 +198,56 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   };
 
 
+  const [healthScore, setHealthScore] = useState<number | null>(null);
+  const [lastMeasurement, setLastMeasurement] = useState<{ heart_rate: number | null; measured_at: string } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch latest health score
+    supabase
+      .from("health_scores")
+      .select("score_general")
+      .eq("user_id", user.id)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setHealthScore(data.score_general);
+      });
+    // Fetch latest measurement
+    supabase
+      .from("health_measurements")
+      .select("heart_rate, measured_at")
+      .eq("user_id", user.id)
+      .order("measured_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setLastMeasurement(data);
+      });
+  }, [user]);
+
   const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
   const firstName = fullName.split(" ")[0];
-  const healthScore = 82;
+  const displayScore = healthScore ?? 0;
+
+  const getTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `há ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "ontem";
+    return `há ${days} dias`;
+  };
+
+  const getScoreLabel = (s: number) => {
+    if (s >= 80) return "Muito bem! 💪";
+    if (s >= 60) return "Bom 👍";
+    if (s >= 40) return "Atenção ⚠️";
+    return "Cuidado 🔴";
+  };
 
   return (
     <div className="animate-fade-up flex-1 overflow-y-auto pb-4">
