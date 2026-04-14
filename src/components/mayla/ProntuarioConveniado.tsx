@@ -121,7 +121,10 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     try {
       const data = await proxyCall("offices");
       const rawList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
-      const mapped: Office[] = rawList.map((o: any) => ({ id: o.id, name: o.name || `Office ${o.id}` }));
+      const mapped: Office[] = rawList.map((o: any) => ({
+        id: o.office_id ?? o.id,
+        name: o.officeInfo?.office_name ?? o.name ?? `Office ${o.office_id ?? o.id}`,
+      }));
       setOffices(mapped);
     } catch { /* offices may fail silently */ }
   };
@@ -170,27 +173,61 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const parsed: Slot[] = [];
-      // Use real office IDs; if prof has one use it, otherwise try all loaded offices
       const officeIds = prof.officeId ? [prof.officeId] : offices.map(o => o.id);
-      if (officeIds.length === 0) officeIds.push(1); // ultimate fallback
-
-      for (const oid of officeIds) {
-        try {
-          const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(oid) });
-          const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
-          const officeName = offices.find(o => o.id === oid)?.name || "";
-          calList.forEach((day: any) => {
-            if (day.slots && Array.isArray(day.slots)) {
-              day.slots.forEach((s: any) => {
-                parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: { ...s, officeName } });
-              });
-            } else if (day.date && day.time) {
-              parsed.push({ date: day.date, time: day.time, available: true, raw: { ...day, officeName } });
-            }
-          });
-        } catch { /* skip this office */ }
+      if (officeIds.length === 0) {
+        setSlots([]);
+        setError("Nenhum escritório disponível.");
+        setLoading(false);
+        return;
       }
+
+      // Fetch all offices in parallel
+      const results = await Promise.all(
+        officeIds.map(async (oid) => {
+          try {
+            const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(oid) });
+            return { oid, data };
+          } catch {
+            return { oid, data: null };
+          }
+        })
+      );
+
+      const parsed: Slot[] = [];
+      for (const { oid, data } of results) {
+        if (!data) continue;
+        const officeName = offices.find(o => o.id === oid)?.name || "";
+
+        // Handle object format: { "2026-04-17": { extraInfo: ["08:00", ...], ... }, ... }
+        if (typeof data === "object" && !Array.isArray(data) && data !== null) {
+          const keys = Object.keys(data).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
+          if (keys.length > 0) {
+            for (const dateKey of keys) {
+              const dayData = data[dateKey];
+              const times: string[] = Array.isArray(dayData?.extraInfo) ? dayData.extraInfo : [];
+              times.forEach((t: string) => {
+                parsed.push({ date: dateKey, time: t, available: true, raw: { officeName } });
+              });
+            }
+            continue;
+          }
+        }
+
+        // Handle array format (fallback)
+        const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+        calList.forEach((day: any) => {
+          if (day.slots && Array.isArray(day.slots)) {
+            day.slots.forEach((s: any) => {
+              parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: { ...s, officeName } });
+            });
+          } else if (day.date && day.time) {
+            parsed.push({ date: day.date, time: day.time, available: true, raw: { ...day, officeName } });
+          }
+        });
+      }
+
+      // Sort by date+time
+      parsed.sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
       setSlots(parsed);
     } catch (err: any) {
       setError(err.message);
