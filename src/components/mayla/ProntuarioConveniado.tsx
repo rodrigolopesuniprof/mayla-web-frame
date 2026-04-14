@@ -303,10 +303,10 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
                 className="pl-10"
               />
             </div>
-            {professionals.length === 0 && !error && (
+            {professionals.filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && !error && (
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum profissional encontrado.</p>
             )}
-            {professionals.map(prof => (
+            {professionals.filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(prof => (
               <div
                 key={prof.id}
                 className="rounded-2xl p-4 border border-border bg-card flex items-center gap-3"
