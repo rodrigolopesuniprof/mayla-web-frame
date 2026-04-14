@@ -212,6 +212,49 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── calendar — no CPF needed ────────────────────────────────
+    if (action === "calendar") {
+      const professionalId = url.searchParams.get("professionalId");
+      const officeId = url.searchParams.get("officeId");
+      if (!professionalId || !officeId) {
+        return json({ error: "professionalId e officeId são obrigatórios" }, 400);
+      }
+
+      const { data: prof } = await adminClient
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let medditBase = "";
+      let medditApiKey = globalMedditApiKey;
+
+      if (prof?.company_id) {
+        const { data: feature } = await adminClient
+          .from("company_features")
+          .select("enabled, config")
+          .eq("company_id", prof.company_id)
+          .eq("feature_key", "prontuario_conveniado")
+          .maybeSingle();
+
+        const cfg = (feature?.config as Record<string, any>) || {};
+        if (cfg.base_url) medditBase = cfg.base_url;
+        if (cfg.api_key) medditApiKey = cfg.api_key;
+      }
+
+      medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
+
+      const calResp = await fetch(`${medditBase}/v1/professionals/${professionalId}/office/${officeId}/calendar`, {
+        method: "GET",
+        headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+      });
+      const calText = await calResp.text();
+      return new Response(calText, {
+        status: calResp.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Regular flow — needs profile + CPF ──────────────────────
     const { data: profile } = await adminClient
       .from("profiles")
