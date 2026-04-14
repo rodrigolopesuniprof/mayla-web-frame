@@ -177,8 +177,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     onClose();
   };
 
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   const saveResult = async () => {
-    if (!user || !mappedResult) return;
+    if (!user || !mappedResult || saving || saved) return;
+    setSaving(true);
 
     const { error } = await supabase.from("special_measurements").insert({
       user_id: user.id,
@@ -442,13 +446,14 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
               </div>
               <button
                 onClick={saveResult}
-                className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white mt-2"
+                disabled={saving || saved}
+                className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white mt-2 disabled:opacity-60"
                 style={{
                   background:
                     "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
                 }}
               >
-                Salvar Medição
+                {saved ? "✓ Salvo" : saving ? "Salvando..." : "Salvar Medição"}
               </button>
             </div>
           )}
