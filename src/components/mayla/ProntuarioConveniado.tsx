@@ -117,7 +117,16 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     setLoading(false);
   };
 
-  const loadConnections = async () => {
+  const loadOffices = async () => {
+    try {
+      const data = await proxyCall("offices");
+      const rawList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+      const mapped: Office[] = rawList.map((o: any) => ({ id: o.id, name: o.name || `Office ${o.id}` }));
+      setOffices(mapped);
+    } catch { /* offices may fail silently */ }
+  };
+
+
     try {
       const data = await proxyCall("my_connections");
       setConnections(Array.isArray(data) ? data : []);
@@ -161,11 +170,15 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const officeId = prof.officeId || 1;
-      const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(officeId) });
-      // Parse calendar data into slots
       const parsed: Slot[] = [];
-      const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+      // Use real office IDs; if prof has one use it, otherwise try all loaded offices
+      const officeIds = prof.officeId ? [prof.officeId] : offices.map(o => o.id);
+      if (officeIds.length === 0) officeIds.push(1); // ultimate fallback
+
+      for (const oid of officeIds) {
+        try {
+          const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(oid) });
+          const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
       calList.forEach((day: any) => {
         if (day.slots && Array.isArray(day.slots)) {
           day.slots.forEach((s: any) => {
