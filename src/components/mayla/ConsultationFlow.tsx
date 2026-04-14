@@ -360,6 +360,9 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
   const [activeRoomToken, setActiveRoomToken] = useState<string | null>(null);
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+  const [medditCalendar, setMedditCalendar] = useState<Record<string, string[]>>({});
+  const [medditOffices, setMedditOffices] = useState<any[]>([]);
+  const [loadingMedditCalendar, setLoadingMedditCalendar] = useState(false);
 
   // Geolocation
   useEffect(() => {
