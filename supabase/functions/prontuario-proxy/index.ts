@@ -6,7 +6,7 @@ function sanitizeBaseUrl(raw: string): string {
   return raw.replace(/\/docs\/?$/, "").replace(/\/+$/, "");
 }
 
-const DEFAULT_BASE = "https://meddit-clinic-appointment.vercel.app";
+const DEFAULT_BASE = "https://api.meddit.net";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
