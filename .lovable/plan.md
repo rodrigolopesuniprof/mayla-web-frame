@@ -1,37 +1,45 @@
 
+Plano: corrigir o envio real do agendamento para a Meddit
 
-# Plano: Enviar agendamento para API Meddit
+Diagnóstico confirmado
+- A integração já está tentando registrar a consulta na Meddit.
+- A busca do paciente por CPF está funcionando: `action=patient` respondeu 200 com `user_id`.
+- O bloqueio atual está no `action=register`: a requisição saiu com `officeId: 1` e retornou `504 Gateway Time-out`.
+- Antes disso, o app carregou os escritórios reais do médico (`195574` e `195575`) e a agenda por escritório. Então o problema não é “não disparar”, e sim perder o escritório correto na hora de confirmar.
+- Hoje o calendário Meddit é reduzido para `date -> [times]`, sem guardar `officeId`, `officeName` e `interval`. No confirm, o código cai em fallback (`officeId: 1`, `interval: 30`), o que torna o payload incorreto/incompleto.
 
-## Problema
+Implementação
+1. Corrigir a estrutura da agenda Meddit em `src/components/mayla/ConsultationFlow.tsx`
+   - Trocar o calendário simplificado por uma estrutura com metadados por slot.
+   - Cada slot precisa carregar: `date`, `time`, `officeId`, `officeName` e `interval`.
+   - Ao buscar vários escritórios, preservar a origem de cada horário em vez de juntar só os textos dos horários.
 
-O `handleConfirm` apenas insere na tabela local `appointments`. Para médicos Meddit (com `source === "meddit"`), não há chamada ao endpoint `proxyCall("register")`, então o agendamento nunca chega ao painel Meddit.
+2. Corrigir a seleção do horário
+   - Quando o usuário clicar em um horário Meddit, salvar também o slot Meddit completo selecionado.
+   - Se houver o mesmo horário em mais de um escritório, mostrar o nome do escritório no botão/lista para evitar ambiguidade.
 
-## Solução
+3. Corrigir o payload enviado para a Meddit
+   - No `handleConfirm`, para médicos `source === "meddit"`, usar o `officeId` e o `interval` do slot realmente escolhido.
+   - Remover o fallback `officeId: 1`.
+   - Se o slot Meddit não tiver metadados suficientes, bloquear o envio externo e pedir nova seleção do horário.
 
-### `ConsultationFlow.tsx` — `handleConfirm`
+4. Endurecer a edge function `supabase/functions/prontuario-proxy/index.ts`
+   - Validar no `register` os campos obrigatórios: `professionalId`, `officeId`, `patientId`, `startAt` e `interval`.
+   - Adicionar timeout controlado no fetch para a API externa e devolver erro JSON claro, em vez de deixar estourar num `504` genérico.
+   - Adicionar logs seguros do registro (payload sem segredos, status upstream e trecho curto da resposta) para confirmar rapidamente qualquer recusa da Meddit.
 
-Após o insert local na tabela `appointments`, verificar se `selectedDoctor.source === "meddit"`:
+5. Validar ponta a ponta
+   - Repetir o fluxo com John Carter.
+   - Conferir no Network que o `register` sai com o `officeId` real do slot escolhido, não `1`.
+   - Confirmar resposta 200/201 do proxy.
+   - Confirmar no painel Meddit que a consulta apareceu.
+   - Ajustar o feedback do usuário: sucesso completo só quando o registro externo for aceito; se falhar, mostrar aviso claro de sincronização.
 
-1. **Buscar patientId**: Chamar `proxyCall("patient")` que retorna os dados do paciente pelo CPF. Extrair o `patientId` da resposta.
+Arquivos afetados
+- `src/components/mayla/ConsultationFlow.tsx`
+- `supabase/functions/prontuario-proxy/index.ts`
 
-2. **Chamar register**: Enviar `proxyCall("register", {}, "POST", body)` com o payload:
-   - `professionalId`: `selectedDoctor.meddit_id`
-   - `officeId`: `selectedDoctor.meddit_office_id`
-   - `patientId`: ID retornado pela busca de paciente
-   - `startAt`: data/hora selecionada no formato `"YYYY-MM-DD HH:mm:ss"`
-   - `mode`: `"online"` ou `"presencial"` conforme `consultMode`
-   - `interval`: intervalo do slot selecionado (vem dos dados do calendar)
-   - `socialMidia`: `"mayla"`
-
-3. **Tratamento de erro**: Se a chamada falhar, o agendamento local já foi salvo — exibir toast de aviso informando que a reserva local foi criada mas o envio ao sistema externo falhou.
-
-### `prontuario-proxy/index.ts` — Mover `register` para early-exit
-
-Atualmente `register` está no switch após a validação de CPF, o que está correto pois precisa do CPF para buscar o paciente. Porém o body já vem pronto do frontend com o `patientId`, então podemos mover `register` para o bloco de early-exit (antes da validação de CPF), simplificando o fluxo.
-
-## Arquivos afetados
-
-- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — adicionar lógica Meddit no `handleConfirm`
-- **Editar**: `supabase/functions/prontuario-proxy/index.ts` — mover `register` para early-exit (sem exigir CPF)
-- **Deploy**: edge function `prontuario-proxy`
-
+Detalhes técnicos
+- O CPF válido não é mais o gargalo.
+- O problema principal está no frontend perder o contexto do slot/escritório antes do `register`.
+- Não deve exigir migration no banco; é correção de fluxo e integração.
