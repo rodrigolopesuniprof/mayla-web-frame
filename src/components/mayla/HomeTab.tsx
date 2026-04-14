@@ -313,7 +313,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <div className="border-t border-foreground/10 px-5 py-3 flex items-center gap-2">
           <span className="text-base">⭐</span>
           <span className="text-sm font-semibold text-secondary-foreground">{profilePoints.toLocaleString()} pontos</span>
-          <span className="text-sm text-muted-foreground ml-0.5">· nível {profileLevel}</span>
+          
           <span className="ml-auto text-sm text-accent font-medium cursor-pointer" onClick={() => setTab("campanhas")}>Ver missões →</span>
         </div>
       </div>
