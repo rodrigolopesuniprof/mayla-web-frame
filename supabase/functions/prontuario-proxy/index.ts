@@ -461,6 +461,7 @@ Deno.serve(async (req) => {
           return json({ error: "external_professional_id obrigatório" }, 400);
         }
 
+        const reportToken = crypto.randomUUID();
         const { data: conn, error: connErr } = await adminClient.from("prontuario_connections").upsert({
           user_id: userId,
           company_id: profile.company_id,
@@ -470,6 +471,7 @@ Deno.serve(async (req) => {
           external_clinic_name: external_clinic_name || null,
           external_patient_id: external_patient_id ? String(external_patient_id) : null,
           source_type: source_type || "meddit",
+          report_token: reportToken,
           active: true,
         }, { onConflict: "user_id,external_system,external_professional_id" }).select().single();
 

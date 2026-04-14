@@ -108,12 +108,18 @@ export default function ProfessionalReport() {
     );
   }
 
-  if (expired) {
+  if (expired || unauthorized) {
     return (
       <div className="report-shell" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 32 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, textAlign: "center" }}>Link expirado ou inválido</h2>
-        <p style={{ fontSize: 13, color: "var(--rpt-text-secondary)", textAlign: "center" }}>Este link de acesso ao relatório não é mais válido. Solicite um novo link ao paciente.</p>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>{unauthorized ? "🚫" : "🔒"}</div>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, textAlign: "center" }}>
+          {unauthorized ? "Acesso não autorizado" : "Link expirado ou inválido"}
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--rpt-text-secondary)", textAlign: "center" }}>
+          {unauthorized
+            ? "Este relatório não está vinculado ao seu cadastro profissional. Solicite ao paciente um novo link de acesso."
+            : "Este link de acesso ao relatório não é mais válido. Solicite um novo link ao paciente."}
+        </p>
       </div>
     );
   }

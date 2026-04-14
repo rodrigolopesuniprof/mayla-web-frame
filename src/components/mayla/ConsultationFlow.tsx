@@ -331,6 +331,81 @@ function getNextDateForWeekday(weekday: number, fromDate: Date = new Date()): Da
 /* ─── Lazy-loaded Map component ─── */
 const LazyMap = lazy(() => import("./ConsultationMap"));
 
+/* ─── DoneStep: post-booking with share prompt for Meddit ─── */
+function DoneStep({ selectedDoctor, selectedSpecialty, consultMode, user, onBack }: {
+  selectedDoctor: Doctor | null;
+  selectedSpecialty: string | null;
+  consultMode: ConsultMode | null;
+  user: any;
+  onBack: () => void;
+}) {
+  const [shareState, setShareState] = useState<"idle" | "sharing" | "shared">("idle");
+
+  const handleShare = async () => {
+    if (!selectedDoctor || !user || shareState !== "idle") return;
+    setShareState("sharing");
+    try {
+      await proxyCall("favorite", {}, "POST", {
+        external_professional_id: String(selectedDoctor.meddit_id),
+        external_professional_name: selectedDoctor.name,
+        external_clinic_name: selectedDoctor.meddit_office_name || null,
+        source_type: "meddit",
+      });
+      setShareState("shared");
+      toast({ title: "Dados compartilhados!", description: `Dr. ${selectedDoctor.name} agora pode ver seu relatório de saúde.` });
+    } catch {
+      toast({ title: "Erro ao compartilhar", variant: "destructive" });
+      setShareState("idle");
+    }
+  };
+
+  return (
+    <div className="px-5 pt-8 text-center">
+      <span className="text-5xl block mb-4">🎉</span>
+      <h3 className="font-display text-xl font-medium text-foreground mb-2">Consulta agendada!</h3>
+      <p className="text-[13px] text-muted-foreground mb-2 leading-relaxed">
+        Sua consulta com <strong>{selectedDoctor?.name}</strong> em <strong>{selectedSpecialty}</strong> foi registrada.
+      </p>
+      {consultMode === "online" && (
+        <p className="text-xs text-muted-foreground mb-2">
+          📹 A teleconsulta foi registrada no seu histórico.
+        </p>
+      )}
+
+      {/* Share health data prompt for Meddit doctors */}
+      {selectedDoctor?.source === "meddit" && shareState !== "shared" && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 mb-4 mx-auto max-w-sm text-left">
+          <p className="text-[12px] font-semibold text-foreground mb-1">📊 Compartilhar dados de saúde?</p>
+          <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
+            Permita que <strong>{selectedDoctor.name}</strong> acesse seu relatório de saúde para uma consulta mais completa. Você pode revogar a qualquer momento.
+          </p>
+          <button
+            onClick={handleShare}
+            disabled={shareState === "sharing"}
+            className="w-full py-2.5 rounded-xl border-none text-[12px] font-semibold text-white cursor-pointer disabled:opacity-50 bg-blue-600 hover:bg-blue-700 transition-colors"
+          >
+            {shareState === "sharing" ? "Compartilhando..." : "🔗 Compartilhar relatório de saúde"}
+          </button>
+        </div>
+      )}
+
+      {shareState === "shared" && (
+        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-2xl p-3 mb-4 mx-auto max-w-sm text-left">
+          <p className="text-[11px] text-green-700 dark:text-green-400 font-medium">✅ Dados compartilhados com {selectedDoctor?.name}. Você pode gerenciar vínculos em Perfil → Meus Médicos.</p>
+        </div>
+      )}
+
+      <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-4 mx-auto max-w-sm text-left">
+        <p className="text-[11px] text-foreground font-medium mb-1">📋 Prontuário digital</p>
+        <p className="text-[10px] text-muted-foreground">O registro desta consulta ficará disponível no seu histórico de saúde após o atendimento.</p>
+      </div>
+      <button onClick={onBack} className="px-6 py-2.5 rounded-xl border-none bg-primary text-primary-foreground text-[13px] font-semibold cursor-pointer">
+        Voltar ao início
+      </button>
+    </div>
+  );
+}
+
 /* ─── Main Component ─── */
 export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; initialMode?: ConsultMode }) {
   const { user } = useAuth();
