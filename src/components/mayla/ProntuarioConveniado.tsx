@@ -70,6 +70,7 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
 
   // Data
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
+  const [allProfessionalsRaw, setAllProfessionalsRaw] = useState<any[]>([]);
   const [selectedSpec, setSelectedSpec] = useState<Speciality | null>(null);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [selectedProf, setSelectedProf] = useState<Professional | null>(null);
@@ -102,6 +103,7 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
         }
       });
       setSpecialities(Array.from(specMap.values()));
+      setAllProfessionalsRaw(rawList);
     } catch (err: any) {
       setError(err.message);
     }
@@ -124,26 +126,26 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     } catch { /* patient may not exist yet */ }
   };
 
-  const searchProfessionals = async (spec: Speciality) => {
+  const searchProfessionals = (spec: Speciality) => {
     setSelectedSpec(spec);
     setStep("professionals");
-    setLoading(true);
     setError(null);
-    try {
-      const data = await proxyCall("professionals", { specialityId: String(spec.id), name: searchTerm });
-      const rawList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
-      const mapped: Professional[] = rawList.map((p: any) => ({
-        id: p.user_id ?? p.id,
-        name: p.full_name ?? p.name ?? "",
-        speciality: p.specialization_name ?? p.speciality ?? "",
-        officeName: p.office_name ?? p.officeName ?? "",
-        officeId: p.office_id ?? p.officeId,
-      }));
-      setProfessionals(mapped);
-    } catch (err: any) {
-      setError(err.message);
-    }
-    setLoading(false);
+
+    // Filter from cached data instead of calling the timeout-prone API
+    const filtered = allProfessionalsRaw.filter((p: any) => {
+      const specId = p.specialization_id ?? p.id;
+      return specId === spec.id;
+    });
+
+    const mapped: Professional[] = filtered.map((p: any) => ({
+      id: p.user_id ?? p.id,
+      name: p.full_name ?? p.name ?? "",
+      speciality: p.specialization_name ?? p.speciality ?? "",
+      officeName: p.office_name ?? p.officeName ?? "",
+      officeId: p.office_id ?? p.officeId,
+    }));
+
+    setProfessionals(mapped);
   };
 
   const loadCalendar = async (prof: Professional) => {
@@ -301,10 +303,10 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
                 className="pl-10"
               />
             </div>
-            {professionals.length === 0 && !error && (
+            {professionals.filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && !error && (
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum profissional encontrado.</p>
             )}
-            {professionals.map(prof => (
+            {professionals.filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(prof => (
               <div
                 key={prof.id}
                 className="rounded-2xl p-4 border border-border bg-card flex items-center gap-3"
