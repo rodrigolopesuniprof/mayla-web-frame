@@ -872,6 +872,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     }
 
     // ── Send to Meddit API if external doctor ───────────────
+    let medditSyncOk = false;
     if (selectedDoctor.source === "meddit" && selectedDoctor.meddit_id) {
       try {
         // 1. Get patient ID by CPF
@@ -884,32 +885,31 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
         if (!patientId) {
           console.warn("Meddit: patient not found, skipping external register");
-          toast({ title: "Aviso", description: "Paciente não encontrado no sistema parceiro. Agendamento salvo apenas localmente." });
+          toast({ title: "Aviso ⚠️", description: "Paciente não encontrado no sistema parceiro. Agendamento salvo apenas localmente.", variant: "destructive" });
+        } else if (!selectedMedditSlot) {
+          console.warn("Meddit: no slot metadata, skipping external register");
+          toast({ title: "Aviso ⚠️", description: "Dados do horário incompletos. Agendamento salvo apenas localmente.", variant: "destructive" });
         } else {
           // 2. Register appointment on Meddit
           const startAt = selectedSlotTime
             ? `${format(selectedDate, "yyyy-MM-dd")} ${selectedSlotTime.split(" – ")[0]}:00`
             : `${format(selectedDate, "yyyy-MM-dd")} 09:00:00`;
 
-          if (!selectedMedditSlot) {
-            console.warn("Meddit: no slot metadata, skipping external register");
-            toast({ title: "Aviso", description: "Dados do horário incompletos. Agendamento salvo apenas localmente." });
-          } else {
-            await proxyCall("register", {}, "POST", {
-              professionalId: selectedDoctor.meddit_id,
-              officeId: selectedMedditSlot.officeId,
-              patientId,
-              startAt,
-              mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
-              interval: selectedMedditSlot.interval,
-              socialMidia: "mayla",
-            });
-            console.log("Meddit: appointment registered successfully");
-          }
+          const regResult = await proxyCall("register", {}, "POST", {
+            professionalId: selectedDoctor.meddit_id,
+            officeId: selectedMedditSlot.officeId,
+            patientId,
+            startAt,
+            mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
+            interval: selectedMedditSlot.interval,
+            socialMidia: "mayla",
+          });
+          console.log("Meddit register result:", regResult);
+          medditSyncOk = true;
         }
       } catch (medditErr: any) {
         console.error("Meddit register error:", medditErr);
-        toast({ title: "Aviso", description: "Agendamento salvo localmente, mas houve erro ao enviar ao sistema parceiro." });
+        toast({ title: "Sincronização pendente ⚠️", description: "Agendamento salvo localmente, mas não foi possível enviar ao sistema parceiro. Tente novamente mais tarde.", variant: "destructive" });
       }
     }
 
