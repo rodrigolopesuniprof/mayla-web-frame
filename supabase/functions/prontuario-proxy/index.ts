@@ -173,6 +173,45 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── professionals — no CPF needed ───────────────────────────
+    if (action === "professionals") {
+      const { data: prof } = await adminClient
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let medditBase = "";
+      let medditApiKey = globalMedditApiKey;
+
+      if (prof?.company_id) {
+        const { data: feature } = await adminClient
+          .from("company_features")
+          .select("enabled, config")
+          .eq("company_id", prof.company_id)
+          .eq("feature_key", "prontuario_conveniado")
+          .maybeSingle();
+
+        const cfg = (feature?.config as Record<string, any>) || {};
+        if (cfg.base_url) medditBase = cfg.base_url;
+        if (cfg.api_key) medditApiKey = cfg.api_key;
+      }
+
+      medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
+
+      const specialityId = url.searchParams.get("specialityId") || "";
+      const name = url.searchParams.get("name") || "";
+      const profResp = await fetch(`${medditBase}/v1/clinics/professional/search?specialityId=${specialityId}&name=${encodeURIComponent(name)}`, {
+        method: "GET",
+        headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+      });
+      const profText = await profResp.text();
+      return new Response(profText, {
+        status: profResp.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Regular flow — needs profile + CPF ──────────────────────
     const { data: profile } = await adminClient
       .from("profiles")
