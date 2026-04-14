@@ -391,6 +391,55 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       });
   }, [user]);
 
+  // Fetch Meddit offices + calendar when a Meddit doctor is expanded
+  useEffect(() => {
+    if (!expandedDoctorId) return;
+    const doc = doctors.find(d => d.id === expandedDoctorId);
+    if (!doc || doc.source !== "meddit" || !doc.meddit_id) return;
+
+    setLoadingMedditCalendar(true);
+    setMedditCalendar({});
+
+    (async () => {
+      try {
+        // 1. Fetch offices if not cached
+        let offices = medditOffices;
+        if (offices.length === 0) {
+          const offData = await proxyCall("offices");
+          offices = Array.isArray(offData) ? offData : Array.isArray(offData?.result) ? offData.result : [];
+          setMedditOffices(offices);
+        }
+
+        // 2. Fetch calendar for each office in parallel
+        const calendarMerged: Record<string, string[]> = {};
+        if (offices.length > 0) {
+          const calPromises = offices.map((o: any) =>
+            proxyCall("calendar", {
+              professionalId: String(doc.meddit_id),
+              officeId: String(o.office_id || o.officeInfo?.office_id),
+            }).catch(() => null)
+          );
+          const results = await Promise.all(calPromises);
+          for (const cal of results) {
+            if (!cal || typeof cal !== "object") continue;
+            for (const [dateStr, info] of Object.entries(cal)) {
+              const slots = (info as any)?.extraInfo;
+              if (Array.isArray(slots) && slots.length > 0) {
+                if (!calendarMerged[dateStr]) calendarMerged[dateStr] = [];
+                calendarMerged[dateStr].push(...slots.filter((s: string) => !calendarMerged[dateStr].includes(s)));
+              }
+            }
+          }
+        }
+        setMedditCalendar(calendarMerged);
+      } catch (err) {
+        console.warn("Failed to load Meddit calendar:", err);
+      } finally {
+        setLoadingMedditCalendar(false);
+      }
+    })();
+  }, [expandedDoctorId, doctors]);
+
   const handleFavoriteDoctor = async (doctor: Doctor) => {
     if (!user) return;
     if (favoritedIds.has(doctor.id)) {
