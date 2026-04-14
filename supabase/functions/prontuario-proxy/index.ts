@@ -182,9 +182,6 @@ Deno.serve(async (req) => {
     let medditBody: string | undefined;
 
     switch (action) {
-      case "specialities":
-        medditUrl = `${medditBase}/v1/clinics/specialities`;
-        break;
 
       case "professionals": {
         const specialityId = url.searchParams.get("specialityId") || "";
