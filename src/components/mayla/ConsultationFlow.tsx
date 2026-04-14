@@ -413,23 +413,31 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           setMedditOffices(offices);
         }
 
-        // 2. Fetch calendar for each office in parallel
-        const calendarMerged: Record<string, string[]> = {};
+        // 2. Fetch calendar for each office in parallel, preserving officeId & interval
+        const calendarMerged: Record<string, MedditSlot[]> = {};
         if (offices.length > 0) {
-          const calPromises = offices.map((o: any) =>
-            proxyCall("calendar", {
+          const calPromises = offices.map((o: any) => {
+            const offId = o.office_id || o.officeInfo?.office_id;
+            const offName = o.office_name || o.officeInfo?.office_name || `Consultório ${offId}`;
+            return proxyCall("calendar", {
               professionalId: String(doc.meddit_id),
-              officeId: String(o.office_id || o.officeInfo?.office_id),
-            }).catch(() => null)
-          );
+              officeId: String(offId),
+            }).then(cal => ({ cal, offId: Number(offId), offName })).catch(() => null);
+          });
           const results = await Promise.all(calPromises);
-          for (const cal of results) {
-            if (!cal || typeof cal !== "object") continue;
-            for (const [dateStr, info] of Object.entries(cal)) {
-              const slots = (info as any)?.extraInfo;
-              if (Array.isArray(slots) && slots.length > 0) {
+          for (const r of results) {
+            if (!r || !r.cal || typeof r.cal !== "object") continue;
+            for (const [dateStr, info] of Object.entries(r.cal)) {
+              const dayInfo = info as any;
+              const times = dayInfo?.extraInfo;
+              const interval = dayInfo?.interval ?? 30;
+              if (Array.isArray(times) && times.length > 0) {
                 if (!calendarMerged[dateStr]) calendarMerged[dateStr] = [];
-                calendarMerged[dateStr].push(...slots.filter((s: string) => !calendarMerged[dateStr].includes(s)));
+                for (const t of times) {
+                  if (!calendarMerged[dateStr].some(s => s.time === t && s.officeId === r.offId)) {
+                    calendarMerged[dateStr].push({ time: t, officeId: r.offId, officeName: r.offName, interval });
+                  }
+                }
               }
             }
           }
