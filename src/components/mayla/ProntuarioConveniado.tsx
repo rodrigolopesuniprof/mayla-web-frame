@@ -14,6 +14,11 @@ interface Speciality {
   name: string;
 }
 
+interface Office {
+  id: number;
+  name: string;
+}
+
 interface Professional {
   id: number;
   name: string;
@@ -71,6 +76,7 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
   // Data
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
   const [allProfessionalsRaw, setAllProfessionalsRaw] = useState<any[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [selectedSpec, setSelectedSpec] = useState<Speciality | null>(null);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [selectedProf, setSelectedProf] = useState<Professional | null>(null);
@@ -80,9 +86,10 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Load specialities on mount
+  // Load specialities + offices on mount
   useEffect(() => {
     loadSpecialities();
+    loadOffices();
     loadConnections();
     loadPatientId();
   }, []);
@@ -110,7 +117,16 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     setLoading(false);
   };
 
-  const loadConnections = async () => {
+  const loadOffices = async () => {
+    try {
+      const data = await proxyCall("offices");
+      const rawList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+      const mapped: Office[] = rawList.map((o: any) => ({ id: o.id, name: o.name || `Office ${o.id}` }));
+      setOffices(mapped);
+    } catch { /* offices may fail silently */ }
+  };
+
+
     try {
       const data = await proxyCall("my_connections");
       setConnections(Array.isArray(data) ? data : []);
@@ -154,21 +170,28 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const officeId = prof.officeId || 1;
-      const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(officeId) });
-      // Parse calendar data into slots
       const parsed: Slot[] = [];
-      const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
-      calList.forEach((day: any) => {
-        if (day.slots && Array.isArray(day.slots)) {
-          day.slots.forEach((s: any) => {
-            parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: s });
+      // Use real office IDs; if prof has one use it, otherwise try all loaded offices
+      const officeIds = prof.officeId ? [prof.officeId] : offices.map(o => o.id);
+      if (officeIds.length === 0) officeIds.push(1); // ultimate fallback
+
+      for (const oid of officeIds) {
+        try {
+          const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(oid) });
+          const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+          const officeName = offices.find(o => o.id === oid)?.name || "";
+          calList.forEach((day: any) => {
+            if (day.slots && Array.isArray(day.slots)) {
+              day.slots.forEach((s: any) => {
+                parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: { ...s, officeName } });
+              });
+            } else if (day.date && day.time) {
+              parsed.push({ date: day.date, time: day.time, available: true, raw: { ...day, officeName } });
+            }
           });
-        } else if (day.date && day.time) {
-          parsed.push({ date: day.date, time: day.time, available: true, raw: day });
-        }
-      });
-      setSlots(parsed.length > 0 ? parsed : []);
+        } catch { /* skip this office */ }
+      }
+      setSlots(parsed);
     } catch (err: any) {
       setError(err.message);
     }
