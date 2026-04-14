@@ -95,6 +95,47 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── specialities — no CPF needed ────────────────────────────
+    if (action === "specialities") {
+      // Read company config if user has one
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let medditBase = "";
+      let medditApiKey = globalMedditApiKey;
+
+      if (profile?.company_id) {
+        const { data: feature } = await adminClient
+          .from("company_features")
+          .select("enabled, config")
+          .eq("company_id", profile.company_id)
+          .eq("feature_key", "prontuario_conveniado")
+          .maybeSingle();
+
+        if (feature && !feature.enabled) {
+          return json({ error: "Feature não habilitada para esta empresa" }, 403);
+        }
+        const cfg = (feature?.config as Record<string, any>) || {};
+        if (cfg.base_url) medditBase = cfg.base_url;
+        if (cfg.api_key) medditApiKey = cfg.api_key;
+      }
+
+      medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
+
+      const specResp = await fetch(`${medditBase}/v1/clinics/specialities`, {
+        method: "GET",
+        headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+      });
+      const specText = await specResp.text();
+      return new Response(specText, {
+        status: specResp.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Regular flow — needs profile + CPF ──────────────────────
     const { data: profile } = await adminClient
       .from("profiles")

@@ -91,7 +91,17 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     setError(null);
     try {
       const data = await proxyCall("specialities");
-      setSpecialities(Array.isArray(data) ? data : []);
+      const rawList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+      // Deduplicate by specialization_id
+      const specMap = new Map<number, Speciality>();
+      rawList.forEach((item: any) => {
+        const id = item.specialization_id ?? item.id;
+        const name = item.specialization_name ?? item.name;
+        if (id != null && name && !specMap.has(id)) {
+          specMap.set(id, { id, name });
+        }
+      });
+      setSpecialities(Array.from(specMap.values()));
     } catch (err: any) {
       setError(err.message);
     }
@@ -108,7 +118,9 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
   const loadPatientId = async () => {
     try {
       const data = await proxyCall("patient");
-      if (data?.id) setPatientId(String(data.id));
+      const result = data?.result ?? data;
+      const patient = Array.isArray(result) ? result[0] : result;
+      if (patient?.id) setPatientId(String(patient.id));
     } catch { /* patient may not exist yet */ }
   };
 
@@ -119,7 +131,15 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     setError(null);
     try {
       const data = await proxyCall("professionals", { specialityId: String(spec.id), name: searchTerm });
-      setProfessionals(Array.isArray(data) ? data : []);
+      const rawList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+      const mapped: Professional[] = rawList.map((p: any) => ({
+        id: p.user_id ?? p.id,
+        name: p.full_name ?? p.name ?? "",
+        speciality: p.specialization_name ?? p.speciality ?? "",
+        officeName: p.office_name ?? p.officeName ?? "",
+        officeId: p.office_id ?? p.officeId,
+      }));
+      setProfessionals(mapped);
     } catch (err: any) {
       setError(err.message);
     }
@@ -136,17 +156,16 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
       const data = await proxyCall("calendar", { professionalId: String(prof.id), officeId: String(officeId) });
       // Parse calendar data into slots
       const parsed: Slot[] = [];
-      if (Array.isArray(data)) {
-        data.forEach((day: any) => {
-          if (day.slots && Array.isArray(day.slots)) {
-            day.slots.forEach((s: any) => {
-              parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: s });
-            });
-          } else if (day.date && day.time) {
-            parsed.push({ date: day.date, time: day.time, available: true, raw: day });
-          }
-        });
-      }
+      const calList = Array.isArray(data) ? data : (Array.isArray(data?.result) ? data.result : []);
+      calList.forEach((day: any) => {
+        if (day.slots && Array.isArray(day.slots)) {
+          day.slots.forEach((s: any) => {
+            parsed.push({ date: day.date || "", time: s.time || s.startTime || "", available: s.available !== false, raw: s });
+          });
+        } else if (day.date && day.time) {
+          parsed.push({ date: day.date, time: day.time, available: true, raw: day });
+        }
+      });
       setSlots(parsed.length > 0 ? parsed : []);
     } catch (err: any) {
       setError(err.message);
