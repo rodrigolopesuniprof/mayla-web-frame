@@ -426,16 +426,73 @@ function HistoricoMedicoes({ userId }: { userId?: string }) {
 
   useEffect(() => {
     if (!userId) return;
-    supabase
-      .from("health_measurements")
-      .select("*")
-      .eq("user_id", userId)
-      .order("measured_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
-        setItems(data || []);
-        setLoading(false);
+
+    const fetchAll = async () => {
+      // Fetch from health_measurements
+      const { data: hm } = await supabase
+        .from("health_measurements")
+        .select("*")
+        .eq("user_id", userId)
+        .order("measured_at", { ascending: false })
+        .limit(20);
+
+      // Fetch from special_measurements
+      const { data: sm } = await supabase
+        .from("special_measurements")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      // Merge & deduplicate by mapping special_measurements to same format
+      const hmItems = (hm || []).map((m: any) => ({
+        id: m.id,
+        date: m.measured_at,
+        type: m.measurement_type,
+        heart_rate: m.heart_rate,
+        spo2: m.spo2,
+        blood_pressure_sys: m.blood_pressure_sys,
+        blood_pressure_dia: m.blood_pressure_dia,
+        respiratory_rate: m.respiratory_rate,
+        stress_level: m.stress_level,
+        source: "health_measurements",
+      }));
+
+      const smItems = (sm || []).map((s: any) => {
+        const d = s.measurement_data || {};
+        return {
+          id: s.id,
+          date: s.created_at,
+          type: s.source || "vitals_premium",
+          heart_rate: d.heart_rate ? Math.round(d.heart_rate) : null,
+          spo2: d.spo2 ?? null,
+          blood_pressure_sys: d.blood_pressure_sys ? Math.round(d.blood_pressure_sys) : null,
+          blood_pressure_dia: d.blood_pressure_dia ? Math.round(d.blood_pressure_dia) : null,
+          respiratory_rate: d.respiratory_rate ? Math.round(d.respiratory_rate) : null,
+          stress_level: d.stress_level != null ? Math.round(d.stress_level) : null,
+          source: "special_measurements",
+        };
       });
+
+      // Combine, sort by date desc, remove duplicates (same timestamp + type)
+      const all = [...hmItems, ...smItems]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 30);
+
+      // Deduplicate: if a health_measurement and special_measurement have same heart_rate within 2 min, keep only one
+      const seen = new Set<string>();
+      const deduped = all.filter((item) => {
+        const key = `${Math.round(new Date(item.date).getTime() / 120000)}_${item.heart_rate}`;
+        if (item.source === "special_measurements" && seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      setItems(deduped);
+      setLoading(false);
+    };
+
+    fetchAll();
   }, [userId]);
 
   if (loading) return <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>;
@@ -446,15 +503,21 @@ function HistoricoMedicoes({ userId }: { userId?: string }) {
     </div>
   );
 
+  const typeLabels: Record<string, string> = {
+    rppg: "rPPG",
+    vitals_premium: "Medição Especial",
+    vitals_demo: "Medição Demo",
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <h3 className="font-display text-lg font-medium text-foreground">Histórico de medições</h3>
       {items.map((m) => (
         <div key={m.id} className="bg-card rounded-2xl p-3.5 border border-border">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[13px] font-semibold text-foreground">{m.measurement_type}</span>
+            <span className="text-[13px] font-semibold text-foreground">{typeLabels[m.type] || m.type}</span>
             <span className="text-[11px] text-muted-foreground">
-              {new Date(m.measured_at).toLocaleDateString("pt-BR")}
+              {new Date(m.date).toLocaleDateString("pt-BR")}
             </span>
           </div>
           <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
