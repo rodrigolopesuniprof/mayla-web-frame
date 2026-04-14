@@ -38,6 +38,10 @@ export default function HealthReport() {
   const [scores, setScores] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [trendData, setTrendData] = useState<{ hr: number[]; stress: number[]; sleep: number[]; steps: number[]; hrAvg: number | null; stressAvg: number | null; sleepAvg: string | null; stepsAvg: number | null }>({
+    hr: [], stress: [], sleep: [], steps: [], hrAvg: null, stressAvg: null, sleepAvg: null, stepsAvg: null,
+  });
+  const [timeline, setTimeline] = useState<{ day: string; event: string; tag: string; tagColor: string; tagBg: string; dotColor: string }[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -53,6 +57,56 @@ export default function HealthReport() {
     supabase.from("health_alerts").select("*").eq("user_id", user.id)
       .is("dismissed_at", null).order("generated_at", { ascending: false }).limit(5)
       .then(({ data }) => setAlerts(data || []));
+
+    // Fetch 7-day measurements for trends & timeline
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    supabase.from("health_measurements").select("heart_rate, stress_level, sleep_duration_min, steps, measured_at, measurement_type, source")
+      .eq("user_id", user.id)
+      .gte("measured_at", weekAgo.toISOString())
+      .order("measured_at", { ascending: true })
+      .then(({ data }) => {
+        const m = data || [];
+        const hrVals = m.map((x: any) => x.heart_rate).filter((v: any) => v != null);
+        const stressVals = m.map((x: any) => x.stress_level).filter((v: any) => v != null);
+        const sleepVals = m.map((x: any) => x.sleep_duration_min).filter((v: any) => v != null);
+        const stepsVals = m.map((x: any) => x.steps).filter((v: any) => v != null);
+
+        const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+        const sleepA = avg(sleepVals);
+
+        setTrendData({
+          hr: hrVals.slice(-7).map((v: number) => Math.round((v / 120) * 100)),
+          stress: stressVals.slice(-7),
+          sleep: sleepVals.slice(-7).map((v: number) => Math.round((v / 600) * 100)),
+          steps: stepsVals.slice(-7).map((v: number) => Math.round((v / 12000) * 100)),
+          hrAvg: avg(hrVals),
+          stressAvg: avg(stressVals),
+          sleepAvg: sleepA != null ? `${Math.floor(sleepA / 60)}h${String(sleepA % 60).padStart(2, "0")}` : null,
+          stepsAvg: avg(stepsVals),
+        });
+
+        // Build timeline
+        const tl = m.map((x: any) => {
+          const d = new Date(x.measured_at);
+          const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+          const parts: string[] = [];
+          if (x.heart_rate) parts.push(`FC ${x.heart_rate} bpm`);
+          if (x.stress_level != null) parts.push(`Estresse ${x.stress_level}%`);
+          if (x.sleep_duration_min) parts.push(`Sono ${Math.floor(x.sleep_duration_min / 60)}h`);
+          const src = x.source || x.measurement_type || "medição";
+          return {
+            day: dayStr,
+            event: parts.join(" · ") || "Medição registrada",
+            tag: src,
+            tagColor: "var(--rpt-blue)",
+            tagBg: "var(--rpt-blue-bg)",
+            dotColor: "var(--rpt-blue)",
+          };
+        });
+        setTimeline(tl);
+      });
   }, [user]);
 
   const handleShare = async () => {
