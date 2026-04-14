@@ -241,6 +241,81 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── finish — notify Meddit that consultation ended ─────────
+    if (action === "finish") {
+      if (req.method !== "POST") {
+        return json({ error: "Use POST para finish" }, 405);
+      }
+
+      const finishBody = await req.json();
+      const { appointmentId } = finishBody;
+      if (!appointmentId) {
+        return json({ error: "Campo obrigatório: appointmentId" }, 400);
+      }
+
+      const { data: prof } = await adminClient
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let medditBase = "";
+      let medditApiKey = globalMedditApiKey;
+
+      if (prof?.company_id) {
+        const { data: feature } = await adminClient
+          .from("company_features")
+          .select("enabled, config")
+          .eq("company_id", prof.company_id)
+          .eq("feature_key", "prontuario_conveniado")
+          .maybeSingle();
+
+        const cfg = (feature?.config as Record<string, any>) || {};
+        if (cfg.base_url) medditBase = cfg.base_url;
+        if (cfg.api_key) medditApiKey = cfg.api_key;
+      }
+
+      medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
+
+      console.log("finish payload:", JSON.stringify({ appointmentId }));
+
+      const t0 = Date.now();
+      try {
+        // Try PUT /v1/appointments/{id}/finish first
+        const finishResp = await fetch(`${medditBase}/v1/appointments/${appointmentId}/finish`, {
+          method: "PUT",
+          headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+        });
+        const finishText = await finishResp.text();
+        const elapsed = Date.now() - t0;
+        console.log(`finish upstream: status=${finishResp.status} elapsed=${elapsed}ms body=${finishText.substring(0, 500)}`);
+
+        // If 404, try PATCH with status update as fallback
+        if (finishResp.status === 404) {
+          const patchResp = await fetch(`${medditBase}/v1/appointments/${appointmentId}`, {
+            method: "PATCH",
+            headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "finished" }),
+          });
+          const patchText = await patchResp.text();
+          console.log(`finish fallback PATCH: status=${patchResp.status} body=${patchText.substring(0, 500)}`);
+          return new Response(patchText, {
+            status: patchResp.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(finishText, {
+          status: finishResp.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (fetchErr: any) {
+        const elapsed = Date.now() - t0;
+        console.error(`finish fetch error: ${fetchErr.message} elapsed=${elapsed}ms`);
+        return json({ error: fetchErr.message }, 504);
+      }
+    }
+
     // ── professionals — no CPF needed ───────────────────────────
     if (action === "professionals") {
       const { data: prof } = await adminClient

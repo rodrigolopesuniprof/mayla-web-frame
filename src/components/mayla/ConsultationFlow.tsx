@@ -980,6 +980,13 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
             socialMidia: "whatsapp",
           });
           console.log("Meddit register result:", regResult);
+
+          // Save external appointment ID from Meddit response
+          const externalId = regResult?.id || regResult?.appointment_id || regResult?.result?.id || null;
+          if (externalId && apptData?.id) {
+            await supabase.from("appointments").update({ external_appointment_id: String(externalId) } as any).eq("id", apptData.id);
+          }
+
           medditSyncOk = true;
         }
       } catch (medditErr: any) {

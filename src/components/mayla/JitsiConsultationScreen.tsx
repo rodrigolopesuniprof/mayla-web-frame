@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useShareHealthData } from "@/hooks/useShareHealthData";
 import { DocumentSender } from "@/components/professional/DocumentSender";
+import { proxyCall } from "@/lib/prontuario-helpers";
 
 interface ConsultationInfo {
   id: string;
@@ -205,6 +206,26 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
         call_duration_seconds: elapsed,
       })
       .eq("id", consultation.id);
+
+    // Notify Meddit that the consultation has ended (if external)
+    try {
+      const { data: apptRow } = await supabase
+        .from("appointments")
+        .select("external_appointment_id")
+        .eq("user_id", user?.id ?? "")
+        .not("external_appointment_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if ((apptRow as any)?.external_appointment_id) {
+        proxyCall("finish", {}, "POST", { appointmentId: (apptRow as any).external_appointment_id })
+          .then(() => console.log("Meddit finish sent"))
+          .catch((err: any) => console.warn("Meddit finish failed:", err));
+      }
+    } catch (e) {
+      console.warn("Could not check external appointment:", e);
+    }
 
     onLeave();
   };
