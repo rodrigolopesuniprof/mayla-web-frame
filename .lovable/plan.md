@@ -1,37 +1,37 @@
 
 
-# Plano: Corrigir timeout na busca de médicos Meddit
+# Plano: Enviar agendamento para API Meddit
 
-## Problema raiz
+## Problema
 
-A API Meddit `/v1/clinics/professional/search?specialityId=7` está demorando demais (timeout). Testei agora e a chamada foi cancelada por tempo esgotado. Além disso, o fluxo faz **duas chamadas sequenciais** desnecessárias:
-
-1. `proxyCall("specialities")` — para resolver o ID da especialidade (já foi chamada no step anterior)
-2. `proxyCall("professionals", { specialityId })` — que está dando timeout
-
-A resposta de `specialities` **já contém os profissionais** com `full_name`, `user_id` e `specialization_id`. Podemos usar esses dados diretamente.
+O `handleConfirm` apenas insere na tabela local `appointments`. Para médicos Meddit (com `source === "meddit"`), não há chamada ao endpoint `proxyCall("register")`, então o agendamento nunca chega ao painel Meddit.
 
 ## Solução
 
-### 1. Cachear dados de specialities no SpecialtyStep
+### `ConsultationFlow.tsx` — `handleConfirm`
 
-O `SpecialtyStep` já chama `proxyCall("specialities")`. Guardar o resultado completo num state (`medditSpecialties`) e passá-lo ao passo `doctors`, evitando a chamada duplicada.
+Após o insert local na tabela `appointments`, verificar se `selectedDoctor.source === "meddit"`:
 
-### 2. Usar dados de specialities como lista de médicos Meddit
+1. **Buscar patientId**: Chamar `proxyCall("patient")` que retorna os dados do paciente pelo CPF. Extrair o `patientId` da resposta.
 
-Em vez de chamar o endpoint `professionals/search` (que está lento/instável), filtrar os profissionais diretamente do array de specialities:
-- Filtrar por `specialization_id` correspondente à especialidade selecionada
-- Mapear `full_name` → `name`, `user_id` → `meddit_id`
+2. **Chamar register**: Enviar `proxyCall("register", {}, "POST", body)` com o payload:
+   - `professionalId`: `selectedDoctor.meddit_id`
+   - `officeId`: `selectedDoctor.meddit_office_id`
+   - `patientId`: ID retornado pela busca de paciente
+   - `startAt`: data/hora selecionada no formato `"YYYY-MM-DD HH:mm:ss"`
+   - `mode`: `"online"` ou `"presencial"` conforme `consultMode`
+   - `interval`: intervalo do slot selecionado (vem dos dados do calendar)
+   - `socialMidia`: `"mayla"`
 
-### 3. Fallback com timeout (opcional)
+3. **Tratamento de erro**: Se a chamada falhar, o agendamento local já foi salvo — exibir toast de aviso informando que a reserva local foi criada mas o envio ao sistema externo falhou.
 
-Se quisermos ainda tentar o endpoint `professionals/search` para dados mais ricos (officeId, etc.), adicionar um timeout de 5 segundos com `AbortController` e usar os dados de specialities como fallback.
+### `prontuario-proxy/index.ts` — Mover `register` para early-exit
+
+Atualmente `register` está no switch após a validação de CPF, o que está correto pois precisa do CPF para buscar o paciente. Porém o body já vem pronto do frontend com o `patientId`, então podemos mover `register` para o bloco de early-exit (antes da validação de CPF), simplificando o fluxo.
 
 ## Arquivos afetados
 
-- **Editar**: `src/components/mayla/ConsultationFlow.tsx`
-  - Adicionar state `medditSpecialtiesCache` para armazenar resposta completa
-  - No `SpecialtyStep`, salvar o cache ao carregar
-  - No `fetchData` (step doctors), usar o cache em vez de chamar `specialities` novamente
-  - Extrair médicos do cache em vez de chamar `professionals/search`, ou usar com timeout + fallback
+- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — adicionar lógica Meddit no `handleConfirm`
+- **Editar**: `supabase/functions/prontuario-proxy/index.ts` — mover `register` para early-exit (sem exigir CPF)
+- **Deploy**: edge function `prontuario-proxy`
 
