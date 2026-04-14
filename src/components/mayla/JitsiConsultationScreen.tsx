@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useShareHealthData } from "@/hooks/useShareHealthData";
 import { DocumentSender } from "@/components/professional/DocumentSender";
+import { proxyCall } from "@/lib/prontuario-helpers";
 
 interface ConsultationInfo {
   id: string;
