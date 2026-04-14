@@ -5,8 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ScoreRing } from "./ScoreRing";
 import { AlertCard } from "./AlertCard";
 import { TrendCard } from "./TrendCard";
-import { TimelineItem } from "./TimelineItem";
+import { TimelineItem, TimelineGroup } from "./TimelineItem";
 import { ReportBottomNav } from "./ReportBottomNav";
+import { InfoSheet, InfoButton } from "./InfoSheet";
 import { toast } from "@/hooks/use-toast";
 import "./report.css";
 
@@ -15,6 +16,26 @@ const RECOMMENDATION_TEXT: Record<number, { title: string; body: string }> = {
   2: { title: "Vale acompanhar de perto", body: "Alguns indicadores mostraram variações leves na semana. Nada alarmante, mas vale prestar atenção nas próximas medições." },
   3: { title: "Recomendamos uma consulta", body: "Há sinais persistentes que justificam avaliação profissional. Considere agendar uma consulta para revisão." },
   4: { title: "Procure atendimento em breve", body: "Combinação de indicadores fora do padrão sugere necessidade de avaliação clínica em breve." },
+};
+
+const INFO_TEXTS: Record<string, { title: string; desc: string; details?: { label: string; value: string }[] }> = {
+  score: {
+    title: "Score geral",
+    desc: "Média ponderada dos seus indicadores de saúde dos últimos 7 dias.\n\n• 40% Fisiológico — baseado nos sinais vitais medidos (FC, SpO2, PA, Respiração, HRV, Hemoglobina, HbA1c)\n• 30% Emocional — nível de estresse medido via câmera\n• 30% Estilo de vida — atualmente sem fontes conectadas (sono/passos), valor padrão aplicado",
+    details: [
+      { label: "Fisiológico", value: "40%" },
+      { label: "Emocional", value: "30%" },
+      { label: "Estilo de vida", value: "30%" },
+    ],
+  },
+  hr: { title: "Frequência Cardíaca", desc: "Batimentos cardíacos por minuto, medidos via câmera (rPPG).\n\nFaixa ideal em repouso: 60 – 100 bpm.\nAbaixo de 60 pode indicar bradicardia; acima de 100, taquicardia." },
+  stress: { title: "Nível de Estresse", desc: "Calculado a partir da variabilidade da frequência cardíaca via câmera.\n\nVaria de 0 a 100. Abaixo de 40 é considerado baixo; acima de 70 é elevado." },
+  spo2: { title: "Saturação de Oxigênio (SpO2)", desc: "Porcentagem de oxigênio no sangue, estimada pela câmera.\n\nFaixa ideal: 95 – 100%. Abaixo de 95% merece atenção clínica." },
+  bp: { title: "Pressão Arterial", desc: "Pressão sistólica/diastólica estimada pela câmera.\n\nFaixa ideal: 90/60 – 120/80 mmHg.\nAcima de 140/90 indica hipertensão." },
+  rr: { title: "Frequência Respiratória", desc: "Ciclos respiratórios por minuto.\n\nFaixa ideal: 12 – 20 rpm." },
+  hrv: { title: "HRV (SDNN)", desc: "Variabilidade da frequência cardíaca. Mede o tempo entre batimentos.\n\nValores maiores indicam boa capacidade de adaptação ao estresse.\nFaixa saudável: 20 – 100+ ms." },
+  hb: { title: "Hemoglobina", desc: "Estimativa de hemoglobina no sangue.\n\nFaixa ideal: 12.0 – 17.5 g/dL." },
+  hba1c: { title: "HbA1c (Hemoglobina Glicada)", desc: "Média de glicose nos últimos 2-3 meses.\n\nAbaixo de 5.7% é normal; 5.7 – 6.4% indica pré-diabetes; acima de 6.5%, diabetes." },
 };
 
 function getScoreColor(score: number) {
@@ -31,27 +52,60 @@ function formatDateRange() {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
+interface BarData {
+  value: number;
+  rawValue: number;
+  label: string;
+}
+
 interface TrendState {
-  hr: number[]; hrAvg: number | null;
-  stress: number[]; stressAvg: number | null;
-  spo2: number[]; spo2Avg: number | null;
-  bpSys: number[]; bpDia: number[]; bpAvg: string | null;
-  rr: number[]; rrAvg: number | null;
-  hrv: number[]; hrvAvg: number | null;
-  hb: number[]; hbAvg: number | null;
-  hba1c: number[]; hba1cAvg: number | null;
+  hr: number[]; hrAvg: number | null; hrBars: BarData[];
+  stress: number[]; stressAvg: number | null; stressBars: BarData[];
+  spo2: number[]; spo2Avg: number | null; spo2Bars: BarData[];
+  bpSys: number[]; bpDia: number[]; bpAvg: string | null; bpBars: BarData[];
+  rr: number[]; rrAvg: number | null; rrBars: BarData[];
+  hrv: number[]; hrvAvg: number | null; hrvBars: BarData[];
+  hb: number[]; hbAvg: number | null; hbBars: BarData[];
+  hba1c: number[]; hba1cAvg: number | null; hba1cBars: BarData[];
 }
 
 const emptyTrend: TrendState = {
-  hr: [], hrAvg: null,
-  stress: [], stressAvg: null,
-  spo2: [], spo2Avg: null,
-  bpSys: [], bpDia: [], bpAvg: null,
-  rr: [], rrAvg: null,
-  hrv: [], hrvAvg: null,
-  hb: [], hbAvg: null,
-  hba1c: [], hba1cAvg: null,
+  hr: [], hrAvg: null, hrBars: [],
+  stress: [], stressAvg: null, stressBars: [],
+  spo2: [], spo2Avg: null, spo2Bars: [],
+  bpSys: [], bpDia: [], bpAvg: null, bpBars: [],
+  rr: [], rrAvg: null, rrBars: [],
+  hrv: [], hrvAvg: null, hrvBars: [],
+  hb: [], hbAvg: null, hbBars: [],
+  hba1c: [], hba1cAvg: null, hba1cBars: [],
 };
+
+interface TimelineGroupData {
+  dayLabel: string;
+  entries: { time: string; source: string; chips: { label: string; value: string; color: string; bg: string }[] }[];
+}
+
+function dayLabel(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "short" }).replace(".", "");
+}
+
+function timeLabel(dateStr: string) {
+  return new Date(dateStr).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function barLabel(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" }).replace(".", "");
+}
+
+function buildBarData(values: number[], pctValues: number[], dates: string[]): BarData[] {
+  return values.map((raw, i) => ({
+    value: pctValues[i],
+    rawValue: raw,
+    label: dates[i] ? barLabel(dates[i]) : `#${i + 1}`,
+  }));
+}
 
 export default function HealthReport() {
   const { user } = useAuth();
@@ -61,12 +115,28 @@ export default function HealthReport() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [sharing, setSharing] = useState(false);
   const [trendData, setTrendData] = useState<TrendState>(emptyTrend);
-  const [timeline, setTimeline] = useState<{ day: string; event: string; tag: string; tagColor: string; tagBg: string; dotColor: string }[]>([]);
+  const [timelineGroups, setTimelineGroups] = useState<TimelineGroupData[]>([]);
+  const [companySurveys, setCompanySurveys] = useState<any[] | null>(null);
+  const [infoSheet, setInfoSheet] = useState<{ open: boolean; key: string }>({ open: false, key: "score" });
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("full_name, birth_date, has_hypertension, has_diabetes")
-      .eq("user_id", user.id).maybeSingle().then(({ data }) => setProfile(data));
+    supabase.from("profiles").select("full_name, birth_date, has_hypertension, has_diabetes, company_id")
+      .eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        setProfile(data);
+        // Fetch company surveys/campaigns
+        if (data?.company_id) {
+          supabase.from("campaigns")
+            .select("id, title, emoji, starts_at, ends_at, active, category")
+            .eq("company_id", data.company_id)
+            .eq("active", true)
+            .order("starts_at", { ascending: false })
+            .limit(5)
+            .then(({ data: cData }) => setCompanySurveys(cData || []));
+        } else {
+          setCompanySurveys([]);
+        }
+      });
     supabase.from("health_scores").select("*").eq("user_id", user.id)
       .order("generated_at", { ascending: false }).limit(1).then(({ data }) => {
         if (data && data.length > 0) setScores(data[0]);
@@ -79,14 +149,12 @@ export default function HealthReport() {
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    // Fetch health_measurements
     const measurementsPromise = supabase.from("health_measurements")
       .select("heart_rate, stress_level, spo2, blood_pressure_sys, blood_pressure_dia, respiratory_rate, hrv, measured_at, measurement_type, source")
       .eq("user_id", user.id)
       .gte("measured_at", weekAgo.toISOString())
       .order("measured_at", { ascending: true });
 
-    // Fetch special_measurements for hemoglobin & hba1c
     const specialPromise = supabase.from("special_measurements" as any)
       .select("measurement_data, measured_at")
       .eq("user_id", user.id)
@@ -100,68 +168,84 @@ export default function HealthReport() {
       const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
       const avgDec = (arr: number[]) => arr.length > 0 ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : null;
 
-      const hrVals = m.map(x => x.heart_rate).filter((v): v is number => v != null);
-      const stressVals = m.map(x => x.stress_level).filter((v): v is number => v != null);
-      const spo2Vals = m.map(x => x.spo2 != null ? Number(x.spo2) : null).filter((v): v is number => v != null);
-      const bpSysVals = m.map(x => x.blood_pressure_sys).filter((v): v is number => v != null);
-      const bpDiaVals = m.map(x => x.blood_pressure_dia).filter((v): v is number => v != null);
-      const rrVals = m.map(x => x.respiratory_rate).filter((v): v is number => v != null);
-      const hrvVals = m.map(x => x.hrv).filter((v): v is number => v != null);
+      const extract = (key: string) => {
+        const vals: number[] = [];
+        const dates: string[] = [];
+        m.forEach(x => {
+          const v = x[key];
+          if (v != null) { vals.push(Number(v)); dates.push(x.measured_at); }
+        });
+        return { vals: vals.slice(-7), dates: dates.slice(-7) };
+      };
 
-      // Extract hemoglobin & hba1c from special_measurements
-      const hbVals: number[] = [];
-      const hba1cVals: number[] = [];
+      const hr = extract("heart_rate");
+      const stress = extract("stress_level");
+      const spo2 = extract("spo2");
+      const bpSys = extract("blood_pressure_sys");
+      const bpDia = extract("blood_pressure_dia");
+      const rr = extract("respiratory_rate");
+      const hrvE = extract("hrv");
+
+      const hbVals: number[] = [], hbDates: string[] = [];
+      const hba1cVals: number[] = [], hba1cDates: string[] = [];
       sp.forEach((s: any) => {
         const d = s.measurement_data;
-        if (d?.hemoglobin != null) hbVals.push(Number(d.hemoglobin));
-        if (d?.hba1c != null) hba1cVals.push(Number(d.hba1c));
+        if (d?.hemoglobin != null) { hbVals.push(Number(d.hemoglobin)); hbDates.push(s.measured_at); }
+        if (d?.hba1c != null) { hba1cVals.push(Number(d.hba1c)); hba1cDates.push(s.measured_at); }
       });
 
-      const bpSysA = avg(bpSysVals);
-      const bpDiaA = avg(bpDiaVals);
+      const bpSysA = avg(bpSys.vals);
+      const bpDiaA = avg(bpDia.vals);
+
+      const hrPct = hr.vals.map(v => Math.round((v / 120) * 100));
+      const stressPct = stress.vals;
+      const spo2Pct = spo2.vals.map(v => Math.round(v));
+      const bpSysPct = bpSys.vals.map(v => Math.round((v / 180) * 100));
+      const rrPct = rr.vals.map(v => Math.round((v / 30) * 100));
+      const hrvPct = hrvE.vals.map(v => Math.round((v / 100) * 100));
+      const hbPct = hbVals.slice(-7).map(v => Math.round((v / 18) * 100));
+      const hba1cPct = hba1cVals.slice(-7).map(v => Math.round((v / 10) * 100));
 
       setTrendData({
-        hr: hrVals.slice(-7).map(v => Math.round((v / 120) * 100)),
-        hrAvg: avg(hrVals),
-        stress: stressVals.slice(-7),
-        stressAvg: avg(stressVals),
-        spo2: spo2Vals.slice(-7).map(v => Math.round(v)),
-        spo2Avg: avg(spo2Vals),
-        bpSys: bpSysVals.slice(-7).map(v => Math.round((v / 180) * 100)),
-        bpDia: bpDiaVals.slice(-7),
+        hr: hrPct, hrAvg: avg(hr.vals),
+        hrBars: buildBarData(hr.vals, hrPct, hr.dates),
+        stress: stressPct, stressAvg: avg(stress.vals),
+        stressBars: buildBarData(stress.vals, stressPct, stress.dates),
+        spo2: spo2Pct, spo2Avg: avg(spo2.vals),
+        spo2Bars: buildBarData(spo2.vals, spo2Pct, spo2.dates),
+        bpSys: bpSysPct, bpDia: bpDia.vals,
         bpAvg: bpSysA != null && bpDiaA != null ? `${bpSysA}/${bpDiaA}` : null,
-        rr: rrVals.slice(-7).map(v => Math.round((v / 30) * 100)),
-        rrAvg: avg(rrVals),
-        hrv: hrvVals.slice(-7).map(v => Math.round((v / 100) * 100)),
-        hrvAvg: avg(hrvVals),
-        hb: hbVals.slice(-7).map(v => Math.round((v / 18) * 100)),
-        hbAvg: avgDec(hbVals),
-        hba1c: hba1cVals.slice(-7).map(v => Math.round((v / 10) * 100)),
-        hba1cAvg: avgDec(hba1cVals),
+        bpBars: buildBarData(bpSys.vals, bpSysPct, bpSys.dates),
+        rr: rrPct, rrAvg: avg(rr.vals),
+        rrBars: buildBarData(rr.vals, rrPct, rr.dates),
+        hrv: hrvPct, hrvAvg: avg(hrvE.vals),
+        hrvBars: buildBarData(hrvE.vals, hrvPct, hrvE.dates),
+        hb: hbPct, hbAvg: avgDec(hbVals.slice(-7)),
+        hbBars: buildBarData(hbVals.slice(-7), hbPct, hbDates.slice(-7)),
+        hba1c: hba1cPct, hba1cAvg: avgDec(hba1cVals.slice(-7)),
+        hba1cBars: buildBarData(hba1cVals.slice(-7), hba1cPct, hba1cDates.slice(-7)),
       });
 
-      // Build timeline from health_measurements
-      const tl = m.map((x: any) => {
-        const d = new Date(x.measured_at);
-        const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
-        const parts: string[] = [];
-        if (x.heart_rate) parts.push(`FC ${x.heart_rate} bpm`);
-        if (x.spo2 != null) parts.push(`SpO2 ${x.spo2}%`);
-        if (x.blood_pressure_sys && x.blood_pressure_dia) parts.push(`PA ${x.blood_pressure_sys}/${x.blood_pressure_dia}`);
-        if (x.respiratory_rate) parts.push(`Resp ${x.respiratory_rate} rpm`);
-        if (x.hrv) parts.push(`HRV ${x.hrv} ms`);
-        if (x.stress_level != null) parts.push(`Estresse ${x.stress_level}%`);
+      // Build grouped timeline
+      const groups = new Map<string, TimelineGroupData>();
+      m.forEach((x: any) => {
+        const dLabel = dayLabel(x.measured_at);
+        const tLabel = timeLabel(x.measured_at);
         const src = x.source || x.measurement_type || "medição";
-        return {
-          day: dayStr,
-          event: parts.join(" · ") || "Medição registrada",
-          tag: src,
-          tagColor: "var(--rpt-blue)",
-          tagBg: "var(--rpt-blue-bg)",
-          dotColor: "var(--rpt-blue)",
-        };
+        const chips: { label: string; value: string; color: string; bg: string }[] = [];
+        if (x.heart_rate) chips.push({ label: "FC", value: `${x.heart_rate} bpm`, color: "var(--rpt-red)", bg: "var(--rpt-red-bg)" });
+        if (x.spo2 != null) chips.push({ label: "SpO2", value: `${x.spo2}%`, color: "var(--rpt-blue)", bg: "var(--rpt-blue-bg)" });
+        if (x.blood_pressure_sys && x.blood_pressure_dia) chips.push({ label: "PA", value: `${x.blood_pressure_sys}/${x.blood_pressure_dia}`, color: "var(--rpt-purple)", bg: "var(--rpt-purple-bg)" });
+        if (x.respiratory_rate) chips.push({ label: "Resp", value: `${x.respiratory_rate} rpm`, color: "var(--rpt-green)", bg: "var(--rpt-green-bg)" });
+        if (x.hrv) chips.push({ label: "HRV", value: `${x.hrv} ms`, color: "var(--rpt-red)", bg: "var(--rpt-red-bg)" });
+        if (x.stress_level != null) chips.push({ label: "Estresse", value: `${x.stress_level}%`, color: "var(--rpt-amber)", bg: "var(--rpt-amber-bg)" });
+
+        if (!groups.has(dLabel)) {
+          groups.set(dLabel, { dayLabel: dLabel, entries: [] });
+        }
+        groups.get(dLabel)!.entries.push({ time: tLabel, source: src, chips });
       });
-      setTimeline(tl);
+      setTimelineGroups(Array.from(groups.values()));
     });
   }, [user]);
 
@@ -188,6 +272,8 @@ export default function HealthReport() {
     }
   };
 
+  const openInfo = (key: string) => setInfoSheet({ open: true, key });
+
   const s = scores || { score_general: 75, score_physiological: 82, score_emotional: 58, score_lifestyle: 70, recommendation_level: 3 };
   const rec = RECOMMENDATION_TEXT[s.recommendation_level] || RECOMMENDATION_TEXT[2];
   const initials = profile?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
@@ -206,8 +292,19 @@ export default function HealthReport() {
     { text: "Sem alertas no período", subtext: "Nenhum desvio significativo detectado nos últimos 7 dias", severity: "low" as const },
   ];
 
+  const currentInfo = INFO_TEXTS[infoSheet.key] || INFO_TEXTS.score;
+
   return (
     <div className="report-shell">
+      {/* INFO SHEET */}
+      <InfoSheet
+        open={infoSheet.open}
+        onOpenChange={(open) => setInfoSheet({ ...infoSheet, open })}
+        title={currentInfo.title}
+        description={currentInfo.desc}
+        details={currentInfo.details}
+      />
+
       {/* TOPBAR */}
       <div className="rpt-topbar">
         <div className="rpt-topbar-meta">
@@ -244,7 +341,10 @@ export default function HealthReport() {
 
       {/* SCORE */}
       <div className="rpt-section" style={{ marginTop: 16 }}>
-        <div className="rpt-section-label">Score geral</div>
+        <div className="rpt-section-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          Score geral
+          <InfoButton onClick={() => openInfo("score")} />
+        </div>
         <div className="rpt-score-card">
           <ScoreRing score={scores ? s.score_general : 0} color={scores ? getScoreColor(s.score_general) : "var(--rpt-text-tertiary)"} />
           <div className="rpt-score-info">
@@ -283,61 +383,61 @@ export default function HealthReport() {
       <div className="rpt-section" style={{ marginTop: 20 }}>
         <div className="rpt-section-label">Tendências — 7 dias</div>
         <div className="rpt-trend-grid">
-          {/* 1. Freq. Cardíaca */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 3C10 3 6 7.5 6 11.5A4 4 0 0014 11.5C14 7.5 10 3 10 3Z" fill="var(--rpt-red)" opacity="0.8"/></svg>}
             iconBg="var(--rpt-red-bg)" arrow="↑" arrowColor="var(--rpt-red)"
             value={trendData.hrAvg != null ? String(trendData.hrAvg) : "--"} unit="bpm" name="Freq. cardíaca"
-            bars={trendData.hr.length > 0 ? trendData.hr : []} barColor="var(--rpt-red)"
+            bars={trendData.hr} barColor="var(--rpt-red)"
+            barData={trendData.hrBars} idealRange="60-100 bpm" onInfoClick={() => openInfo("hr")}
           />
-          {/* 2. Estresse */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="4" fill="var(--rpt-amber)" opacity="0.8"/><path d="M10 14V18M7 17L10 18L13 17" stroke="var(--rpt-amber)" strokeWidth="1.4" strokeLinecap="round"/></svg>}
             iconBg="var(--rpt-amber-bg)" arrow="↑" arrowColor="var(--rpt-amber)"
             value={trendData.stressAvg != null ? String(trendData.stressAvg) : "--"} unit="/100" name="Estresse"
-            bars={trendData.stress.length > 0 ? trendData.stress : []} barColor="var(--rpt-amber)"
+            bars={trendData.stress} barColor="var(--rpt-amber)"
+            barData={trendData.stressBars} idealRange="< 40" onInfoClick={() => openInfo("stress")}
           />
-          {/* 3. SpO2 */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" fill="var(--rpt-blue)" opacity="0.15"/><text x="10" y="13" textAnchor="middle" fontSize="9" fill="var(--rpt-blue)" fontWeight="bold">O₂</text></svg>}
             iconBg="var(--rpt-blue-bg)" arrow="→" arrowColor="var(--rpt-blue)"
             value={trendData.spo2Avg != null ? String(trendData.spo2Avg) : "--"} unit="%" name="SpO2"
-            bars={trendData.spo2.length > 0 ? trendData.spo2 : []} barColor="var(--rpt-blue)"
+            bars={trendData.spo2} barColor="var(--rpt-blue)"
+            barData={trendData.spo2Bars} idealRange="95-100%" onInfoClick={() => openInfo("spo2")}
           />
-          {/* 4. Pressão Arterial */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M4 14L8 6L12 12L16 4" stroke="var(--rpt-purple)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
             iconBg="var(--rpt-purple-bg)" arrow="→" arrowColor="var(--rpt-purple)"
             value={trendData.bpAvg || "--"} unit="mmHg" name="Pressão arterial"
-            bars={trendData.bpSys.length > 0 ? trendData.bpSys : []} barColor="var(--rpt-purple)"
+            bars={trendData.bpSys} barColor="var(--rpt-purple)"
+            barData={trendData.bpBars} idealRange="90/60 – 120/80" onInfoClick={() => openInfo("bp")}
           />
-          {/* 5. Respiração */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M3 10C5 6 8 4 10 4S15 6 17 10C15 14 12 16 10 16S5 14 3 10Z" fill="var(--rpt-green)" opacity="0.2" stroke="var(--rpt-green)" strokeWidth="1.2"/></svg>}
             iconBg="var(--rpt-green-bg)" arrow="→" arrowColor="var(--rpt-green)"
             value={trendData.rrAvg != null ? String(trendData.rrAvg) : "--"} unit="rpm" name="Respiração"
-            bars={trendData.rr.length > 0 ? trendData.rr : []} barColor="var(--rpt-green)"
+            bars={trendData.rr} barColor="var(--rpt-green)"
+            barData={trendData.rrBars} idealRange="12-20 rpm" onInfoClick={() => openInfo("rr")}
           />
-          {/* 6. HRV SDNN */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M2 10H6L8 4L10 16L12 8L14 10H18" stroke="var(--rpt-red)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
             iconBg="var(--rpt-red-bg)" arrow="→" arrowColor="var(--rpt-red)"
             value={trendData.hrvAvg != null ? String(trendData.hrvAvg) : "--"} unit="ms" name="HRV (SDNN)"
-            bars={trendData.hrv.length > 0 ? trendData.hrv : []} barColor="var(--rpt-red)"
+            bars={trendData.hrv} barColor="var(--rpt-red)"
+            barData={trendData.hrvBars} idealRange="20-100+ ms" onInfoClick={() => openInfo("hrv")}
           />
-          {/* 7. Hemoglobina */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2C7 6 5 9 5 12a5 5 0 0010 0c0-3-2-6-5-10Z" fill="var(--rpt-amber)" opacity="0.7"/></svg>}
             iconBg="var(--rpt-amber-bg)" arrow="→" arrowColor="var(--rpt-amber)"
             value={trendData.hbAvg != null ? String(trendData.hbAvg) : "--"} unit="g/dL" name="Hemoglobina"
-            bars={trendData.hb.length > 0 ? trendData.hb : []} barColor="var(--rpt-amber)"
+            bars={trendData.hb} barColor="var(--rpt-amber)"
+            barData={trendData.hbBars} idealRange="12.0-17.5 g/dL" onInfoClick={() => openInfo("hb")}
           />
-          {/* 8. HbA1c */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" fill="var(--rpt-purple)" opacity="0.15"/><text x="10" y="13" textAnchor="middle" fontSize="8" fill="var(--rpt-purple)" fontWeight="bold">A1c</text></svg>}
             iconBg="var(--rpt-purple-bg)" arrow="→" arrowColor="var(--rpt-purple)"
             value={trendData.hba1cAvg != null ? String(trendData.hba1cAvg) : "--"} unit="%" name="HbA1c"
-            bars={trendData.hba1c.length > 0 ? trendData.hba1c : []} barColor="var(--rpt-purple)"
+            bars={trendData.hba1c} barColor="var(--rpt-purple)"
+            barData={trendData.hba1cBars} idealRange="< 5.7%" onInfoClick={() => openInfo("hba1c")}
           />
         </div>
       </div>
@@ -346,20 +446,31 @@ export default function HealthReport() {
       <div className="rpt-section" style={{ marginTop: 20 }}>
         <div className="rpt-section-label">Questionários</div>
         <div className="rpt-q-list">
-          {[
-            { cat: "Saúde mental e emocional", status: "Sem dados", statusBg: "var(--rpt-surface2)", statusColor: "var(--rpt-text-tertiary)", text: "Sem respostas registradas no período.", varDot: "var(--rpt-text-tertiary)", varText: "Nenhum registro" },
-            { cat: "Sono e recuperação", status: "Sem dados", statusBg: "var(--rpt-surface2)", statusColor: "var(--rpt-text-tertiary)", text: "Sem respostas registradas no período.", varDot: "var(--rpt-text-tertiary)", varText: "Nenhum registro" },
-            { cat: "Disposição e energia", status: "Sem dados", statusBg: "var(--rpt-surface2)", statusColor: "var(--rpt-text-tertiary)", text: "Sem respostas registradas no período.", varDot: "var(--rpt-text-tertiary)", varText: "Nenhum registro" },
-          ].map((q, i) => (
-            <div key={i} className="rpt-q-card">
+          {companySurveys === null ? (
+            <div className="rpt-q-card">
+              <div className="rpt-q-text" style={{ textAlign: "center", padding: 8 }}>Carregando...</div>
+            </div>
+          ) : companySurveys.length === 0 ? (
+            <div className="rpt-q-card">
               <div className="rpt-q-header">
-                <span className="rpt-q-category">{q.cat}</span>
-                <span className="rpt-q-status" style={{ background: q.statusBg, color: q.statusColor }}>{q.status}</span>
+                <span className="rpt-q-category">Campanhas</span>
+                <span className="rpt-q-status" style={{ background: "var(--rpt-surface2)", color: "var(--rpt-text-tertiary)" }}>Sem dados</span>
               </div>
-              <div className="rpt-q-text">{q.text}</div>
-              <div className="rpt-q-variation">
-                <div className="rpt-q-var-dot" style={{ background: q.varDot }} />
-                <span className="rpt-q-var-text">{q.varText}</span>
+              <div className="rpt-q-text">Nenhuma campanha de questionários ativa para sua empresa no momento.</div>
+            </div>
+          ) : companySurveys.map((c) => (
+            <div key={c.id} className="rpt-q-card">
+              <div className="rpt-q-header">
+                <span className="rpt-q-category">{c.emoji || "📋"} {c.title}</span>
+                <span className="rpt-q-status" style={{
+                  background: new Date(c.ends_at) > new Date() ? "var(--rpt-green-bg)" : "var(--rpt-surface2)",
+                  color: new Date(c.ends_at) > new Date() ? "var(--rpt-green)" : "var(--rpt-text-tertiary)",
+                }}>
+                  {new Date(c.ends_at) > new Date() ? "Ativa" : "Encerrada"}
+                </span>
+              </div>
+              <div className="rpt-q-text">
+                {c.category || "Campanha corporativa"} · até {new Date(c.ends_at).toLocaleDateString("pt-BR")}
               </div>
             </div>
           ))}
@@ -369,22 +480,21 @@ export default function HealthReport() {
       {/* TIMELINE */}
       <div className="rpt-section" style={{ marginTop: 20 }}>
         <div className="rpt-section-label">Linha do tempo semanal</div>
-        <div className="rpt-timeline">
-          {timeline.length > 0 ? timeline.map((t, i) => (
-            <TimelineItem
-              key={i}
-              day={t.day} event={t.event}
-              tag={t.tag} tagColor={t.tagColor} tagBg={t.tagBg}
-              dotColor={t.dotColor} showLine={i < timeline.length - 1}
-            />
-          )) : (
+        {timelineGroups.length > 0 ? (
+          <div className="rpt-timeline">
+            {timelineGroups.map((g, i) => (
+              <TimelineGroup key={i} dayLabel={g.dayLabel} entries={g.entries} />
+            ))}
+          </div>
+        ) : (
+          <div className="rpt-timeline">
             <TimelineItem
               day="Sem eventos registrados" event="Nenhuma medição ou questionário foi registrado nos últimos 7 dias."
               tag="Sem dado no período" tagColor="var(--rpt-text-tertiary)" tagBg="var(--rpt-surface2)"
               dotColor="var(--rpt-text-tertiary)" showLine={false}
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* RECOMMENDATION */}
