@@ -114,7 +114,7 @@ const WEEKDAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sext
 const DEFAULT_CENTER: [number, number] = [-20.315, -40.312];
 
 /* ── SpecialtyStep: loads specialties from internal DB + Meddit API ── */
-function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: number) => void; user: any }) {
+function SpecialtyStep({ onSelect, user, onCacheMedditSpecs }: { onSelect: (s: string, medditId?: number) => void; user: any; onCacheMedditSpecs?: (data: any[]) => void }) {
   const [dbSpecialties, setDbSpecialties] = useState<string[]>([]);
   const [medditSpecialties, setMedditSpecialties] = useState<{ id: number; name: string }[]>([]);
   const [featureFlags, setFeatureFlags] = useState<{ internos: boolean; externos: boolean }>({ internos: true, externos: true });
@@ -167,6 +167,8 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
           proxyCall("specialities")
             .then((data: any) => {
               const arr = Array.isArray(data) ? data : Array.isArray(data?.result) ? data.result : [];
+              // Cache the raw array for later use in doctors step
+              if (arr.length && onCacheMedditSpecs) onCacheMedditSpecs(arr);
               if (arr.length) {
                 // Deduplicate by specialization_id
                 const seen = new Set<number>();
@@ -337,6 +339,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [step, setStep] = useState<Step>("mode");
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
   const [medditSpecialtyId, setMedditSpecialtyId] = useState<number | null>(null);
+  const [medditSpecsCache, setMedditSpecsCache] = useState<any[]>([]);
   const [consultMode, setConsultMode] = useState<ConsultMode | null>(initialMode || null);
   const [waitingConsultationId, setWaitingConsultationId] = useState<string | null>(null);
   const [waitingStatus, setWaitingStatus] = useState<string>("confirmed");
@@ -481,35 +484,35 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
         setAvailability((avail as AvailSlot[]) || []);
       }
 
-      // External Meddit professionals
-      if (loadExternal && user) {
-        // Resolve meddit specialty ID: use prop or look up by name from specialities API
+      // External Meddit professionals — use cached specialities data (contains professionals)
+      if (loadExternal && user && medditSpecsCache.length > 0) {
+        // Resolve meddit specialty ID from cache
         let resolvedMedditId = medditSpecialtyId;
         if (!resolvedMedditId && selectedSpecialty) {
-          try {
-            const specData = await proxyCall("specialities");
-            const specArr = Array.isArray(specData) ? specData : Array.isArray(specData?.result) ? specData.result : [];
-            const normSel = selectedSpecialty.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+          const normSel = selectedSpecialty.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+            .replace(/\b(clinico|clinica)\b/, "clinic");
+          const match = medditSpecsCache.find((s: any) => {
+            const n = (s.specialization_name ?? s.name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
               .replace(/\b(clinico|clinica)\b/, "clinic");
-            const match = specArr.find((s: any) => {
-              const n = (s.specialization_name ?? s.name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
-                .replace(/\b(clinico|clinica)\b/, "clinic");
-              return n === normSel;
-            });
-            if (match) resolvedMedditId = match.specialization_id ?? match.id;
-          } catch (e) {
-            console.warn("Failed to resolve Meddit specialty ID:", e);
-          }
+            return n === normSel;
+          });
+          if (match) resolvedMedditId = match.specialization_id ?? match.id;
         }
 
         if (resolvedMedditId) {
-          try {
-            const profsData = await proxyCall("professionals", { specialityId: String(resolvedMedditId) });
-            const profs = Array.isArray(profsData) ? profsData : Array.isArray(profsData?.result) ? profsData.result : [];
-            if (profs.length) {
-              const medditDocs: Doctor[] = profs.map((p: any) => ({
-                id: `meddit-${p.id || p.user_id}`,
-                name: p.name || p.full_name || "Profissional",
+          // Filter professionals from cached specialities data by specialization_id
+          const matchingProfs = medditSpecsCache.filter((s: any) => 
+            (s.specialization_id ?? s.id) === resolvedMedditId
+          );
+          // Deduplicate by user_id
+          const seen = new Set<number>();
+          for (const p of matchingProfs) {
+            const uid = p.user_id ?? p.id;
+            if (uid && !seen.has(uid)) {
+              seen.add(uid);
+              allProviders.push({
+                id: `meddit-${uid}`,
+                name: p.full_name || p.name || "Profissional",
                 partner_type: "doctor",
                 specialty: selectedSpecialty,
                 consultation_type: null,
@@ -517,7 +520,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                 online_consultation_enabled: false,
                 city: null,
                 state: null,
-                full_address: p.officeName || null,
+                full_address: null,
                 latitude: null,
                 longitude: null,
                 crm: null,
@@ -530,14 +533,9 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                 email: null,
                 specialties_offered: null,
                 source: "meddit" as const,
-                meddit_id: p.id || p.user_id,
-                meddit_office_id: p.officeId,
-                meddit_office_name: p.officeName,
-              }));
-              allProviders.push(...medditDocs);
+                meddit_id: uid,
+              } as Doctor);
             }
-          } catch (err) {
-            console.warn("Failed to load Meddit professionals:", err);
           }
         }
       }
@@ -547,7 +545,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     };
 
     fetchData();
-  }, [selectedSpecialty, consultMode, medditSpecialtyId, user]);
+  }, [selectedSpecialty, consultMode, medditSpecialtyId, medditSpecsCache, user]);
 
   // Enrich doctors with distance for presencial
   const enrichedDoctors = useMemo(() => {
@@ -937,7 +935,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
         {/* ── Step: Specialty (now second) ── */}
         {step === "specialty" && (
-          <SpecialtyStep onSelect={handleSelectSpecialty} user={user} />
+          <SpecialtyStep onSelect={handleSelectSpecialty} user={user} onCacheMedditSpecs={setMedditSpecsCache} />
         )}
 
         {step === "doctors" && (
