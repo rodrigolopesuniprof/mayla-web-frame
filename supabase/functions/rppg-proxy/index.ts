@@ -245,11 +245,6 @@ Deno.serve(async (req) => {
         });
 
         // Award points
-        await serviceClient
-          .from("profiles")
-          .update({ points: undefined } as any)
-          .eq("user_id", userId);
-        // Use raw SQL-like approach: increment points
         const { data: currentProfile } = await serviceClient
           .from("profiles")
           .select("points")
