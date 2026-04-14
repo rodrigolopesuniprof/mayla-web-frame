@@ -1,39 +1,25 @@
 
 
-# Plano: Corrigir carregamento de especialidades no Prontuário Conveniado
+# Plano: Corrigir timeout ao buscar profissionais por especialidade
 
 ## Problema
 
-A API Meddit retorna `{ "result": [...] }` mas o frontend espera um array direto. Além disso, o endpoint `/v1/clinics/specialities` retorna profissionais com suas especializações, não uma lista de especialidades pura. O frontend precisa extrair as especialidades únicas dessa resposta.
+Ao selecionar uma especialidade (ex: "Clínica Geral"), o frontend chama `?action=professionals&specialityId=7` que faz proxy para `/v1/clinics/professional/search`. Esse endpoint da API Meddit retorna **504 Gateway Timeout**.
 
-Há também um bloqueio: o fluxo regular da edge function exige CPF no perfil (linha 105), o que impede até a listagem de especialidades se o usuário não tiver CPF cadastrado.
+## Solução
 
-## O que a API retorna
+A chamada `?action=specialities` já retorna **todos os profissionais com suas especializações**. Em vez de fazer uma segunda chamada que dá timeout, podemos reutilizar esses dados no frontend, filtrando por `specialization_id` no lado do cliente.
 
-```json
-{
-  "result": [
-    { "full_name": "John Carter", "specialization_id": 7, "specialization_name": "Clínica Geral", "user_id": 1214611 },
-    { "full_name": "Luiz Fernando", "specialization_id": 7, "specialization_name": "Clínica Geral", "user_id": 1000 },
-    { "full_name": "Israel Santiago", "specialization_id": 223, "specialization_name": "Enfermagem", "user_id": 1181618 }
-  ]
-}
-```
+## Implementação
 
-## Correções
+### `src/components/mayla/ProntuarioConveniado.tsx`
 
-### 1. `ProntuarioConveniado.tsx` — parsing da resposta
-
-- Em `loadSpecialities`: extrair `data.result` (se existir) e depois deduplificar por `specialization_id` para montar a lista de especialidades únicas
-- Em `searchProfessionals`: extrair `data.result` e mapear os campos (`user_id` → `id`, `full_name` → `name`, `specialization_name` → `speciality`)
-- Em `loadCalendar` e `loadPatientId`: também tratar `data.result` quando presente
-
-### 2. `prontuario-proxy/index.ts` — permitir `specialities` sem CPF
-
-- Mover a action `specialities` para antes da verificação de CPF (similar ao `test_connection`), pois listar especialidades não requer identificação do paciente
+1. Guardar a lista completa de profissionais retornada pela API de specialities em um novo estado (`allProfessionals`)
+2. Na função `searchProfessionals`, em vez de chamar `proxyCall("professionals", ...)`, filtrar `allProfessionals` pelo `specialization_id` selecionado
+3. Se o filtro retornar vazio (ex: dados parciais), fazer fallback para a chamada API com timeout de 10s e retry
+4. Aplicar filtro por `searchTerm` (nome) localmente também
 
 ## Arquivos afetados
 
-- **Editar**: `src/components/mayla/ProntuarioConveniado.tsx` — ajustar parsing em todas as funções de carregamento
-- **Editar**: `supabase/functions/prontuario-proxy/index.ts` — permitir `specialities` sem CPF
+- **Editar**: `src/components/mayla/ProntuarioConveniado.tsx` — reutilizar dados da resposta de specialities para popular profissionais sem chamada extra
 
