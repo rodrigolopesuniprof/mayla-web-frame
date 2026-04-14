@@ -70,6 +70,7 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
 
   // Data
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
+  const [allProfessionalsRaw, setAllProfessionalsRaw] = useState<any[]>([]);
   const [selectedSpec, setSelectedSpec] = useState<Speciality | null>(null);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [selectedProf, setSelectedProf] = useState<Professional | null>(null);
