@@ -209,14 +209,14 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     });
 
     // Award points
-    await supabase.rpc("add_points_to_profile" as any, { _user_id: user.id, _points: 100 }).then(() => {}).catch(() => {
-      // Fallback: direct update via edge function or ignore
-    });
+    await supabase.rpc("add_points_to_profile" as any, { _user_id: user.id, _points: 100 }).then(() => {}).catch?.(() => {});
 
     // Trigger health score calculation
-    supabase.functions.invoke("calculate-health-scores", {
-      body: { user_id: user.id, days: 7 },
-    }).catch(() => {});
+    try {
+      await supabase.functions.invoke("calculate-health-scores", {
+        body: { user_id: user.id, days: 7 },
+      });
+    } catch {}
 
     toast({ title: "Medição especial salva! 🎉", description: "+100 pontos de saúde" });
     onComplete();
