@@ -1276,91 +1276,145 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
             </div>
 
             <h3 className="font-display text-base font-medium text-foreground mb-1">Escolha o dia</h3>
-            <p className="text-[11px] text-muted-foreground mb-3">
-              Dias disponíveis: {Array.from(availableWeekdays).map((w) => WEEKDAY_NAMES[w]).join(", ") || "Nenhum"}
-            </p>
 
-            {doctorSlots.length === 0 ? (
-              <div className="text-center py-6">
-                <span className="text-3xl block mb-2">📅</span>
-                <p className="text-sm text-muted-foreground">Este médico não possui horários cadastrados ainda.</p>
-              </div>
+            {selectedDoctor.source === "meddit" ? (
+              /* Meddit doctor schedule — date-based calendar from API */
+              loadingMedditCalendar ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                  <span className="text-xs text-muted-foreground ml-2">Carregando agenda...</span>
+                </div>
+              ) : Object.keys(medditCalendar).length === 0 ? (
+                <div className="text-center py-6">
+                  <span className="text-3xl block mb-2">📅</span>
+                  <p className="text-sm text-muted-foreground">Sem horários disponíveis no momento.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-muted-foreground mb-3">
+                    {Object.keys(medditCalendar).length} dia(s) com horários disponíveis
+                  </p>
+                  <div className="space-y-3">
+                    {Object.entries(medditCalendar)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([dateStr, times]) => {
+                        const dateObj = new Date(dateStr + "T00:00:00");
+                        const isSelected = selectedDate && isSameDay(dateObj, selectedDate);
+                        return (
+                          <div key={dateStr} className={`p-3 rounded-xl border transition-all ${isSelected ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                            <p className="text-[12px] font-semibold text-foreground mb-2 capitalize">
+                              {WEEKDAY_NAMES[dateObj.getDay()]} — {format(dateObj, "dd/MM/yyyy")}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(times as string[]).sort().map((time, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    setSelectedDate(dateObj);
+                                    setSelectedSlotTime(time.substring(0, 5));
+                                    setStep("confirm");
+                                  }}
+                                  className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
+                                >
+                                  {time.substring(0, 5)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </>
+              )
             ) : (
               <>
-                {/* Calendar */}
-                <div className="bg-card rounded-2xl border border-border p-3 mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">‹</button>
-                    <span className="text-sm font-semibold text-foreground capitalize">
-                      {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-                    </span>
-                    <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">›</button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 mb-1">
-                    {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
-                      <div key={i} className="text-center text-[10px] text-muted-foreground font-medium py-1">{d}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: calendarDays.startPad }).map((_, i) => <div key={`p-${i}`} />)}
-                    {calendarDays.days.map((day) => {
-                      const hasSlots = availableWeekdays.has(day.getDay());
-                      const isPast = isBefore(day, startOfDay(new Date())) && !isToday(day);
-                      const isSelected = selectedDate && isSameDay(day, selectedDate);
-                      return (
-                        <button
-                          key={day.toISOString()}
-                          onClick={() => handleSelectDate(day)}
-                          disabled={isPast || !hasSlots}
-                          className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center text-[12px] border-none cursor-pointer transition-all ${
-                            isSelected ? "bg-primary text-primary-foreground font-bold"
-                            : hasSlots && !isPast ? "bg-primary/10 text-primary font-semibold hover:bg-primary/20"
-                            : "text-muted-foreground/30 cursor-not-allowed bg-transparent"
-                          } ${isToday(day) && !isSelected ? "ring-1 ring-primary/40" : ""}`}
-                        >
-                          {day.getDate()}
-                          {hasSlots && !isPast && (
-                            <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-primary-foreground" : "bg-primary"}`} />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  Dias disponíveis: {Array.from(availableWeekdays).map((w) => WEEKDAY_NAMES[w]).join(", ") || "Nenhum"}
+                </p>
 
-                {/* Time windows */}
-                {selectedDate && (
-                  <div>
-                    <p className="text-[12px] font-semibold text-foreground mb-2">
-                      📅 {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
-                    </p>
-                    {windowsForDate.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Sem horários neste dia.</p>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {windowsForDate.map((tw, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSelectTime(tw)}
-                            className="flex flex-col items-center p-3 bg-card rounded-xl border border-border hover:border-primary/40 transition-colors cursor-pointer"
-                          >
-                            <span className="text-[13px] font-semibold text-foreground">
-                              {tw.start} – {tw.end}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground mt-0.5">{tw.duration} min</span>
-                            <Badge variant="outline" className="text-[9px] mt-1">
-                              {tw.consultation_mode === "online" ? "Online" : tw.consultation_mode === "presencial" ? "Presencial" : "Ambos"}
-                            </Badge>
-                          </button>
+                {doctorSlots.length === 0 ? (
+                  <div className="text-center py-6">
+                    <span className="text-3xl block mb-2">📅</span>
+                    <p className="text-sm text-muted-foreground">Este médico não possui horários cadastrados ainda.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Calendar */}
+                    <div className="bg-card rounded-2xl border border-border p-3 mb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                          className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">‹</button>
+                        <span className="text-sm font-semibold text-foreground capitalize">
+                          {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                        </span>
+                        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                          className="w-8 h-8 rounded-full flex items-center justify-center bg-secondary text-foreground border-none cursor-pointer text-sm">›</button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 mb-1">
+                        {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
+                          <div key={i} className="text-center text-[10px] text-muted-foreground font-medium py-1">{d}</div>
                         ))}
                       </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {Array.from({ length: calendarDays.startPad }).map((_, i) => <div key={`p-${i}`} />)}
+                        {calendarDays.days.map((day) => {
+                          const hasSlots = availableWeekdays.has(day.getDay());
+                          const isPast = isBefore(day, startOfDay(new Date())) && !isToday(day);
+                          const isSelected = selectedDate && isSameDay(day, selectedDate);
+                          return (
+                            <button
+                              key={day.toISOString()}
+                              onClick={() => handleSelectDate(day)}
+                              disabled={isPast || !hasSlots}
+                              className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center text-[12px] border-none cursor-pointer transition-all ${
+                                isSelected ? "bg-primary text-primary-foreground font-bold"
+                                : hasSlots && !isPast ? "bg-primary/10 text-primary font-semibold hover:bg-primary/20"
+                                : "text-muted-foreground/30 cursor-not-allowed bg-transparent"
+                              } ${isToday(day) && !isSelected ? "ring-1 ring-primary/40" : ""}`}
+                            >
+                              {day.getDate()}
+                              {hasSlots && !isPast && (
+                                <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-primary-foreground" : "bg-primary"}`} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Time windows */}
+                    {selectedDate && (
+                      <div>
+                        <p className="text-[12px] font-semibold text-foreground mb-2">
+                          📅 {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                        </p>
+                        {windowsForDate.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Sem horários neste dia.</p>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {windowsForDate.map((tw, i) => (
+                              <button
+                                key={i}
+                                onClick={() => handleSelectTime(tw)}
+                                className="flex flex-col items-center p-3 bg-card rounded-xl border border-border hover:border-primary/40 transition-colors cursor-pointer"
+                              >
+                                <span className="text-[13px] font-semibold text-foreground">
+                                  {tw.start} – {tw.end}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground mt-0.5">{tw.duration} min</span>
+                                <Badge variant="outline" className="text-[9px] mt-1">
+                                  {tw.consultation_mode === "online" ? "Online" : tw.consultation_mode === "presencial" ? "Presencial" : "Ambos"}
+                                </Badge>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </>
-            )}
+            )
           </div>
         )}
 
