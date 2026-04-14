@@ -1,40 +1,76 @@
 
 
-# Plano: Corrigir carregamento da agenda do médico
+# Plano: Feature toggles por empresa + Reestruturação do fluxo de consulta + Favoritar médico
 
-## Problemas identificados
+## Resumo
 
-### 1. IDs dos escritórios não são mapeados corretamente
-A API retorna `office_id` (ex: `195574`), mas `loadOffices` mapeia `o.id` (que é `undefined`). Resultado: os IDs reais nunca são usados e o fallback `officeId=1` persiste.
+Três frentes de trabalho:
+1. **Feature toggles no admin**: permitir ativar/desativar "Realizar Consulta" (e futuramente outros serviços) por empresa
+2. **Reestruturar fluxo de consulta**: mudar a ordem para Modo → Especialidade → Médico → Horário → Confirmar, e remover o dialog intermediário na HomeTab (ir direto para o fluxo)
+3. **Favoritar médico no fluxo de consulta Mayla**: permitir favoritar médicos da plataforma Mayla (partners), criando uma `prontuario_connection` com token para acesso ao relatório
 
-### 2. Formato do calendário incompatível
-A API retorna um **objeto** com datas como chaves:
-```text
-{
-  "2026-04-17": {
-    "extraInfo": ["08:00:00", "08:30:00", ...],
-    "interval": 30,
-    "number": 8
-  },
-  "2026-04-20": { ... }
-}
-```
-Mas o código espera um **array** com `day.slots` ou `day.date/day.time` — resultado: nenhum slot é parseado, a lista fica vazia.
+---
 
-### 3. Chamadas sequenciais para 2 offices
-O loop chama a API para cada office sequencialmente. Com a API Meddit lenta, isso duplica o tempo de espera.
+## 1. Feature toggle "consulta" no Admin
 
-## Correções em `ProntuarioConveniado.tsx`
+### Banco de dados
+- Sem migração necessária. Usar a tabela `company_features` existente com `feature_key = "consulta_servico"`.
 
-### `loadOffices`
-- Mapear `o.office_id` (não `o.id`) e `o.officeInfo?.office_name` (não `o.name`)
+### AdminIntegrations.tsx (ou nova seção no AdminCompanySettings)
+- Adicionar um novo toggle na seção "Integrações" (ou "Serviços Médicos") para ativar/desativar o serviço de consulta
+- Usar o mesmo padrão `company_features.upsert` com `feature_key: "consulta_servico"`
 
-### `loadCalendar`
-- Detectar que o retorno é um objeto (não array)
-- Iterar sobre as chaves (datas) e extrair `extraInfo` como lista de horários
-- Montar os slots corretamente: `{ date: "2026-04-17", time: "08:00:00", available: true }`
-- Usar `Promise.all` para buscar calendários dos 2 offices em paralelo
+### Frontend (HomeTab + ServicosTab)
+- Criar hook `useCompanyFeature(featureKey)` genérico que consulta `company_features`
+- No HomeTab, condicionar a exibição do card "Consultas" ao toggle `consulta_servico`
+- No ServicosTab, condicionar o botão "Realizar Consulta" ao mesmo toggle
 
-## Arquivo afetado
-- **Editar**: `src/components/mayla/ProntuarioConveniado.tsx`
+---
+
+## 2. Reestruturar fluxo de consulta
+
+### HomeTab.tsx
+- Remover o dialog intermediário com 4 opções (Atendimento Agora, Online, Presencial, Histórico)
+- Ao clicar no card "Consultas", ir direto para o `ConsultationFlow` (via `onOpenConsultationOnline` ou equivalente)
+
+### ConsultationFlow.tsx
+- **Mudar ordem dos steps**: `mode → specialty → doctors → schedule → confirm`
+- Step "mode" agora é o primeiro: apresentar apenas "Presencial" e "Online" (remover "Primeiro disponível" como step — pode ser um botão dentro do step doctors)
+- Step "specialty": 
+  - Carregar especialidades da API parceira (Meddit) via `prontuario-proxy?action=specialities` se feature `prontuario_conveniado` estiver ativa
+  - Carregar especialidades dos parceiros cadastrados no admin (lista `SPECIALTIES` atual + query `SELECT DISTINCT specialty FROM partners WHERE active = true`)
+  - Combinar ambas as listas sem duplicatas
+- Steps doctors, schedule, confirm: manter como estão
+- Atualizar `goBack` e `stepLabels` para refletir a nova ordem
+
+---
+
+## 3. Favoritar médico (plataforma Mayla)
+
+### Contexto
+Já existe `prontuario_connections` para médicos Meddit. Estender para médicos Mayla (partners).
+
+### ConsultationFlow.tsx
+- No card do médico expandido (step doctors), adicionar botão "⭐ Favoritar"
+- Ao favoritar, criar registro em `prontuario_connections` com:
+  - `external_system: "mayla"`
+  - `source_type: "mayla_partner"`
+  - `external_professional_id: partner.id`
+  - `external_professional_name: partner.name`
+  - `report_token: crypto.randomUUID()`
+- Para médicos Meddit (via ProntuarioConveniado), o fluxo já existe
+
+### Restrição de acesso por token
+- O acesso via token já está implementado em `prontuario-verify` e na rota `/relatorio/medico/:token`
+- `FavoriteDoctors.tsx` já exibe e permite revogar conexões de ambos os sistemas
+
+---
+
+## Arquivos afetados
+
+- **Editar**: `src/components/admin/AdminIntegrations.tsx` — adicionar toggle `consulta_servico`
+- **Criar**: `src/hooks/useCompanyFeature.ts` — hook genérico para consultar feature flags
+- **Editar**: `src/components/mayla/HomeTab.tsx` — remover dialog intermediário, ir direto ao fluxo, condicionar exibição
+- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — reordenar steps (mode → specialty → doctors → schedule → confirm), carregar especialidades dinâmicas, adicionar botão favoritar
+- **Editar**: `src/components/mayla/ServicosTab.tsx` — condicionar "Realizar Consulta" ao toggle
 
