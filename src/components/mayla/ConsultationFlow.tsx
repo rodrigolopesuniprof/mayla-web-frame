@@ -317,6 +317,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
   const [step, setStep] = useState<Step>("mode");
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
+  const [medditSpecialtyId, setMedditSpecialtyId] = useState<number | null>(null);
   const [consultMode, setConsultMode] = useState<ConsultMode | null>(initialMode || null);
   const [waitingConsultationId, setWaitingConsultationId] = useState<string | null>(null);
   const [waitingStatus, setWaitingStatus] = useState<string>("confirmed");
