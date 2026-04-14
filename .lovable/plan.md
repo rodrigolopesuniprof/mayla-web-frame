@@ -1,50 +1,51 @@
 
 
-# Plano: Corrigir sistema de pontuação, histórico e relatório de saúde
+# Plano: Expandir relatório com todos os dados do Binah e remover métricas inexistentes
 
-## Problemas identificados
+## O que muda
 
-### 1. Medição especial (Binah/Vitals) não aparece no histórico
-- `BinahCapture.tsx` salva apenas em `special_measurements`
-- O histórico em `ProfileTab.tsx` (`HistoricoMedicoes`) lê apenas de `health_measurements`
-- **Solução**: Após salvar em `special_measurements`, também inserir em `health_measurements` com os dados vitais extraídos do `measurement_data`
+### Remover
+- **Sono médio** — não há dispositivo conectado que capture essa informação
+- **Passos/dia** — idem, sem fonte de dados
 
-### 2. Pontos não são computados
-- O toast mostra "+100 pontos" mas nenhum `UPDATE profiles SET points = points + 100` é executado
-- A medição rPPG (no `rppg-proxy`) também mostra "+50 pontos" via toast, mas igualmente não atualiza o banco
-- **Solução**: Adicionar `UPDATE profiles.points` em ambos os fluxos (BinahCapture e rppg-proxy)
+### Adicionar (dados coletados pelo Binah)
+- **SpO2** (Saturação de Oxigênio) — `spo2` em `health_measurements`
+- **Pressão Arterial** — `blood_pressure_sys` / `blood_pressure_dia`
+- **Respiração** — `respiratory_rate`
+- **HRV (SDNN)** — `hrv`
+- **Hemoglobina** — campo disponível em `special_measurements.measurement_data`
+- **HbA1c** — idem
+- **Bem-estar** — `wellness_score` no measurement_data
 
-### 3. Relatório de saúde vazio
-- A tabela `health_scores` está vazia — a edge function `calculate-health-scores` nunca é chamada automaticamente
-- Os trend cards (FC, Estresse, Sono, Passos) são todos hardcoded com `"--"` e dados fictícios de barras
-- **Solução**: 
-  - Chamar `calculate-health-scores` automaticamente após cada medição salva
-  - Popular os trend cards com dados reais de `health_measurements` dos últimos 7 dias
+### Layout dos Trend Cards (grade 2x4 → 8 cards)
+1. Freq. Cardíaca (FC) — já existe
+2. Estresse — já existe
+3. SpO2 — novo
+4. Pressão Arterial — novo (formato "120/80")
+5. Respiração — novo
+6. HRV SDNN — novo
+7. Hemoglobina — novo
+8. HbA1c — novo
+
+### Timeline
+- Enriquecer com mais campos: SpO2, PA, Respiração, HRV além de FC e Estresse
 
 ## Implementação
 
 ### Arquivo 1: `src/components/mayla/BinahCapture.tsx`
-- Na função `saveResult`, após inserir em `special_measurements`:
-  1. Inserir também em `health_measurements` com `measurement_type: "vitals_premium"` (ou `"vitals_demo"`), extraindo `heart_rate`, `spo2`, `blood_pressure_sys/dia`, `respiratory_rate`, `stress_level` do `mappedResult`
-  2. Atualizar `profiles.points` com `+100`
-  3. Chamar `calculate-health-scores` via `supabase.functions.invoke`
+- Na inserção em `health_measurements`, incluir também `hrv` (mapeado de `hrv_sdnn`) para que o campo fique disponível para o relatório
 
-### Arquivo 2: `supabase/functions/rppg-proxy/index.ts`
-- Após salvar em `health_measurements` (já existe), adicionar:
-  1. `UPDATE profiles SET points = points + 50 WHERE user_id = userId`
-  2. Chamar `calculate-health-scores` internamente (ou inserir score inline)
+### Arquivo 2: `src/components/report/HealthReport.tsx`
+- Remover os 2 trend cards de Sono e Passos
+- Adicionar 6 novos trend cards (SpO2, PA, Respiração, HRV, Hemoglobina, HbA1c)
+- Buscar dados extras de `special_measurements` para campos que não existem em `health_measurements` (hemoglobina, hba1c, wellness)
+- Atualizar o fetch para incluir `spo2`, `blood_pressure_sys`, `blood_pressure_dia`, `respiratory_rate`, `hrv`
+- Atualizar a timeline para mostrar mais dados por evento
 
-### Arquivo 3: `src/components/report/HealthReport.tsx`
-- Buscar dados reais de `health_measurements` dos últimos 7 dias para popular os trend cards (FC, Estresse)
-- Buscar dados de `questionnaire_responses` para popular a seção de questionários
-- Popular a timeline com eventos reais (medições + questionários)
-
-### Arquivo 4: `src/components/mayla/ProfileTab.tsx` (HistoricoMedicoes)
-- Incluir também dados de `special_measurements` no histórico, mapeando `measurement_data` para os campos visuais
+### Arquivo 3: `src/components/report/TrendCard.tsx`
+- Nenhuma alteração necessária — o componente já é genérico
 
 ## Arquivos afetados
-- `src/components/mayla/BinahCapture.tsx` — salvar em `health_measurements` + pontos
-- `supabase/functions/rppg-proxy/index.ts` — computar pontos
-- `src/components/report/HealthReport.tsx` — popular trends e timeline com dados reais
-- `src/components/mayla/ProfileTab.tsx` — unificar histórico
+- `src/components/report/HealthReport.tsx` — principal (expandir trends, remover sono/passos)
+- `src/components/mayla/BinahCapture.tsx` — garantir que `hrv` é salvo em `health_measurements`
 
