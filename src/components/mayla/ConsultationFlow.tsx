@@ -1057,7 +1057,21 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                             >
                               {favoritedIds.has(d.id) ? "⭐ Favoritado" : "☆ Favoritar médico"}
                             </button>
-                            {upcomingDays.length === 0 ? (
+                            {d.source === "meddit" ? (
+                              /* Meddit doctor: show office info + go to schedule via API */
+                              <div className="text-center py-3">
+                                {d.meddit_office_name && (
+                                  <p className="text-xs text-muted-foreground mb-2">📍 {d.meddit_office_name}</p>
+                                )}
+                                <Button
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}
+                                >
+                                  Ver horários disponíveis
+                                </Button>
+                              </div>
+                            ) : upcomingDays.length === 0 ? (
                               <div className="text-center py-3">
                                 <span className="text-2xl block mb-1">📅</span>
                                 <p className="text-xs text-muted-foreground">Sem horários cadastrados.</p>
