@@ -1,40 +1,32 @@
 
 
-# Plano: Mesclar especialidades Meddit no fluxo de consulta
+# Plano: Corrigir carregamento de médicos Meddit no fluxo de consulta
 
-## Problema
-O `SpecialtyStep` no `ConsultationFlow.tsx` carrega especialidades apenas da tabela `partners` (médicos internos). As especialidades vindas da API Meddit (via `prontuario-proxy?action=specialities`) não são carregadas, então os médicos do Meddit nunca aparecem.
+## Problema raiz
 
-## Solução
+Testei a API Meddit (`prontuario-proxy?action=specialities`) e encontrei **dois bugs**:
 
-### `ConsultationFlow.tsx` — `SpecialtyStep`
+1. **Parsing errado da resposta**: A API retorna `{ result: [...] }`, mas o código espera um array direto (`Array.isArray(data)` retorna `false`). Além disso, os campos são `specialization_id` / `specialization_name`, não `id` / `name`.
 
-Alterar o componente `SpecialtyStep` para:
+2. **Nomes não casam**: A API retorna **"Clínica Geral"**, mas a lista hardcoded tem **"Clínico Geral"**. O match case-insensitive falha porque são palavras diferentes, então o `medditId` nunca é anexado à especialidade hardcoded.
 
-1. **Receber props de contexto**: `user` (do auth) para fazer chamada autenticada ao proxy
-2. **Verificar feature flags**: consultar `company_features` para `consulta_medicos_internos` e `consulta_medicos_externos`
-3. **Carregar especialidades de ambas as fontes** (em paralelo):
-   - Se `consulta_medicos_internos` ativo (default `true`): carregar do `partners` (como hoje)
-   - Se `consulta_medicos_externos` ativo (default `true`): chamar `prontuario-proxy?action=specialities` e extrair nomes das especialidades
-4. **Mesclar tudo** sem duplicatas (case-insensitive), combinando com a lista hardcoded `SPECIALTIES` para emojis
+Resultado: `medditSpecialtyId` fica `null` → condição `if (loadExternal && user && medditSpecialtyId)` falha → médicos Meddit nunca são buscados.
 
-### `ConsultationFlow.tsx` — Step `doctors`
+## Correções em `ConsultationFlow.tsx`
 
-Quando o usuário seleciona uma especialidade:
-- Se `consulta_medicos_internos` ativo: buscar partners internos (como hoje)
-- Se `consulta_medicos_externos` ativo: buscar profissionais via `prontuario-proxy?action=professionals&specialityId=X` e exibi-los na mesma lista de médicos, com um badge "Parceiro externo"
+### SpecialtyStep — corrigir parsing
+- Mudar `Array.isArray(data)` para `Array.isArray(data?.result || data)`
+- Mapear `specialization_id` → `id` e `specialization_name` → `name`
 
-Isso unifica a experiência — o usuário vê todos os médicos (internos + Meddit) na mesma tela, sem precisar saber de onde vêm.
+### SpecialtyStep — melhorar matching de nomes
+- Usar normalização mais agressiva para merge (remover acentos, comparar raiz): `"Clínica Geral"` e `"Clínico Geral"` devem ser tratados como mesma especialidade
+- Quando houver match parcial, anexar o `medditId` à entrada existente
 
-### Detalhes técnicos
-
-- Reutilizar a função `proxyCall` já existente em `ProntuarioConveniado.tsx` — extraí-la para um util compartilhado ou duplicar localmente no `ConsultationFlow`
-- Na lista de médicos, os que vêm do Meddit terão um campo `source: "meddit"` para diferenciar no momento de agendar (proxy vs interno)
-- O agendamento de médicos Meddit redireciona para o fluxo do `prontuario-proxy?action=register`
-- O agendamento de médicos internos mantém o fluxo atual (tabela `appointments`)
+### fetchData — não depender exclusivamente de `medditSpecialtyId`
+- Se `medditSpecialtyId` é `null` mas `loadExternal` é `true`, tentar buscar o ID da especialidade Meddit pela lista de specialties já carregada (match por nome normalizado)
+- Isso garante que mesmo se o usuário selecionar uma especialidade hardcoded que existe no Meddit, os médicos externos serão carregados
 
 ## Arquivos afetados
 
-- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — `SpecialtyStep` carrega da API Meddit + verifica feature flags; step `doctors` busca profissionais de ambas as fontes
-- **Extrair** (opcional): função `proxyCall` para `src/lib/prontuario-helpers.ts` para reutilização
+- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — corrigir parsing da resposta da API, normalizar nomes para merge, e ajustar lógica de busca de profissionais externos
 
