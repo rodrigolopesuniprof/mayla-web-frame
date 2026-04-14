@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { proxyCall } from "@/lib/prontuario-helpers";
 import { useCompany } from "@/contexts/CompanyContext";
 import { TopBar } from "./TopBar";
 import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
