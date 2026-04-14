@@ -145,19 +145,6 @@ export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlin
           <span className="text-muted-foreground text-lg">›</span>
         </button>
 
-        {prontuarioEnabled && (
-          <button
-            onClick={() => setSubView("prontuario")}
-            className="w-full rounded-2xl p-4 border-2 border-primary/20 bg-primary/5 flex items-center gap-4 cursor-pointer text-left"
-          >
-            <span className="text-3xl">🏥</span>
-            <div className="flex-1">
-              <div className="text-[15px] font-semibold text-foreground">Prontuário Conveniado</div>
-              <div className="text-sm text-muted-foreground">Agende com médicos do sistema conveniado</div>
-            </div>
-            <span className="text-primary text-lg font-bold">›</span>
-          </button>
-        )}
 
         <h3 className="text-sm font-semibold text-muted-foreground tracking-[.08em] uppercase mt-6 mb-2">Marketplace</h3>
 
