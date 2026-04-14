@@ -216,6 +216,22 @@ export function AdminIntegrations({ companyId }: Props) {
         Configure os sistemas que funcionam como plug-and-play com a Mayla Saúde.
       </p>
 
+      {/* Consulta Service Toggle Card */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🩺</span>
+              <div>
+                <p className="font-medium text-foreground">Serviço de Consultas</p>
+                <p className="text-xs text-muted-foreground">Permite que colaboradores agendem consultas (online e presencial)</p>
+              </div>
+            </div>
+            <Switch checked={consultaEnabled} onCheckedChange={handleConsultaToggle} />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Binah / Vitals Card */}
       <Card>
         <CardContent className="pt-6 space-y-4">
