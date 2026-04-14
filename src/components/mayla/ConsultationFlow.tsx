@@ -107,6 +107,57 @@ const WEEKDAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sext
 
 const DEFAULT_CENTER: [number, number] = [-20.315, -40.312];
 
+/* ── SpecialtyStep: loads specialties from DB + hardcoded list ── */
+function SpecialtyStep({ onSelect }: { onSelect: (s: string) => void }) {
+  const [dbSpecialties, setDbSpecialties] = useState<string[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("partners")
+      .select("specialty")
+      .eq("active", true)
+      .eq("approval_status", "approved")
+      .not("specialty", "is", null)
+      .then(({ data }) => {
+        if (data) {
+          const unique = [...new Set(data.map((p: any) => (p.specialty as string).trim()).filter(Boolean))];
+          setDbSpecialties(unique);
+        }
+      });
+  }, []);
+
+  // Merge hardcoded + DB specialties without duplicates
+  const merged = useMemo(() => {
+    const hardcodedMap = new Map(SPECIALTIES.map(s => [s.value.toLowerCase(), s]));
+    const result = [...SPECIALTIES];
+    for (const spec of dbSpecialties) {
+      if (!hardcodedMap.has(spec.toLowerCase())) {
+        result.push({ value: spec, emoji: "🩺" });
+      }
+    }
+    return result;
+  }, [dbSpecialties]);
+
+  return (
+    <div className="px-5 pt-3">
+      <h3 className="font-display text-lg font-medium text-foreground mb-1">Escolha a especialidade</h3>
+      <p className="text-xs text-muted-foreground mb-4">Qual tipo de consulta você precisa?</p>
+      <div className="grid grid-cols-2 gap-2">
+        {merged.map((s) => (
+          <button
+            key={s.value}
+            onClick={() => onSelect(s.value)}
+            className="flex items-center gap-3 p-3.5 bg-card rounded-2xl border border-border hover:border-primary/40 transition-colors cursor-pointer text-left"
+          >
+            <span className="text-xl">{s.emoji}</span>
+            <span className="text-[13px] font-semibold text-foreground">{s.value}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── helpers ─── */
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -696,22 +747,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
         {/* ── Step: Specialty (now second) ── */}
         {step === "specialty" && (
-          <div className="px-5 pt-3">
-            <h3 className="font-display text-lg font-medium text-foreground mb-1">Escolha a especialidade</h3>
-            <p className="text-xs text-muted-foreground mb-4">Qual tipo de consulta você precisa?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {SPECIALTIES.map((s) => (
-                <button
-                  key={s.value}
-                  onClick={() => handleSelectSpecialty(s.value)}
-                  className="flex items-center gap-3 p-3.5 bg-card rounded-2xl border border-border hover:border-primary/40 transition-colors cursor-pointer text-left"
-                >
-                  <span className="text-xl">{s.emoji}</span>
-                  <span className="text-[13px] font-semibold text-foreground">{s.value}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <SpecialtyStep onSelect={handleSelectSpecialty} />
         )}
 
         {step === "doctors" && (

@@ -22,6 +22,8 @@ const FEATURE_KEYS = {
   binah: "binah_special_measurement",
   prontuario: "prontuario_conveniado",
   consulta: "consulta_servico",
+  consultaInternos: "consulta_medicos_internos",
+  consultaExternos: "consulta_medicos_externos",
 } as const;
 
 const DEFAULT_BINAH_CONFIG = {
@@ -43,6 +45,8 @@ export function AdminIntegrations({ companyId }: Props) {
   const [binah, setBinah] = useState<IntegrationConfig>({ enabled: false, config: { ...DEFAULT_BINAH_CONFIG } });
   const [prontuario, setProntuario] = useState<IntegrationConfig>({ enabled: false, config: { ...DEFAULT_PRONTUARIO_CONFIG } });
   const [consultaEnabled, setConsultaEnabled] = useState(false);
+  const [consultaInternosEnabled, setConsultaInternosEnabled] = useState(false);
+  const [consultaExternosEnabled, setConsultaExternosEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showBinahKey, setShowBinahKey] = useState(false);
   const [showProntuarioKey, setShowProntuarioKey] = useState(false);
@@ -54,7 +58,7 @@ export function AdminIntegrations({ companyId }: Props) {
       .from("company_features")
       .select("feature_key, enabled, config")
       .eq("company_id", companyId)
-      .in("feature_key", [FEATURE_KEYS.binah, FEATURE_KEYS.prontuario, FEATURE_KEYS.consulta]);
+      .in("feature_key", [FEATURE_KEYS.binah, FEATURE_KEYS.prontuario, FEATURE_KEYS.consulta, FEATURE_KEYS.consultaInternos, FEATURE_KEYS.consultaExternos]);
 
     if (data) {
       for (const f of data) {
@@ -84,6 +88,12 @@ export function AdminIntegrations({ companyId }: Props) {
         }
         if (f.feature_key === FEATURE_KEYS.consulta) {
           setConsultaEnabled(f.enabled ?? false);
+        }
+        if (f.feature_key === FEATURE_KEYS.consultaInternos) {
+          setConsultaInternosEnabled(f.enabled ?? false);
+        }
+        if (f.feature_key === FEATURE_KEYS.consultaExternos) {
+          setConsultaExternosEnabled(f.enabled ?? false);
         }
       }
     }
@@ -218,7 +228,7 @@ export function AdminIntegrations({ companyId }: Props) {
 
       {/* Consulta Service Toggle Card */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🩺</span>
@@ -229,6 +239,41 @@ export function AdminIntegrations({ companyId }: Props) {
             </div>
             <Switch checked={consultaEnabled} onCheckedChange={handleConsultaToggle} />
           </div>
+
+          {consultaEnabled && (
+            <div className="space-y-3 pl-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Médicos internos</p>
+                  <p className="text-xs text-muted-foreground">Agendamento com médicos cadastrados na plataforma</p>
+                </div>
+                <Switch
+                  checked={consultaInternosEnabled}
+                  onCheckedChange={async (val) => {
+                    setConsultaInternosEnabled(val);
+                    const ok = await saveFeature(FEATURE_KEYS.consultaInternos, val, {});
+                    if (!ok) setConsultaInternosEnabled(!val);
+                    else toast({ title: val ? "Médicos internos ativados" : "Médicos internos desativados" });
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Médicos externos (API parceira)</p>
+                  <p className="text-xs text-muted-foreground">Agendamento via integração com sistema parceiro (ex: Meddit)</p>
+                </div>
+                <Switch
+                  checked={consultaExternosEnabled}
+                  onCheckedChange={async (val) => {
+                    setConsultaExternosEnabled(val);
+                    const ok = await saveFeature(FEATURE_KEYS.consultaExternos, val, {});
+                    if (!ok) setConsultaExternosEnabled(!val);
+                    else toast({ title: val ? "Médicos externos ativados" : "Médicos externos desativados" });
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
