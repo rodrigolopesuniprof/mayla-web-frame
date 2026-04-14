@@ -1,32 +1,37 @@
 
 
-# Plano: Corrigir carregamento de médicos Meddit no fluxo de consulta
+# Plano: Corrigir timeout na busca de médicos Meddit
 
 ## Problema raiz
 
-Testei a API Meddit (`prontuario-proxy?action=specialities`) e encontrei **dois bugs**:
+A API Meddit `/v1/clinics/professional/search?specialityId=7` está demorando demais (timeout). Testei agora e a chamada foi cancelada por tempo esgotado. Além disso, o fluxo faz **duas chamadas sequenciais** desnecessárias:
 
-1. **Parsing errado da resposta**: A API retorna `{ result: [...] }`, mas o código espera um array direto (`Array.isArray(data)` retorna `false`). Além disso, os campos são `specialization_id` / `specialization_name`, não `id` / `name`.
+1. `proxyCall("specialities")` — para resolver o ID da especialidade (já foi chamada no step anterior)
+2. `proxyCall("professionals", { specialityId })` — que está dando timeout
 
-2. **Nomes não casam**: A API retorna **"Clínica Geral"**, mas a lista hardcoded tem **"Clínico Geral"**. O match case-insensitive falha porque são palavras diferentes, então o `medditId` nunca é anexado à especialidade hardcoded.
+A resposta de `specialities` **já contém os profissionais** com `full_name`, `user_id` e `specialization_id`. Podemos usar esses dados diretamente.
 
-Resultado: `medditSpecialtyId` fica `null` → condição `if (loadExternal && user && medditSpecialtyId)` falha → médicos Meddit nunca são buscados.
+## Solução
 
-## Correções em `ConsultationFlow.tsx`
+### 1. Cachear dados de specialities no SpecialtyStep
 
-### SpecialtyStep — corrigir parsing
-- Mudar `Array.isArray(data)` para `Array.isArray(data?.result || data)`
-- Mapear `specialization_id` → `id` e `specialization_name` → `name`
+O `SpecialtyStep` já chama `proxyCall("specialities")`. Guardar o resultado completo num state (`medditSpecialties`) e passá-lo ao passo `doctors`, evitando a chamada duplicada.
 
-### SpecialtyStep — melhorar matching de nomes
-- Usar normalização mais agressiva para merge (remover acentos, comparar raiz): `"Clínica Geral"` e `"Clínico Geral"` devem ser tratados como mesma especialidade
-- Quando houver match parcial, anexar o `medditId` à entrada existente
+### 2. Usar dados de specialities como lista de médicos Meddit
 
-### fetchData — não depender exclusivamente de `medditSpecialtyId`
-- Se `medditSpecialtyId` é `null` mas `loadExternal` é `true`, tentar buscar o ID da especialidade Meddit pela lista de specialties já carregada (match por nome normalizado)
-- Isso garante que mesmo se o usuário selecionar uma especialidade hardcoded que existe no Meddit, os médicos externos serão carregados
+Em vez de chamar o endpoint `professionals/search` (que está lento/instável), filtrar os profissionais diretamente do array de specialities:
+- Filtrar por `specialization_id` correspondente à especialidade selecionada
+- Mapear `full_name` → `name`, `user_id` → `meddit_id`
+
+### 3. Fallback com timeout (opcional)
+
+Se quisermos ainda tentar o endpoint `professionals/search` para dados mais ricos (officeId, etc.), adicionar um timeout de 5 segundos com `AbortController` e usar os dados de specialities como fallback.
 
 ## Arquivos afetados
 
-- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — corrigir parsing da resposta da API, normalizar nomes para merge, e ajustar lógica de busca de profissionais externos
+- **Editar**: `src/components/mayla/ConsultationFlow.tsx`
+  - Adicionar state `medditSpecialtiesCache` para armazenar resposta completa
+  - No `SpecialtyStep`, salvar o cache ao carregar
+  - No `fetchData` (step doctors), usar o cache em vez de chamar `specialities` novamente
+  - Extrair médicos do cache em vez de chamar `professionals/search`, ou usar com timeout + fallback
 
