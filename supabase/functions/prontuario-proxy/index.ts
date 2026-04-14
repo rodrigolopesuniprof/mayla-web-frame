@@ -203,17 +203,39 @@ Deno.serve(async (req) => {
 
       medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
 
-      const regBody = await req.text();
-      const regResp = await fetch(`${medditBase}/v1/appointments/register`, {
-        method: "POST",
-        headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
-        body: regBody,
-      });
-      const regText = await regResp.text();
-      return new Response(regText, {
-        status: regResp.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const regBody = await req.json();
+
+      // Validate required fields
+      const { professionalId, officeId, patientId, startAt, interval } = regBody;
+      if (!professionalId || !officeId || !patientId || !startAt) {
+        return json({ error: "Campos obrigatórios: professionalId, officeId, patientId, startAt" }, 400);
+      }
+
+      console.log("register payload:", JSON.stringify({ professionalId, officeId, patientId, startAt, interval, mode: regBody.mode }));
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
+
+      try {
+        const regResp = await fetch(`${medditBase}/v1/appointments/register`, {
+          method: "POST",
+          headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+          body: JSON.stringify(regBody),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        const regText = await regResp.text();
+        console.log("register upstream:", regResp.status, regText.substring(0, 300));
+        return new Response(regText, {
+          status: regResp.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (fetchErr: any) {
+        clearTimeout(timeout);
+        const isTimeout = fetchErr.name === "AbortError";
+        console.error("register fetch error:", fetchErr.message);
+        return json({ error: isTimeout ? "Timeout ao conectar com sistema parceiro" : fetchErr.message }, 504);
+      }
     }
 
     // ── professionals — no CPF needed ───────────────────────────

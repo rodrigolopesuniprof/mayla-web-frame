@@ -360,7 +360,10 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
   const [activeRoomToken, setActiveRoomToken] = useState<string | null>(null);
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
-  const [medditCalendar, setMedditCalendar] = useState<Record<string, string[]>>({});
+  /** Each Meddit slot now carries officeId, officeName and interval */
+  interface MedditSlot { time: string; officeId: number; officeName: string; interval: number }
+  const [medditCalendar, setMedditCalendar] = useState<Record<string, MedditSlot[]>>({});
+  const [selectedMedditSlot, setSelectedMedditSlot] = useState<MedditSlot | null>(null);
   const [medditOffices, setMedditOffices] = useState<any[]>([]);
   const [loadingMedditCalendar, setLoadingMedditCalendar] = useState(false);
 
@@ -398,7 +401,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     if (!doc || doc.source !== "meddit" || !doc.meddit_id) return;
 
     setLoadingMedditCalendar(true);
-    setMedditCalendar({});
+    setMedditCalendar({} as Record<string, MedditSlot[]>);
 
     (async () => {
       try {
@@ -410,23 +413,31 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           setMedditOffices(offices);
         }
 
-        // 2. Fetch calendar for each office in parallel
-        const calendarMerged: Record<string, string[]> = {};
+        // 2. Fetch calendar for each office in parallel, preserving officeId & interval
+        const calendarMerged: Record<string, MedditSlot[]> = {};
         if (offices.length > 0) {
-          const calPromises = offices.map((o: any) =>
-            proxyCall("calendar", {
+          const calPromises = offices.map((o: any) => {
+            const offId = o.office_id || o.officeInfo?.office_id;
+            const offName = o.office_name || o.officeInfo?.office_name || `Consultório ${offId}`;
+            return proxyCall("calendar", {
               professionalId: String(doc.meddit_id),
-              officeId: String(o.office_id || o.officeInfo?.office_id),
-            }).catch(() => null)
-          );
+              officeId: String(offId),
+            }).then(cal => ({ cal, offId: Number(offId), offName })).catch(() => null);
+          });
           const results = await Promise.all(calPromises);
-          for (const cal of results) {
-            if (!cal || typeof cal !== "object") continue;
-            for (const [dateStr, info] of Object.entries(cal)) {
-              const slots = (info as any)?.extraInfo;
-              if (Array.isArray(slots) && slots.length > 0) {
+          for (const r of results) {
+            if (!r || !r.cal || typeof r.cal !== "object") continue;
+            for (const [dateStr, info] of Object.entries(r.cal)) {
+              const dayInfo = info as any;
+              const times = dayInfo?.extraInfo;
+              const interval = dayInfo?.interval ?? 30;
+              if (Array.isArray(times) && times.length > 0) {
                 if (!calendarMerged[dateStr]) calendarMerged[dateStr] = [];
-                calendarMerged[dateStr].push(...slots.filter((s: string) => !calendarMerged[dateStr].includes(s)));
+                for (const t of times) {
+                  if (!calendarMerged[dateStr].some(s => s.time === t && s.officeId === r.offId)) {
+                    calendarMerged[dateStr].push({ time: t, officeId: r.offId, officeName: r.offName, interval });
+                  }
+                }
               }
             }
           }
@@ -880,16 +891,21 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
             ? `${format(selectedDate, "yyyy-MM-dd")} ${selectedSlotTime.split(" – ")[0]}:00`
             : `${format(selectedDate, "yyyy-MM-dd")} 09:00:00`;
 
-          await proxyCall("register", {}, "POST", {
-            professionalId: selectedDoctor.meddit_id,
-            officeId: selectedDoctor.meddit_office_id || 1,
-            patientId,
-            startAt,
-            mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
-            interval: 30,
-            socialMidia: "mayla",
-          });
-          console.log("Meddit: appointment registered successfully");
+          if (!selectedMedditSlot) {
+            console.warn("Meddit: no slot metadata, skipping external register");
+            toast({ title: "Aviso", description: "Dados do horário incompletos. Agendamento salvo apenas localmente." });
+          } else {
+            await proxyCall("register", {}, "POST", {
+              professionalId: selectedDoctor.meddit_id,
+              officeId: selectedMedditSlot.officeId,
+              patientId,
+              startAt,
+              mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
+              interval: selectedMedditSlot.interval,
+              socialMidia: "mayla",
+            });
+            console.log("Meddit: appointment registered successfully");
+          }
         }
       } catch (medditErr: any) {
         console.error("Meddit register error:", medditErr);
@@ -1212,18 +1228,19 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                                               {WEEKDAY_NAMES[dateObj.getDay()]} ({format(dateObj, "dd/MMM", { locale: ptBR })})
                                             </p>
                                             <div className="flex flex-wrap gap-1.5">
-                                              {(times as string[]).sort().map((time, i) => (
+                                              {times.sort((a, b) => a.time.localeCompare(b.time)).map((slot, i) => (
                                                 <button
                                                   key={i}
                                                   onClick={() => {
                                                     setSelectedDoctor(d);
                                                     setSelectedDate(dateObj);
-                                                    setSelectedSlotTime(time.substring(0, 5));
+                                                    setSelectedSlotTime(slot.time.substring(0, 5));
+                                                    setSelectedMedditSlot(slot);
                                                     setStep("confirm");
                                                   }}
                                                   className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
                                                 >
-                                                  {time.substring(0, 5)}
+                                                  {slot.time.substring(0, 5)}
                                                 </button>
                                               ))}
                                             </div>
@@ -1343,17 +1360,18 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                               {WEEKDAY_NAMES[dateObj.getDay()]} — {format(dateObj, "dd/MM/yyyy")}
                             </p>
                             <div className="flex flex-wrap gap-1.5">
-                              {(times as string[]).sort().map((time, i) => (
+                              {times.sort((a, b) => a.time.localeCompare(b.time)).map((slot, i) => (
                                 <button
                                   key={i}
                                   onClick={() => {
                                     setSelectedDate(dateObj);
-                                    setSelectedSlotTime(time.substring(0, 5));
+                                    setSelectedSlotTime(slot.time.substring(0, 5));
+                                    setSelectedMedditSlot(slot);
                                     setStep("confirm");
                                   }}
                                   className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
                                 >
-                                  {time.substring(0, 5)}
+                                  {slot.time.substring(0, 5)}
                                 </button>
                               ))}
                             </div>
