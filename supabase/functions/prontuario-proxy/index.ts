@@ -171,6 +171,9 @@ Deno.serve(async (req) => {
         status: offResp.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ── Regular flow — needs profile + CPF ──────────────────────
     const { data: profile } = await adminClient
       .from("profiles")
       .select("cpf, company_id")
