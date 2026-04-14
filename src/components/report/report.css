@@ -266,6 +266,26 @@
 .rpt-tl-event { font-size: 13px; color: var(--rpt-text-primary); margin-top: 3px; line-height: 1.45; }
 .rpt-tl-tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 7px; margin-top: 5px; letter-spacing: 0.02em; }
 
+/* TIMELINE GROUPED */
+.rpt-tl-group { margin-bottom: 14px; animation: rptFadeUp 0.35s ease both; }
+.rpt-tl-day-header {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--rpt-text-tertiary); margin-bottom: 8px; padding-left: 2px;
+}
+.rpt-tl-card {
+  background: var(--rpt-surface); border-radius: var(--rpt-radius-md); padding: 12px 14px;
+  border: 1px solid var(--rpt-border); margin-bottom: 6px;
+}
+.rpt-tl-card:last-child { margin-bottom: 0; }
+.rpt-tl-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.rpt-tl-time { font-size: 12px; font-weight: 600; color: var(--rpt-text-primary); font-family: 'DM Mono', monospace; }
+.rpt-tl-source { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--rpt-blue-bg); color: var(--rpt-blue); }
+.rpt-tl-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.rpt-tl-chip {
+  font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 7px; letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
 /* REC CARD */
 .rpt-rec-card {
   background: var(--rpt-dark-card);
