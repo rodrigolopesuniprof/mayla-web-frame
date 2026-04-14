@@ -1149,18 +1149,60 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                               {favoritedIds.has(d.id) ? "⭐ Favoritado" : "☆ Favoritar médico"}
                             </button>
                             {d.source === "meddit" ? (
-                              /* Meddit doctor: show office info + go to schedule via API */
-                              <div className="text-center py-3">
-                                {d.meddit_office_name && (
-                                  <p className="text-xs text-muted-foreground mb-2">📍 {d.meddit_office_name}</p>
+                              /* Meddit doctor: show calendar from API */
+                              <div className="py-2">
+                                {loadingMedditCalendar ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                                    <span className="text-xs text-muted-foreground ml-2">Carregando agenda...</span>
+                                  </div>
+                                ) : Object.keys(medditCalendar).length === 0 ? (
+                                  <div className="text-center py-3">
+                                    <span className="text-2xl block mb-1">📅</span>
+                                    <p className="text-xs text-muted-foreground">Sem horários disponíveis no momento.</p>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-[11px] font-medium text-muted-foreground mb-2">Próximos horários disponíveis:</p>
+                                    {Object.entries(medditCalendar)
+                                      .sort(([a], [b]) => a.localeCompare(b))
+                                      .slice(0, 3)
+                                      .map(([dateStr, times]) => {
+                                        const dateObj = new Date(dateStr + "T00:00:00");
+                                        return (
+                                          <div key={dateStr} className="mb-2">
+                                            <p className="text-[11px] font-semibold text-foreground mb-1.5 capitalize">
+                                              {WEEKDAY_NAMES[dateObj.getDay()]} ({format(dateObj, "dd/MMM", { locale: ptBR })})
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {(times as string[]).sort().map((time, i) => (
+                                                <button
+                                                  key={i}
+                                                  onClick={() => {
+                                                    setSelectedDoctor(d);
+                                                    setSelectedDate(dateObj);
+                                                    setSelectedSlotTime(time.substring(0, 5));
+                                                    setStep("confirm");
+                                                  }}
+                                                  className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
+                                                >
+                                                  {time.substring(0, 5)}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-xs text-primary w-full mt-1"
+                                      onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}
+                                    >
+                                      Ver agenda completa →
+                                    </Button>
+                                  </>
                                 )}
-                                <Button
-                                  size="sm"
-                                  className="text-xs"
-                                  onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}
-                                >
-                                  Ver horários disponíveis
-                                </Button>
                               </div>
                             ) : upcomingDays.length === 0 ? (
                               <div className="text-center py-3">
