@@ -21,6 +21,7 @@ interface IntegrationConfig {
 const FEATURE_KEYS = {
   binah: "binah_special_measurement",
   prontuario: "prontuario_conveniado",
+  consulta: "consulta_servico",
 } as const;
 
 const DEFAULT_BINAH_CONFIG = {
@@ -41,6 +42,7 @@ const DEFAULT_PRONTUARIO_CONFIG = {
 export function AdminIntegrations({ companyId }: Props) {
   const [binah, setBinah] = useState<IntegrationConfig>({ enabled: false, config: { ...DEFAULT_BINAH_CONFIG } });
   const [prontuario, setProntuario] = useState<IntegrationConfig>({ enabled: false, config: { ...DEFAULT_PRONTUARIO_CONFIG } });
+  const [consultaEnabled, setConsultaEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showBinahKey, setShowBinahKey] = useState(false);
   const [showProntuarioKey, setShowProntuarioKey] = useState(false);
@@ -52,7 +54,7 @@ export function AdminIntegrations({ companyId }: Props) {
       .from("company_features")
       .select("feature_key, enabled, config")
       .eq("company_id", companyId)
-      .in("feature_key", [FEATURE_KEYS.binah, FEATURE_KEYS.prontuario]);
+      .in("feature_key", [FEATURE_KEYS.binah, FEATURE_KEYS.prontuario, FEATURE_KEYS.consulta]);
 
     if (data) {
       for (const f of data) {
@@ -79,6 +81,9 @@ export function AdminIntegrations({ companyId }: Props) {
               api_key: cfg.api_key || "",
             },
           });
+        }
+        if (f.feature_key === FEATURE_KEYS.consulta) {
+          setConsultaEnabled(f.enabled ?? false);
         }
       }
     }
