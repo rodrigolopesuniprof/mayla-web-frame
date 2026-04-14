@@ -6,6 +6,7 @@ import { HealthPartnersMap } from "./HealthPartnersMap";
 import { ProntuarioConveniado } from "./ProntuarioConveniado";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProntuarioFeature } from "@/hooks/useProntuarioFeature";
+import { useCompanyFeature } from "@/hooks/useCompanyFeature";
 import { supabase } from "@/integrations/supabase/client";
 
 type SubView = "menu" | "consultation" | "appointment_legacy" | "history" | "partners" | "prontuario";
@@ -22,6 +23,7 @@ interface Appointment {
 export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlineMode?: boolean; onClearOnlineMode?: () => void }) {
   const { user } = useAuth();
   const { enabled: prontuarioEnabled } = useProntuarioFeature();
+  const { enabled: consultaEnabled } = useCompanyFeature("consulta_servico");
   const [subView, setSubView] = useState<SubView>(startOnlineMode ? "consultation" : "menu");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,17 +119,19 @@ export function ServicosTab({ startOnlineMode, onClearOnlineMode }: { startOnlin
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3">
         <h3 className="text-sm font-semibold text-muted-foreground tracking-[.08em] uppercase mb-2">Consultas</h3>
 
-        <button
-          onClick={() => setSubView("consultation")}
-          className="w-full rounded-2xl p-4 border-2 border-primary/20 bg-primary/5 flex items-center gap-4 cursor-pointer text-left"
-        >
-          <span className="text-3xl">🩺</span>
-          <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground">Realizar Consulta</div>
-            <div className="text-sm text-muted-foreground">Online, presencial ou primeiro disponível</div>
-          </div>
-          <span className="text-primary text-lg font-bold">›</span>
-        </button>
+        {consultaEnabled && (
+          <button
+            onClick={() => setSubView("consultation")}
+            className="w-full rounded-2xl p-4 border-2 border-primary/20 bg-primary/5 flex items-center gap-4 cursor-pointer text-left"
+          >
+            <span className="text-3xl">🩺</span>
+            <div className="flex-1">
+              <div className="text-[15px] font-semibold text-foreground">Realizar Consulta</div>
+              <div className="text-sm text-muted-foreground">Online, presencial ou primeiro disponível</div>
+            </div>
+            <span className="text-primary text-lg font-bold">›</span>
+          </button>
+        )}
 
         <button
           onClick={() => setSubView("history")}

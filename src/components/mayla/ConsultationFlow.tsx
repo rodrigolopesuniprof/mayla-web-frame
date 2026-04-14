@@ -178,7 +178,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const { user } = useAuth();
   const { company } = useCompany();
 
-  const [step, setStep] = useState<Step>("specialty");
+  const [step, setStep] = useState<Step>("mode");
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
   const [consultMode, setConsultMode] = useState<ConsultMode | null>(initialMode || null);
   const [waitingConsultationId, setWaitingConsultationId] = useState<string | null>(null);
@@ -199,6 +199,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
   const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
   const [activeRoomToken, setActiveRoomToken] = useState<string | null>(null);
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
   // Geolocation
   useEffect(() => {
@@ -212,6 +213,45 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       setUserPos(DEFAULT_CENTER);
     }
   }, []);
+
+  // Load favorited doctor IDs
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("prontuario_connections")
+      .select("internal_partner_id")
+      .eq("user_id", user.id)
+      .eq("active", true)
+      .not("internal_partner_id", "is", null)
+      .then(({ data }) => {
+        if (data) setFavoritedIds(new Set(data.map((d: any) => d.internal_partner_id)));
+      });
+  }, [user]);
+
+  const handleFavoriteDoctor = async (doctor: Doctor) => {
+    if (!user) return;
+    if (favoritedIds.has(doctor.id)) {
+      toast({ title: "Médico já favoritado", description: "Este médico já está na sua lista de favoritos." });
+      return;
+    }
+    const reportToken = crypto.randomUUID();
+    const { error } = await supabase.from("prontuario_connections").insert({
+      user_id: user.id,
+      external_system: "mayla",
+      source_type: "mayla_partner",
+      external_professional_id: doctor.id,
+      external_professional_name: doctor.name,
+      internal_partner_id: doctor.id,
+      report_token: reportToken,
+      company_id: (company as any)?.id || null,
+    } as any);
+    if (error) {
+      toast({ title: "Erro ao favoritar", description: error.message, variant: "destructive" });
+    } else {
+      setFavoritedIds(prev => new Set([...prev, doctor.id]));
+      toast({ title: "⭐ Médico favoritado!", description: `${doctor.name} agora pode acompanhar seus dados de saúde.` });
+    }
+  };
 
   // Fetch doctors + locations + availability when specialty + mode selected
   useEffect(() => {
@@ -323,12 +363,12 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   /* ─── Handlers ─── */
   const handleSelectSpecialty = (s: string) => {
     setSelectedSpecialty(s);
-    setStep("mode");
+    setStep("doctors");
   };
 
   const handleSelectMode = (mode: ConsultMode) => {
     setConsultMode(mode);
-    setStep("doctors");
+    setStep("specialty");
   };
 
   const handleSelectDoctor = (d: Doctor) => {
@@ -583,20 +623,21 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   };
 
   const goBack = () => {
-    if (step === "mode") { setStep("specialty"); setSelectedSpecialty(null); }
+    if (step === "specialty") { setStep("mode"); setConsultMode(null); }
     else if (step === "doctors") {
       if (expandedDoctorId) { setExpandedDoctorId(null); }
-      else { setStep("mode"); setConsultMode(null); }
+      else { setStep("specialty"); setSelectedSpecialty(null); }
     }
     else if (step === "schedule") { setStep("doctors"); setSelectedDoctor(null); }
     else if (step === "confirm") { setStep("doctors"); setSelectedSlotTime(null); setExpandedDoctorId(selectedDoctor?.id ?? null); }
     else if (step === "video_call") { setStep("done"); }
     else if (step === "waiting_room") { setStep("done"); }
+    else if (step === "mode") onBack();
     else onBack();
   };
 
-  const stepLabels = ["Especialidade", "Modo", "Médico", "Horário", "Confirmar"];
-  const stepKeys: Step[] = ["specialty", "mode", "doctors", "schedule", "confirm"];
+  const stepLabels = ["Modo", "Especialidade", "Médico", "Horário", "Confirmar"];
+  const stepKeys: Step[] = ["mode", "specialty", "doctors", "schedule", "confirm"];
   const stepIdx = stepKeys.indexOf(step);
 
   const mapCenter: [number, number] = userPos || DEFAULT_CENTER;
@@ -621,7 +662,39 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           </div>
         )}
 
-        {/* ── Step: Specialty ── */}
+        {/* ── Step: Mode (now first) ── */}
+        {step === "mode" && (
+          <div className="px-5 pt-3">
+            <h3 className="font-display text-lg font-medium text-foreground mb-1">Como deseja realizar a consulta?</h3>
+            <p className="text-xs text-muted-foreground mb-4">Escolha o modo de atendimento</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleSelectMode("presencial")}
+                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
+              >
+                <span className="text-3xl">🏥</span>
+                <div className="flex-1">
+                  <div className="text-[15px] font-semibold text-foreground">Presencial</div>
+                  <div className="text-xs text-muted-foreground">Encontre médicos próximos no mapa</div>
+                </div>
+                <span className="text-muted-foreground">›</span>
+              </button>
+              <button
+                onClick={() => handleSelectMode("online")}
+                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
+              >
+                <span className="text-3xl">📹</span>
+                <div className="flex-1">
+                  <div className="text-[15px] font-semibold text-foreground">Online (Vídeo)</div>
+                  <div className="text-xs text-muted-foreground">Teleconsulta via Jitsi Meet</div>
+                </div>
+                <span className="text-muted-foreground">›</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step: Specialty (now second) ── */}
         {step === "specialty" && (
           <div className="px-5 pt-3">
             <h3 className="font-display text-lg font-medium text-foreground mb-1">Escolha a especialidade</h3>
@@ -637,51 +710,6 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                   <span className="text-[13px] font-semibold text-foreground">{s.value}</span>
                 </button>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Step: Mode ── */}
-        {step === "mode" && (
-          <div className="px-5 pt-3">
-            <h3 className="font-display text-lg font-medium text-foreground mb-1">
-              {SPECIALTIES.find((s) => s.value === selectedSpecialty)?.emoji} {selectedSpecialty}
-            </h3>
-            <p className="text-xs text-muted-foreground mb-4">Como deseja realizar a consulta?</p>
-            <div className="space-y-3">
-              <button
-                onClick={() => handleSelectMode("online")}
-                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
-              >
-                <span className="text-3xl">📹</span>
-                <div className="flex-1">
-                  <div className="text-[15px] font-semibold text-foreground">Online (Vídeo)</div>
-                  <div className="text-xs text-muted-foreground">Teleconsulta via Jitsi Meet</div>
-                </div>
-                <span className="text-muted-foreground">›</span>
-              </button>
-              <button
-                onClick={() => handleSelectMode("presencial")}
-                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
-              >
-                <span className="text-3xl">🏥</span>
-                <div className="flex-1">
-                  <div className="text-[15px] font-semibold text-foreground">Presencial</div>
-                  <div className="text-xs text-muted-foreground">Encontre médicos próximos no mapa</div>
-                </div>
-                <span className="text-muted-foreground">›</span>
-              </button>
-              <button
-                onClick={() => handleSelectMode("first_available")}
-                className="w-full rounded-2xl p-4 border-2 border-primary/20 bg-primary/5 flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
-              >
-                <span className="text-3xl">⚡</span>
-                <div className="flex-1">
-                  <div className="text-[15px] font-semibold text-foreground">Primeiro disponível</div>
-                  <div className="text-xs text-muted-foreground">A forma mais rápida de conseguir uma consulta</div>
-                </div>
-                <span className="text-muted-foreground">›</span>
-              </button>
             </div>
           </div>
         )}
@@ -827,6 +855,17 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                         {/* Expanded: inline time slots */}
                         {isExpanded && (
                           <div className="px-3 pb-3 border-t border-border/50 pt-3 space-y-3">
+                            {/* Favorite button */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleFavoriteDoctor(d); }}
+                              className={`w-full py-2 rounded-xl text-[12px] font-semibold cursor-pointer transition-colors border ${
+                                favoritedIds.has(d.id)
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-600"
+                                  : "bg-card border-border hover:border-amber-500/40 text-foreground"
+                              }`}
+                            >
+                              {favoritedIds.has(d.id) ? "⭐ Favoritado" : "☆ Favoritar médico"}
+                            </button>
                             {upcomingDays.length === 0 ? (
                               <div className="text-center py-3">
                                 <span className="text-2xl block mb-1">📅</span>
