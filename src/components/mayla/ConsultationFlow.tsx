@@ -214,6 +214,45 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     }
   }, []);
 
+  // Load favorited doctor IDs
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("prontuario_connections")
+      .select("internal_partner_id")
+      .eq("user_id", user.id)
+      .eq("active", true)
+      .not("internal_partner_id", "is", null)
+      .then(({ data }) => {
+        if (data) setFavoritedIds(new Set(data.map((d: any) => d.internal_partner_id)));
+      });
+  }, [user]);
+
+  const handleFavoriteDoctor = async (doctor: Doctor) => {
+    if (!user) return;
+    if (favoritedIds.has(doctor.id)) {
+      toast({ title: "Médico já favoritado", description: "Este médico já está na sua lista de favoritos." });
+      return;
+    }
+    const reportToken = crypto.randomUUID();
+    const { error } = await supabase.from("prontuario_connections").insert({
+      user_id: user.id,
+      external_system: "mayla",
+      source_type: "mayla_partner",
+      external_professional_id: doctor.id,
+      external_professional_name: doctor.name,
+      internal_partner_id: doctor.id,
+      report_token: reportToken,
+      company_id: (company as any)?.id || null,
+    } as any);
+    if (error) {
+      toast({ title: "Erro ao favoritar", description: error.message, variant: "destructive" });
+    } else {
+      setFavoritedIds(prev => new Set([...prev, doctor.id]));
+      toast({ title: "⭐ Médico favoritado!", description: `${doctor.name} agora pode acompanhar seus dados de saúde.` });
+    }
+  };
+
   // Fetch doctors + locations + availability when specialty + mode selected
   useEffect(() => {
     if (!selectedSpecialty || !consultMode) return;
