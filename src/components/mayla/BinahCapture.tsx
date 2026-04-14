@@ -209,7 +209,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     });
 
     // Award points
-    await supabase.rpc("add_points_to_profile" as any, { _user_id: user.id, _points: 100 }).then(() => {}).catch?.(() => {});
+    try { await supabase.rpc("add_points_to_profile" as any, { _user_id: user.id, _points: 100 }); } catch {}
 
     // Trigger health score calculation
     try {
