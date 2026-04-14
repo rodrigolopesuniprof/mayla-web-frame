@@ -1,41 +1,40 @@
 
 
-# Plano: Corrigir problemas no fluxo de consulta e toggles admin
+# Plano: Mesclar especialidades Meddit no fluxo de consulta
 
-## Problemas identificados
+## Problema
+O `SpecialtyStep` no `ConsultationFlow.tsx` carrega especialidades apenas da tabela `partners` (médicos internos). As especialidades vindas da API Meddit (via `prontuario-proxy?action=specialities`) não são carregadas, então os médicos do Meddit nunca aparecem.
 
-1. **Especialidades cadastradas no admin sumiram** — O step "specialty" no `ConsultationFlow` só mostra a lista hardcoded `SPECIALTIES`. Não carrega especialidades dos parceiros cadastrados no banco (`partners.specialty`).
+## Solução
 
-2. **Não há distinção entre fluxo API e fluxo interno** — O fluxo de consulta já usa parceiros internos. Este ponto está OK, mas precisa carregar especialidades dinâmicas do banco para que os médicos internos apareçam.
+### `ConsultationFlow.tsx` — `SpecialtyStep`
 
-3. **Falta toggle no admin para médicos internos/externos** — O `AdminIntegrations` tem o toggle "Serviço de Consultas" (genérico) mas não há toggles separados para ativar/desativar agendamento com médicos internos vs médicos da API externa (Meddit).
+Alterar o componente `SpecialtyStep` para:
 
-4. **Botão "Realizar Consulta" sumiu da HomeTab** — O botão está condicionado a `consultaEnabled`, que depende de um registro `consulta_servico` na tabela `company_features`. Se esse registro não existir, o botão não aparece.
+1. **Receber props de contexto**: `user` (do auth) para fazer chamada autenticada ao proxy
+2. **Verificar feature flags**: consultar `company_features` para `consulta_medicos_internos` e `consulta_medicos_externos`
+3. **Carregar especialidades de ambas as fontes** (em paralelo):
+   - Se `consulta_medicos_internos` ativo (default `true`): carregar do `partners` (como hoje)
+   - Se `consulta_medicos_externos` ativo (default `true`): chamar `prontuario-proxy?action=specialities` e extrair nomes das especialidades
+4. **Mesclar tudo** sem duplicatas (case-insensitive), combinando com a lista hardcoded `SPECIALTIES` para emojis
 
-## Correções
+### `ConsultationFlow.tsx` — Step `doctors`
 
-### 1. `ConsultationFlow.tsx` — Carregar especialidades do banco
-- No step "specialty", além da lista hardcoded `SPECIALTIES`, fazer query `SELECT DISTINCT specialty FROM partners WHERE active = true AND approval_status = 'approved' AND specialty IS NOT NULL`
-- Mesclar as duas listas sem duplicatas (case-insensitive)
-- Exibir todas como botões clicáveis (as que vêm do banco sem emoji terão um emoji genérico 🩺)
+Quando o usuário seleciona uma especialidade:
+- Se `consulta_medicos_internos` ativo: buscar partners internos (como hoje)
+- Se `consulta_medicos_externos` ativo: buscar profissionais via `prontuario-proxy?action=professionals&specialityId=X` e exibi-los na mesma lista de médicos, com um badge "Parceiro externo"
 
-### 2. `AdminIntegrations.tsx` — Adicionar toggles separados
-- Adicionar dois novos feature keys: `consulta_medicos_internos` e `consulta_medicos_externos`
-- Exibir como sub-toggles dentro do card "Serviço de Consultas" (visíveis somente quando `consulta_servico` está ativo)
-- "Agendamento com médicos internos" — habilita busca na tabela `partners`
-- "Agendamento com médicos externos (API parceira)" — habilita busca via API Meddit
+Isso unifica a experiência — o usuário vê todos os médicos (internos + Meddit) na mesma tela, sem precisar saber de onde vêm.
 
-### 3. `HomeTab.tsx` — Garantir visibilidade do botão
-- Mostrar o botão "Realizar Consulta" **sempre** (sem condicional `consultaEnabled`), pois a decisão de quais médicos mostrar é feita dentro do fluxo
-- OU: inverter a lógica para `!loading && consultaEnabled` com fallback para mostrar se o hook ainda está carregando — **melhor opção**: manter condicional mas com default `true` quando não há feature flag cadastrada (comportamento opt-out em vez de opt-in)
+### Detalhes técnicos
 
-### 4. `useCompanyFeature.ts` — Default `true` para `consulta_servico`
-- Quando o registro não existe na tabela, retornar `enabled: true` (opt-out) em vez de `false` (opt-in), para que funcionalidades não "sumam" automaticamente
+- Reutilizar a função `proxyCall` já existente em `ProntuarioConveniado.tsx` — extraí-la para um util compartilhado ou duplicar localmente no `ConsultationFlow`
+- Na lista de médicos, os que vêm do Meddit terão um campo `source: "meddit"` para diferenciar no momento de agendar (proxy vs interno)
+- O agendamento de médicos Meddit redireciona para o fluxo do `prontuario-proxy?action=register`
+- O agendamento de médicos internos mantém o fluxo atual (tabela `appointments`)
 
 ## Arquivos afetados
 
-- **Editar**: `src/hooks/useCompanyFeature.ts` — alterar default de `false` para `true` (ou aceitar parâmetro `defaultValue`)
-- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — carregar especialidades dinâmicas do banco e mesclar com lista hardcoded
-- **Editar**: `src/components/admin/AdminIntegrations.tsx` — adicionar sub-toggles para médicos internos e externos
-- **Editar**: `src/components/mayla/HomeTab.tsx` — ajustar condição de exibição do botão consulta
+- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — `SpecialtyStep` carrega da API Meddit + verifica feature flags; step `doctors` busca profissionais de ambas as fontes
+- **Extrair** (opcional): função `proxyCall` para `src/lib/prontuario-helpers.ts` para reutilização
 
