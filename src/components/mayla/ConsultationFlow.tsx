@@ -143,22 +143,22 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
       setFeatureFlags({ internos, externos });
 
       // 2. Load specialties in parallel
-      const promises: Promise<void>[] = [];
+      const promises: Promise<any>[] = [];
 
       if (internos) {
         promises.push(
-          supabase
-            .from("partners")
-            .select("specialty")
-            .eq("active", true)
-            .eq("approval_status", "approved")
-            .not("specialty", "is", null)
-            .then(({ data }) => {
-              if (data) {
-                const unique = [...new Set(data.map((p: any) => (p.specialty as string).trim()).filter(Boolean))];
-                setDbSpecialties(unique);
-              }
-            })
+          (async () => {
+            const { data } = await supabase
+              .from("partners")
+              .select("specialty")
+              .eq("active", true)
+              .eq("approval_status", "approved")
+              .not("specialty", "is", null);
+            if (data) {
+              const unique = [...new Set(data.map((p: any) => (p.specialty as string).trim()).filter(Boolean))];
+              setDbSpecialties(unique);
+            }
+          })()
         );
       }
 
