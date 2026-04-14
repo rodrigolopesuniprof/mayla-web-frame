@@ -219,10 +219,8 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
         .maybeSingle();
 
       if ((apptRow as any)?.external_appointment_id) {
-        supabase.functions.invoke("prontuario-proxy", {
-          body: { appointmentId: (apptRow as any).external_appointment_id },
-          headers: { "Content-Type": "application/json" },
-        }).then(() => console.log("Meddit finish sent"))
+        proxyCall("finish", {}, "POST", { appointmentId: (apptRow as any).external_appointment_id })
+          .then(() => console.log("Meddit finish sent"))
           .catch((err: any) => console.warn("Meddit finish failed:", err));
       }
     } catch (e) {
