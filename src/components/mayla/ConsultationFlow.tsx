@@ -113,36 +113,116 @@ const WEEKDAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sext
 
 const DEFAULT_CENTER: [number, number] = [-20.315, -40.312];
 
-/* ── SpecialtyStep: loads specialties from DB + hardcoded list ── */
-function SpecialtyStep({ onSelect }: { onSelect: (s: string) => void }) {
+/* ── SpecialtyStep: loads specialties from internal DB + Meddit API ── */
+function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: number) => void; user: any }) {
   const [dbSpecialties, setDbSpecialties] = useState<string[]>([]);
+  const [medditSpecialties, setMedditSpecialties] = useState<{ id: number; name: string }[]>([]);
+  const [featureFlags, setFeatureFlags] = useState<{ internos: boolean; externos: boolean }>({ internos: true, externos: true });
+  const [loadingSpecs, setLoadingSpecs] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("partners")
-      .select("specialty")
-      .eq("active", true)
-      .eq("approval_status", "approved")
-      .not("specialty", "is", null)
-      .then(({ data }) => {
-        if (data) {
-          const unique = [...new Set(data.map((p: any) => (p.specialty as string).trim()).filter(Boolean))];
-          setDbSpecialties(unique);
+    const load = async () => {
+      // 1. Check feature flags
+      let internos = true, externos = true;
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+        if (profile?.company_id) {
+          const { data: features } = await supabase
+            .from("company_features")
+            .select("feature_key, enabled")
+            .eq("company_id", profile.company_id)
+            .in("feature_key", ["consulta_medicos_internos", "consulta_medicos_externos"]);
+          if (features) {
+            for (const f of features) {
+              if (f.feature_key === "consulta_medicos_internos" && f.enabled === false) internos = false;
+              if (f.feature_key === "consulta_medicos_externos" && f.enabled === false) externos = false;
+            }
+          }
         }
-      });
-  }, []);
+      }
+      setFeatureFlags({ internos, externos });
 
-  // Merge hardcoded + DB specialties without duplicates
+      // 2. Load specialties in parallel
+      const promises: Promise<void>[] = [];
+
+      if (internos) {
+        promises.push(
+          supabase
+            .from("partners")
+            .select("specialty")
+            .eq("active", true)
+            .eq("approval_status", "approved")
+            .not("specialty", "is", null)
+            .then(({ data }) => {
+              if (data) {
+                const unique = [...new Set(data.map((p: any) => (p.specialty as string).trim()).filter(Boolean))];
+                setDbSpecialties(unique);
+              }
+            })
+        );
+      }
+
+      if (externos && user) {
+        promises.push(
+          proxyCall("specialities")
+            .then((data: any) => {
+              if (Array.isArray(data)) {
+                setMedditSpecialties(data.map((s: any) => ({ id: s.id, name: s.name })));
+              }
+            })
+            .catch((err) => {
+              console.warn("Failed to load Meddit specialties:", err);
+            })
+        );
+      }
+
+      await Promise.all(promises);
+      setLoadingSpecs(false);
+    };
+    load();
+  }, [user]);
+
+  // Merge hardcoded + DB + Meddit specialties without duplicates
   const merged = useMemo(() => {
     const hardcodedMap = new Map(SPECIALTIES.map(s => [s.value.toLowerCase(), s]));
-    const result = [...SPECIALTIES];
-    for (const spec of dbSpecialties) {
-      if (!hardcodedMap.has(spec.toLowerCase())) {
-        result.push({ value: spec, emoji: "🩺" });
+    const result: { value: string; emoji: string; medditId?: number }[] = [...SPECIALTIES];
+    const seen = new Set(SPECIALTIES.map(s => s.value.toLowerCase()));
+
+    // Add internal DB specialties
+    if (featureFlags.internos) {
+      for (const spec of dbSpecialties) {
+        if (!seen.has(spec.toLowerCase())) {
+          result.push({ value: spec, emoji: "🩺" });
+          seen.add(spec.toLowerCase());
+        }
       }
     }
+
+    // Add Meddit specialties
+    if (featureFlags.externos) {
+      for (const ms of medditSpecialties) {
+        const key = ms.name.toLowerCase();
+        if (!seen.has(key)) {
+          result.push({ value: ms.name, emoji: "🏥", medditId: ms.id });
+          seen.add(key);
+        } else {
+          // attach medditId to existing entry
+          const existing = result.find(r => r.value.toLowerCase() === key);
+          if (existing && !existing.medditId) existing.medditId = ms.id;
+        }
+      }
+    }
+
     return result;
-  }, [dbSpecialties]);
+  }, [dbSpecialties, medditSpecialties, featureFlags]);
+
+  if (loadingSpecs) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="px-5 pt-3">
@@ -152,7 +232,7 @@ function SpecialtyStep({ onSelect }: { onSelect: (s: string) => void }) {
         {merged.map((s) => (
           <button
             key={s.value}
-            onClick={() => onSelect(s.value)}
+            onClick={() => onSelect(s.value, s.medditId)}
             className="flex items-center gap-3 p-3.5 bg-card rounded-2xl border border-border hover:border-primary/40 transition-colors cursor-pointer text-left"
           >
             <span className="text-xl">{s.emoji}</span>
