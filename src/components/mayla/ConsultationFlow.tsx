@@ -166,8 +166,20 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
         promises.push(
           proxyCall("specialities")
             .then((data: any) => {
-              if (Array.isArray(data)) {
-                setMedditSpecialties(data.map((s: any) => ({ id: s.id, name: s.name })));
+              const arr = Array.isArray(data) ? data : Array.isArray(data?.result) ? data.result : [];
+              if (arr.length) {
+                // Deduplicate by specialization_id
+                const seen = new Set<number>();
+                const unique: { id: number; name: string }[] = [];
+                for (const s of arr) {
+                  const sid = s.specialization_id ?? s.id;
+                  const sname = s.specialization_name ?? s.name;
+                  if (sid && sname && !seen.has(sid)) {
+                    seen.add(sid);
+                    unique.push({ id: sid, name: sname });
+                  }
+                }
+                setMedditSpecialties(unique);
               }
             })
             .catch((err) => {
