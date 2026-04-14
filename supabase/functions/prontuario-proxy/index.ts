@@ -213,8 +213,9 @@ Deno.serve(async (req) => {
 
       console.log("register payload:", JSON.stringify({ professionalId, officeId, patientId, startAt, interval, mode: regBody.mode }));
 
+      const t0 = Date.now();
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000);
+      const timeout = setTimeout(() => controller.abort(), 55000);
 
       try {
         const regResp = await fetch(`${medditBase}/v1/appointments/register`, {
@@ -225,15 +226,17 @@ Deno.serve(async (req) => {
         });
         clearTimeout(timeout);
         const regText = await regResp.text();
-        console.log("register upstream:", regResp.status, regText.substring(0, 300));
+        const elapsed = Date.now() - t0;
+        console.log(`register upstream: status=${regResp.status} elapsed=${elapsed}ms body=${regText.substring(0, 500)}`);
         return new Response(regText, {
           status: regResp.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } catch (fetchErr: any) {
         clearTimeout(timeout);
+        const elapsed = Date.now() - t0;
         const isTimeout = fetchErr.name === "AbortError";
-        console.error("register fetch error:", fetchErr.message);
+        console.error(`register fetch error: ${fetchErr.message} elapsed=${elapsed}ms`);
         return json({ error: isTimeout ? "Timeout ao conectar com sistema parceiro" : fetchErr.message }, 504);
       }
     }
