@@ -166,8 +166,20 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
         promises.push(
           proxyCall("specialities")
             .then((data: any) => {
-              if (Array.isArray(data)) {
-                setMedditSpecialties(data.map((s: any) => ({ id: s.id, name: s.name })));
+              const arr = Array.isArray(data) ? data : Array.isArray(data?.result) ? data.result : [];
+              if (arr.length) {
+                // Deduplicate by specialization_id
+                const seen = new Set<number>();
+                const unique: { id: number; name: string }[] = [];
+                for (const s of arr) {
+                  const sid = s.specialization_id ?? s.id;
+                  const sname = s.specialization_name ?? s.name;
+                  if (sid && sname && !seen.has(sid)) {
+                    seen.add(sid);
+                    unique.push({ id: sid, name: sname });
+                  }
+                }
+                setMedditSpecialties(unique);
               }
             })
             .catch((err) => {
@@ -182,18 +194,25 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
     load();
   }, [user]);
 
+  // Normalize for fuzzy matching: remove accents, lowercase, strip gender suffixes
+  const normalize = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+      .replace(/\b(clinico|clinica)\b/, "clinic")
+      .replace(/\b(ginecologista|ginecologia)\b/, "gineco")
+      .trim();
+
   // Merge hardcoded + DB + Meddit specialties without duplicates
   const merged = useMemo(() => {
-    const hardcodedMap = new Map(SPECIALTIES.map(s => [s.value.toLowerCase(), s]));
     const result: { value: string; emoji: string; medditId?: number }[] = [...SPECIALTIES];
-    const seen = new Set(SPECIALTIES.map(s => s.value.toLowerCase()));
+    const seenNorm = new Set(SPECIALTIES.map(s => normalize(s.value)));
 
     // Add internal DB specialties
     if (featureFlags.internos) {
       for (const spec of dbSpecialties) {
-        if (!seen.has(spec.toLowerCase())) {
+        const n = normalize(spec);
+        if (!seenNorm.has(n)) {
           result.push({ value: spec, emoji: "🩺" });
-          seen.add(spec.toLowerCase());
+          seenNorm.add(n);
         }
       }
     }
@@ -201,14 +220,14 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
     // Add Meddit specialties
     if (featureFlags.externos) {
       for (const ms of medditSpecialties) {
-        const key = ms.name.toLowerCase();
-        if (!seen.has(key)) {
-          result.push({ value: ms.name, emoji: "🏥", medditId: ms.id });
-          seen.add(key);
-        } else {
+        const n = normalize(ms.name);
+        const existing = result.find(r => normalize(r.value) === n);
+        if (existing) {
           // attach medditId to existing entry
-          const existing = result.find(r => r.value.toLowerCase() === key);
-          if (existing && !existing.medditId) existing.medditId = ms.id;
+          if (!existing.medditId) existing.medditId = ms.id;
+        } else {
+          result.push({ value: ms.name, emoji: "🏥", medditId: ms.id });
+          seenNorm.add(n);
         }
       }
     }
@@ -463,41 +482,63 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       }
 
       // External Meddit professionals
-      if (loadExternal && user && medditSpecialtyId) {
-        try {
-          const profs = await proxyCall("professionals", { specialityId: String(medditSpecialtyId) });
-          if (Array.isArray(profs)) {
-            const medditDocs: Doctor[] = profs.map((p: any) => ({
-              id: `meddit-${p.id}`,
-              name: p.name,
-              partner_type: "doctor",
-              specialty: selectedSpecialty,
-              consultation_type: null,
-              consultation_price: null,
-              online_consultation_enabled: false,
-              city: null,
-              state: null,
-              full_address: p.officeName || null,
-              latitude: null,
-              longitude: null,
-              crm: null,
-              crm_state: null,
-              contact_link: null,
-              phone: null,
-              description: null,
-              logo_url: null,
-              notification_email: null,
-              email: null,
-              specialties_offered: null,
-              source: "meddit" as const,
-              meddit_id: p.id,
-              meddit_office_id: p.officeId,
-              meddit_office_name: p.officeName,
-            }));
-            allProviders.push(...medditDocs);
+      if (loadExternal && user) {
+        // Resolve meddit specialty ID: use prop or look up by name from specialities API
+        let resolvedMedditId = medditSpecialtyId;
+        if (!resolvedMedditId && selectedSpecialty) {
+          try {
+            const specData = await proxyCall("specialities");
+            const specArr = Array.isArray(specData) ? specData : Array.isArray(specData?.result) ? specData.result : [];
+            const normSel = selectedSpecialty.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+              .replace(/\b(clinico|clinica)\b/, "clinic");
+            const match = specArr.find((s: any) => {
+              const n = (s.specialization_name ?? s.name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+                .replace(/\b(clinico|clinica)\b/, "clinic");
+              return n === normSel;
+            });
+            if (match) resolvedMedditId = match.specialization_id ?? match.id;
+          } catch (e) {
+            console.warn("Failed to resolve Meddit specialty ID:", e);
           }
-        } catch (err) {
-          console.warn("Failed to load Meddit professionals:", err);
+        }
+
+        if (resolvedMedditId) {
+          try {
+            const profsData = await proxyCall("professionals", { specialityId: String(resolvedMedditId) });
+            const profs = Array.isArray(profsData) ? profsData : Array.isArray(profsData?.result) ? profsData.result : [];
+            if (profs.length) {
+              const medditDocs: Doctor[] = profs.map((p: any) => ({
+                id: `meddit-${p.id || p.user_id}`,
+                name: p.name || p.full_name || "Profissional",
+                partner_type: "doctor",
+                specialty: selectedSpecialty,
+                consultation_type: null,
+                consultation_price: null,
+                online_consultation_enabled: false,
+                city: null,
+                state: null,
+                full_address: p.officeName || null,
+                latitude: null,
+                longitude: null,
+                crm: null,
+                crm_state: null,
+                contact_link: null,
+                phone: null,
+                description: null,
+                logo_url: null,
+                notification_email: null,
+                email: null,
+                specialties_offered: null,
+                source: "meddit" as const,
+                meddit_id: p.id || p.user_id,
+                meddit_office_id: p.officeId,
+                meddit_office_name: p.officeName,
+              }));
+              allProviders.push(...medditDocs);
+            }
+          } catch (err) {
+            console.warn("Failed to load Meddit professionals:", err);
+          }
         }
       }
 
