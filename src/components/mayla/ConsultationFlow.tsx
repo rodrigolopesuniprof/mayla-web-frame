@@ -896,12 +896,12 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
             : `${format(selectedDate, "yyyy-MM-dd")} 09:00:00`;
 
           const regResult = await proxyCall("register", {}, "POST", {
-            professionalId: selectedDoctor.meddit_id,
-            officeId: selectedMedditSlot.officeId,
-            patientId,
+            professionalId: String(selectedDoctor.meddit_id),
+            officeId: String(selectedMedditSlot.officeId),
+            patientId: String(patientId),
             startAt,
             mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
-            interval: selectedMedditSlot.interval,
+            interval: String(selectedMedditSlot.interval),
             socialMidia: "mayla",
           });
           console.log("Meddit register result:", regResult);
