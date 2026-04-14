@@ -38,6 +38,10 @@ export default function HealthReport() {
   const [scores, setScores] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [trendData, setTrendData] = useState<{ hr: number[]; stress: number[]; sleep: number[]; steps: number[]; hrAvg: number | null; stressAvg: number | null; sleepAvg: string | null; stepsAvg: number | null }>({
+    hr: [], stress: [], sleep: [], steps: [], hrAvg: null, stressAvg: null, sleepAvg: null, stepsAvg: null,
+  });
+  const [timeline, setTimeline] = useState<{ day: string; event: string; tag: string; tagColor: string; tagBg: string; dotColor: string }[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -53,6 +57,56 @@ export default function HealthReport() {
     supabase.from("health_alerts").select("*").eq("user_id", user.id)
       .is("dismissed_at", null).order("generated_at", { ascending: false }).limit(5)
       .then(({ data }) => setAlerts(data || []));
+
+    // Fetch 7-day measurements for trends & timeline
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    supabase.from("health_measurements").select("heart_rate, stress_level, sleep_duration_min, steps, measured_at, measurement_type, source")
+      .eq("user_id", user.id)
+      .gte("measured_at", weekAgo.toISOString())
+      .order("measured_at", { ascending: true })
+      .then(({ data }) => {
+        const m = data || [];
+        const hrVals = m.map((x: any) => x.heart_rate).filter((v: any) => v != null);
+        const stressVals = m.map((x: any) => x.stress_level).filter((v: any) => v != null);
+        const sleepVals = m.map((x: any) => x.sleep_duration_min).filter((v: any) => v != null);
+        const stepsVals = m.map((x: any) => x.steps).filter((v: any) => v != null);
+
+        const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+        const sleepA = avg(sleepVals);
+
+        setTrendData({
+          hr: hrVals.slice(-7).map((v: number) => Math.round((v / 120) * 100)),
+          stress: stressVals.slice(-7),
+          sleep: sleepVals.slice(-7).map((v: number) => Math.round((v / 600) * 100)),
+          steps: stepsVals.slice(-7).map((v: number) => Math.round((v / 12000) * 100)),
+          hrAvg: avg(hrVals),
+          stressAvg: avg(stressVals),
+          sleepAvg: sleepA != null ? `${Math.floor(sleepA / 60)}h${String(sleepA % 60).padStart(2, "0")}` : null,
+          stepsAvg: avg(stepsVals),
+        });
+
+        // Build timeline
+        const tl = m.map((x: any) => {
+          const d = new Date(x.measured_at);
+          const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+          const parts: string[] = [];
+          if (x.heart_rate) parts.push(`FC ${x.heart_rate} bpm`);
+          if (x.stress_level != null) parts.push(`Estresse ${x.stress_level}%`);
+          if (x.sleep_duration_min) parts.push(`Sono ${Math.floor(x.sleep_duration_min / 60)}h`);
+          const src = x.source || x.measurement_type || "medição";
+          return {
+            day: dayStr,
+            event: parts.join(" · ") || "Medição registrada",
+            tag: src,
+            tagColor: "var(--rpt-blue)",
+            tagBg: "var(--rpt-blue-bg)",
+            dotColor: "var(--rpt-blue)",
+          };
+        });
+        setTimeline(tl);
+      });
   }, [user]);
 
   const handleShare = async () => {
@@ -178,27 +232,27 @@ export default function HealthReport() {
         <div className="rpt-trend-grid">
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 3C10 3 6 7.5 6 11.5A4 4 0 0014 11.5C14 7.5 10 3 10 3Z" fill="var(--rpt-red)" opacity="0.8"/></svg>}
-            iconBg="var(--rpt-red-bg)" arrow="↑" arrowColor="var(--rpt-red)"
-            value="--" unit="bpm" name="Freq. cardíaca"
-            bars={[40,55,50,65,70,85,100]} barColor="var(--rpt-red)"
+            iconBg="var(--rpt-red-bg)" arrow={"↑"} arrowColor="var(--rpt-red)"
+            value={trendData.hrAvg != null ? String(trendData.hrAvg) : "--"} unit="bpm" name="Freq. cardíaca"
+            bars={trendData.hr.length > 0 ? trendData.hr : [40,55,50,65,70,85,100]} barColor="var(--rpt-red)"
           />
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="4" fill="var(--rpt-amber)" opacity="0.8"/><path d="M10 14V18M7 17L10 18L13 17" stroke="var(--rpt-amber)" strokeWidth="1.4" strokeLinecap="round"/></svg>}
-            iconBg="var(--rpt-amber-bg)" arrow="↑" arrowColor="var(--rpt-amber)"
-            value="--" unit="/100" name="Estresse"
-            bars={[30,55,60,70,78,88,100]} barColor="var(--rpt-amber)"
+            iconBg="var(--rpt-amber-bg)" arrow={"↑"} arrowColor="var(--rpt-amber)"
+            value={trendData.stressAvg != null ? String(trendData.stressAvg) : "--"} unit="/100" name="Estresse"
+            bars={trendData.stress.length > 0 ? trendData.stress : [30,55,60,70,78,88,100]} barColor="var(--rpt-amber)"
           />
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2C7 6 5 9 5 12a5 5 0 0010 0c0-3-2-6-5-10Z" fill="var(--rpt-purple)" opacity="0.7"/></svg>}
-            iconBg="var(--rpt-purple-bg)" arrow="↓" arrowColor="var(--rpt-purple)"
-            value="--" name="Sono médio"
-            bars={[90,80,70,60,55,48,38]} barColor="var(--rpt-purple)"
+            iconBg="var(--rpt-purple-bg)" arrow={"↓"} arrowColor="var(--rpt-purple)"
+            value={trendData.sleepAvg || "--"} name="Sono médio"
+            bars={trendData.sleep.length > 0 ? trendData.sleep : [90,80,70,60,55,48,38]} barColor="var(--rpt-purple)"
           />
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="3" fill="none" stroke="var(--rpt-blue)" strokeWidth="1.5"/><path d="M10 11v7M7 15l3 3 3-3" stroke="var(--rpt-blue)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            iconBg="var(--rpt-blue-bg)" arrow="→" arrowColor="var(--rpt-blue)"
-            value="--" name="Passos/dia"
-            bars={[55,80,45,70,65,60,58]} barColor="var(--rpt-blue)"
+            iconBg="var(--rpt-blue-bg)" arrow={"→"} arrowColor="var(--rpt-blue)"
+            value={trendData.stepsAvg != null ? String(trendData.stepsAvg) : "--"} name="Passos/dia"
+            bars={trendData.steps.length > 0 ? trendData.steps : [55,80,45,70,65,60,58]} barColor="var(--rpt-blue)"
           />
         </div>
       </div>
@@ -231,11 +285,20 @@ export default function HealthReport() {
       <div className="rpt-section" style={{ marginTop: 20 }}>
         <div className="rpt-section-label">Linha do tempo semanal</div>
         <div className="rpt-timeline">
-          <TimelineItem
-            day="Sem eventos registrados" event="Nenhuma medição ou questionário foi registrado nos últimos 7 dias."
-            tag="Sem dado no período" tagColor="var(--rpt-text-tertiary)" tagBg="var(--rpt-surface2)"
-            dotColor="var(--rpt-text-tertiary)" showLine={false}
-          />
+          {timeline.length > 0 ? timeline.map((t, i) => (
+            <TimelineItem
+              key={i}
+              day={t.day} event={t.event}
+              tag={t.tag} tagColor={t.tagColor} tagBg={t.tagBg}
+              dotColor={t.dotColor} showLine={i < timeline.length - 1}
+            />
+          )) : (
+            <TimelineItem
+              day="Sem eventos registrados" event="Nenhuma medição ou questionário foi registrado nos últimos 7 dias."
+              tag="Sem dado no período" tagColor="var(--rpt-text-tertiary)" tagBg="var(--rpt-surface2)"
+              dotColor="var(--rpt-text-tertiary)" showLine={false}
+            />
+          )}
         </div>
       </div>
 

@@ -193,6 +193,31 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       return;
     }
 
+    // Also save to health_measurements for unified history & scoring
+    await supabase.from("health_measurements").insert({
+      user_id: user.id,
+      measurement_type: isDemoMode ? "vitals_demo" : "vitals_premium",
+      heart_rate: mappedResult.heart_rate ? Math.round(mappedResult.heart_rate) : null,
+      respiratory_rate: mappedResult.respiratory_rate ? Math.round(mappedResult.respiratory_rate) : null,
+      stress_level: mappedResult.stress_level ? Math.round(mappedResult.stress_level) : null,
+      spo2: mappedResult.spo2 ?? null,
+      blood_pressure_sys: mappedResult.blood_pressure_sys ? Math.round(mappedResult.blood_pressure_sys) : null,
+      blood_pressure_dia: mappedResult.blood_pressure_dia ? Math.round(mappedResult.blood_pressure_dia) : null,
+      hrv: mappedResult.hrv_sdnn ? Math.round(mappedResult.hrv_sdnn) : null,
+      source: isDemoMode ? "vitals_demo" : "vitals_premium",
+      notes: `Medição especial via ${providerName}`,
+    });
+
+    // Award points
+    try { await supabase.rpc("add_points_to_profile" as any, { _user_id: user.id, _points: 100 }); } catch {}
+
+    // Trigger health score calculation
+    try {
+      await supabase.functions.invoke("calculate-health-scores", {
+        body: { user_id: user.id, days: 7 },
+      });
+    } catch {}
+
     toast({ title: "Medição especial salva! 🎉", description: "+100 pontos de saúde" });
     onComplete();
     onClose();

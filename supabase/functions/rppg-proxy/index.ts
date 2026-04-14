@@ -244,6 +244,37 @@ Deno.serve(async (req) => {
           notes: `Sessão ${sessionId}`,
         });
 
+        // Award points
+        const { data: currentProfile } = await serviceClient
+          .from("profiles")
+          .select("points")
+          .eq("user_id", userId)
+          .single();
+        if (currentProfile) {
+          await serviceClient
+            .from("profiles")
+            .update({ points: (currentProfile.points || 0) + 50 })
+            .eq("user_id", userId);
+        }
+
+        // Trigger health score calculation
+        try {
+          const scoreRes = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/calculate-health-scores`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({ user_id: userId, days: 7 }),
+            }
+          );
+          console.log("Health score calculation:", scoreRes.status);
+        } catch (e) {
+          console.warn("Failed to calculate health scores:", e);
+        }
+
         // Complete rPPG daily mission
         const { data: pendingMissions } = await serviceClient
           .from("user_missions")

@@ -2634,6 +2634,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_points_to_profile: {
+        Args: { _points: number; _user_id: string }
+        Returns: undefined
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
