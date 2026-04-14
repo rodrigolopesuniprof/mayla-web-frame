@@ -193,7 +193,9 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
     }
   };
 
-  const handleOpenConsultas = () => setShowConsultasDialog(true);
+  const handleOpenConsultas = () => {
+    if (onOpenConsultationOnline) onOpenConsultationOnline();
+  };
 
   const handleShowHistory = async () => {
     if (!user) return;
