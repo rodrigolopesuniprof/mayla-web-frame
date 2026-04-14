@@ -1,25 +1,23 @@
 
 
-# Plano: Corrigir timeout ao buscar profissionais por especialidade
+# Plano: Corrigir carregamento de agenda (officeId incorreto)
 
 ## Problema
 
-Ao selecionar uma especialidade (ex: "Clínica Geral"), o frontend chama `?action=professionals&specialityId=7` que faz proxy para `/v1/clinics/professional/search`. Esse endpoint da API Meddit retorna **504 Gateway Timeout**.
+O frontend envia `officeId=1` ao consultar a agenda do médico, mas os escritórios reais da API Meddit têm IDs `195574` ("Linhas de Cuidado") e `195575` ("Qualificação"). A API retorna HTTP 400 porque o office 1 não existe.
 
 ## Solução
 
-A chamada `?action=specialities` já retorna **todos os profissionais com suas especializações**. Em vez de fazer uma segunda chamada que dá timeout, podemos reutilizar esses dados no frontend, filtrando por `specialization_id` no lado do cliente.
+Buscar a lista de offices da API Meddit e usá-los no fluxo de agendamento.
 
-## Implementação
+## Implementação — `ProntuarioConveniado.tsx`
 
-### `src/components/mayla/ProntuarioConveniado.tsx`
-
-1. Guardar a lista completa de profissionais retornada pela API de specialities em um novo estado (`allProfessionals`)
-2. Na função `searchProfessionals`, em vez de chamar `proxyCall("professionals", ...)`, filtrar `allProfessionals` pelo `specialization_id` selecionado
-3. Se o filtro retornar vazio (ex: dados parciais), fazer fallback para a chamada API com timeout de 10s e retry
-4. Aplicar filtro por `searchTerm` (nome) localmente também
+1. Adicionar estado `offices` e carregá-los via `proxyCall("offices")` no `useEffect` inicial (junto com specialities)
+2. Ao clicar no médico para ver agenda, iterar sobre os offices disponíveis e buscar o calendar de cada um (ou do primeiro)
+3. Remover o fallback `officeId || 1`
+4. Exibir o nome do office junto aos slots disponíveis, caso haja mais de um
 
 ## Arquivos afetados
 
-- **Editar**: `src/components/mayla/ProntuarioConveniado.tsx` — reutilizar dados da resposta de specialities para popular profissionais sem chamada extra
+- **Editar**: `src/components/mayla/ProntuarioConveniado.tsx` — carregar offices e usar IDs reais na chamada de calendar
 
