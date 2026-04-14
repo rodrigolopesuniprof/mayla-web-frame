@@ -320,17 +320,19 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       )}
 
 
-      <div className="mx-5 mb-5">
-        <div
-          className="rounded-[18px] p-5 cursor-pointer active:scale-[.97] transition-transform"
-          style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
-          onClick={handleOpenConsultas}
-        >
-          <span className="text-3xl block mb-2">🩺</span>
-          <span className="text-[15px] font-semibold text-primary-foreground block">Consultas</span>
-          <span className="text-sm block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Online, presencial e histórico</span>
+      {consultaEnabled && (
+        <div className="mx-5 mb-5">
+          <div
+            className="rounded-[18px] p-5 cursor-pointer active:scale-[.97] transition-transform"
+            style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
+            onClick={handleOpenConsultas}
+          >
+            <span className="text-3xl block mb-2">🩺</span>
+            <span className="text-[15px] font-semibold text-primary-foreground block">Realizar Consulta</span>
+            <span className="text-sm block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Online ou presencial</span>
+          </div>
         </div>
-      </div>
+      )}
 
 
       {/* rPPG CTA */}
