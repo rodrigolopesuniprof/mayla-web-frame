@@ -126,7 +126,7 @@ export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
     } catch { /* offices may fail silently */ }
   };
 
-
+  const loadConnections = async () => {
     try {
       const data = await proxyCall("my_connections");
       setConnections(Array.isArray(data) ? data : []);
