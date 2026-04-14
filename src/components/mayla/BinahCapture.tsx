@@ -194,6 +194,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      setSaving(false);
       return;
     }
 
