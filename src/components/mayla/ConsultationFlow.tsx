@@ -178,7 +178,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   const { user } = useAuth();
   const { company } = useCompany();
 
-  const [step, setStep] = useState<Step>("specialty");
+  const [step, setStep] = useState<Step>("mode");
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
   const [consultMode, setConsultMode] = useState<ConsultMode | null>(initialMode || null);
   const [waitingConsultationId, setWaitingConsultationId] = useState<string | null>(null);
@@ -323,12 +323,12 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   /* ─── Handlers ─── */
   const handleSelectSpecialty = (s: string) => {
     setSelectedSpecialty(s);
-    setStep("mode");
+    setStep("doctors");
   };
 
   const handleSelectMode = (mode: ConsultMode) => {
     setConsultMode(mode);
-    setStep("doctors");
+    setStep("specialty");
   };
 
   const handleSelectDoctor = (d: Doctor) => {
@@ -583,20 +583,21 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   };
 
   const goBack = () => {
-    if (step === "mode") { setStep("specialty"); setSelectedSpecialty(null); }
+    if (step === "specialty") { setStep("mode"); setConsultMode(null); }
     else if (step === "doctors") {
       if (expandedDoctorId) { setExpandedDoctorId(null); }
-      else { setStep("mode"); setConsultMode(null); }
+      else { setStep("specialty"); setSelectedSpecialty(null); }
     }
     else if (step === "schedule") { setStep("doctors"); setSelectedDoctor(null); }
     else if (step === "confirm") { setStep("doctors"); setSelectedSlotTime(null); setExpandedDoctorId(selectedDoctor?.id ?? null); }
     else if (step === "video_call") { setStep("done"); }
     else if (step === "waiting_room") { setStep("done"); }
+    else if (step === "mode") onBack();
     else onBack();
   };
 
-  const stepLabels = ["Especialidade", "Modo", "Médico", "Horário", "Confirmar"];
-  const stepKeys: Step[] = ["specialty", "mode", "doctors", "schedule", "confirm"];
+  const stepLabels = ["Modo", "Especialidade", "Médico", "Horário", "Confirmar"];
+  const stepKeys: Step[] = ["mode", "specialty", "doctors", "schedule", "confirm"];
   const stepIdx = stepKeys.indexOf(step);
 
   const mapCenter: [number, number] = userPos || DEFAULT_CENTER;
