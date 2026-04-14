@@ -1581,25 +1581,13 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
         {/* ── Step: Done ── */}
         {step === "done" && (
-          <div className="px-5 pt-8 text-center">
-            <span className="text-5xl block mb-4">🎉</span>
-            <h3 className="font-display text-xl font-medium text-foreground mb-2">Consulta agendada!</h3>
-            <p className="text-[13px] text-muted-foreground mb-2 leading-relaxed">
-              Sua consulta com <strong>{selectedDoctor?.name}</strong> em <strong>{selectedSpecialty}</strong> foi registrada.
-            </p>
-            {consultMode === "online" && (
-              <p className="text-xs text-muted-foreground mb-2">
-                📹 A teleconsulta foi registrada no seu histórico.
-              </p>
-            )}
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-4 mx-auto max-w-sm text-left">
-              <p className="text-[11px] text-foreground font-medium mb-1">📋 Prontuário digital</p>
-              <p className="text-[10px] text-muted-foreground">O registro desta consulta ficará disponível no seu histórico de saúde após o atendimento.</p>
-            </div>
-            <button onClick={onBack} className="px-6 py-2.5 rounded-xl border-none bg-primary text-primary-foreground text-[13px] font-semibold cursor-pointer">
-              Voltar ao início
-            </button>
-          </div>
+          <DoneStep
+            selectedDoctor={selectedDoctor}
+            selectedSpecialty={selectedSpecialty}
+            consultMode={consultMode}
+            user={user}
+            onBack={onBack}
+          />
         )}
       </div>
     </div>

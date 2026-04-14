@@ -28,9 +28,11 @@ export default function ProfessionalReport() {
   const navigate = useNavigate();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const isEmbed = searchParams.get("view") === "embed";
+  const pid = searchParams.get("pid");
   const [tab, setTab] = useState<TabId>("resumo");
   const [loading, setLoading] = useState(true);
   const [expired, setExpired] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [share, setShare] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [scores, setScores] = useState<any>(null);
@@ -62,6 +64,12 @@ export default function ProfessionalReport() {
 
         const conn = connData as any;
         if (conn && conn.user_id) {
+          // Validate pid matches the professional who owns this connection
+          if (pid && conn.external_professional_id && pid !== conn.external_professional_id) {
+            setUnauthorized(true);
+            setLoading(false);
+            return;
+          }
           setShare({ permanent: true, user_id: conn.user_id });
           userId = conn.user_id;
         }
