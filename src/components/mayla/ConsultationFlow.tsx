@@ -622,7 +622,39 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
           </div>
         )}
 
-        {/* ── Step: Specialty ── */}
+        {/* ── Step: Mode (now first) ── */}
+        {step === "mode" && (
+          <div className="px-5 pt-3">
+            <h3 className="font-display text-lg font-medium text-foreground mb-1">Como deseja realizar a consulta?</h3>
+            <p className="text-xs text-muted-foreground mb-4">Escolha o modo de atendimento</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleSelectMode("presencial")}
+                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
+              >
+                <span className="text-3xl">🏥</span>
+                <div className="flex-1">
+                  <div className="text-[15px] font-semibold text-foreground">Presencial</div>
+                  <div className="text-xs text-muted-foreground">Encontre médicos próximos no mapa</div>
+                </div>
+                <span className="text-muted-foreground">›</span>
+              </button>
+              <button
+                onClick={() => handleSelectMode("online")}
+                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
+              >
+                <span className="text-3xl">📹</span>
+                <div className="flex-1">
+                  <div className="text-[15px] font-semibold text-foreground">Online (Vídeo)</div>
+                  <div className="text-xs text-muted-foreground">Teleconsulta via Jitsi Meet</div>
+                </div>
+                <span className="text-muted-foreground">›</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step: Specialty (now second) ── */}
         {step === "specialty" && (
           <div className="px-5 pt-3">
             <h3 className="font-display text-lg font-medium text-foreground mb-1">Escolha a especialidade</h3>
@@ -638,51 +670,6 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                   <span className="text-[13px] font-semibold text-foreground">{s.value}</span>
                 </button>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Step: Mode ── */}
-        {step === "mode" && (
-          <div className="px-5 pt-3">
-            <h3 className="font-display text-lg font-medium text-foreground mb-1">
-              {SPECIALTIES.find((s) => s.value === selectedSpecialty)?.emoji} {selectedSpecialty}
-            </h3>
-            <p className="text-xs text-muted-foreground mb-4">Como deseja realizar a consulta?</p>
-            <div className="space-y-3">
-              <button
-                onClick={() => handleSelectMode("online")}
-                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
-              >
-                <span className="text-3xl">📹</span>
-                <div className="flex-1">
-                  <div className="text-[15px] font-semibold text-foreground">Online (Vídeo)</div>
-                  <div className="text-xs text-muted-foreground">Teleconsulta via Jitsi Meet</div>
-                </div>
-                <span className="text-muted-foreground">›</span>
-              </button>
-              <button
-                onClick={() => handleSelectMode("presencial")}
-                className="w-full rounded-2xl p-4 border border-border bg-card flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
-              >
-                <span className="text-3xl">🏥</span>
-                <div className="flex-1">
-                  <div className="text-[15px] font-semibold text-foreground">Presencial</div>
-                  <div className="text-xs text-muted-foreground">Encontre médicos próximos no mapa</div>
-                </div>
-                <span className="text-muted-foreground">›</span>
-              </button>
-              <button
-                onClick={() => handleSelectMode("first_available")}
-                className="w-full rounded-2xl p-4 border-2 border-primary/20 bg-primary/5 flex items-center gap-4 cursor-pointer text-left hover:border-primary/40 transition-colors"
-              >
-                <span className="text-3xl">⚡</span>
-                <div className="flex-1">
-                  <div className="text-[15px] font-semibold text-foreground">Primeiro disponível</div>
-                  <div className="text-xs text-muted-foreground">A forma mais rápida de conseguir uma consulta</div>
-                </div>
-                <span className="text-muted-foreground">›</span>
-              </button>
             </div>
           </div>
         )}
