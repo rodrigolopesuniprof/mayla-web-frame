@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScoreRing } from "./ScoreRing";
@@ -31,6 +31,28 @@ function formatDateRange() {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
+interface TrendState {
+  hr: number[]; hrAvg: number | null;
+  stress: number[]; stressAvg: number | null;
+  spo2: number[]; spo2Avg: number | null;
+  bpSys: number[]; bpDia: number[]; bpAvg: string | null;
+  rr: number[]; rrAvg: number | null;
+  hrv: number[]; hrvAvg: number | null;
+  hb: number[]; hbAvg: number | null;
+  hba1c: number[]; hba1cAvg: number | null;
+}
+
+const emptyTrend: TrendState = {
+  hr: [], hrAvg: null,
+  stress: [], stressAvg: null,
+  spo2: [], spo2Avg: null,
+  bpSys: [], bpDia: [], bpAvg: null,
+  rr: [], rrAvg: null,
+  hrv: [], hrvAvg: null,
+  hb: [], hbAvg: null,
+  hba1c: [], hba1cAvg: null,
+};
+
 export default function HealthReport() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -38,75 +60,109 @@ export default function HealthReport() {
   const [scores, setScores] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [sharing, setSharing] = useState(false);
-  const [trendData, setTrendData] = useState<{ hr: number[]; stress: number[]; sleep: number[]; steps: number[]; hrAvg: number | null; stressAvg: number | null; sleepAvg: string | null; stepsAvg: number | null }>({
-    hr: [], stress: [], sleep: [], steps: [], hrAvg: null, stressAvg: null, sleepAvg: null, stepsAvg: null,
-  });
+  const [trendData, setTrendData] = useState<TrendState>(emptyTrend);
   const [timeline, setTimeline] = useState<{ day: string; event: string; tag: string; tagColor: string; tagBg: string; dotColor: string }[]>([]);
 
   useEffect(() => {
     if (!user) return;
-    // Fetch profile
     supabase.from("profiles").select("full_name, birth_date, has_hypertension, has_diabetes")
       .eq("user_id", user.id).maybeSingle().then(({ data }) => setProfile(data));
-    // Fetch latest scores
     supabase.from("health_scores").select("*").eq("user_id", user.id)
       .order("generated_at", { ascending: false }).limit(1).then(({ data }) => {
         if (data && data.length > 0) setScores(data[0]);
       });
-    // Fetch alerts
     supabase.from("health_alerts").select("*").eq("user_id", user.id)
       .is("dismissed_at", null).order("generated_at", { ascending: false }).limit(5)
       .then(({ data }) => setAlerts(data || []));
 
-    // Fetch 7-day measurements for trends & timeline
     const now = new Date();
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
-    supabase.from("health_measurements").select("heart_rate, stress_level, sleep_duration_min, steps, measured_at, measurement_type, source")
+
+    // Fetch health_measurements
+    const measurementsPromise = supabase.from("health_measurements")
+      .select("heart_rate, stress_level, spo2, blood_pressure_sys, blood_pressure_dia, respiratory_rate, hrv, measured_at, measurement_type, source")
       .eq("user_id", user.id)
       .gte("measured_at", weekAgo.toISOString())
-      .order("measured_at", { ascending: true })
-      .then(({ data }) => {
-        const m = data || [];
-        const hrVals = m.map((x: any) => x.heart_rate).filter((v: any) => v != null);
-        const stressVals = m.map((x: any) => x.stress_level).filter((v: any) => v != null);
-        const sleepVals = m.map((x: any) => x.sleep_duration_min).filter((v: any) => v != null);
-        const stepsVals = m.map((x: any) => x.steps).filter((v: any) => v != null);
+      .order("measured_at", { ascending: true });
 
-        const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
-        const sleepA = avg(sleepVals);
+    // Fetch special_measurements for hemoglobin & hba1c
+    const specialPromise = supabase.from("special_measurements" as any)
+      .select("measurement_data, measured_at")
+      .eq("user_id", user.id)
+      .gte("measured_at", weekAgo.toISOString())
+      .order("measured_at", { ascending: true });
 
-        setTrendData({
-          hr: hrVals.slice(-7).map((v: number) => Math.round((v / 120) * 100)),
-          stress: stressVals.slice(-7),
-          sleep: sleepVals.slice(-7).map((v: number) => Math.round((v / 600) * 100)),
-          steps: stepsVals.slice(-7).map((v: number) => Math.round((v / 12000) * 100)),
-          hrAvg: avg(hrVals),
-          stressAvg: avg(stressVals),
-          sleepAvg: sleepA != null ? `${Math.floor(sleepA / 60)}h${String(sleepA % 60).padStart(2, "0")}` : null,
-          stepsAvg: avg(stepsVals),
-        });
+    Promise.all([measurementsPromise, specialPromise]).then(([{ data: mData }, { data: sData }]) => {
+      const m = (mData || []) as any[];
+      const sp = (sData || []) as any[];
 
-        // Build timeline
-        const tl = m.map((x: any) => {
-          const d = new Date(x.measured_at);
-          const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
-          const parts: string[] = [];
-          if (x.heart_rate) parts.push(`FC ${x.heart_rate} bpm`);
-          if (x.stress_level != null) parts.push(`Estresse ${x.stress_level}%`);
-          if (x.sleep_duration_min) parts.push(`Sono ${Math.floor(x.sleep_duration_min / 60)}h`);
-          const src = x.source || x.measurement_type || "medição";
-          return {
-            day: dayStr,
-            event: parts.join(" · ") || "Medição registrada",
-            tag: src,
-            tagColor: "var(--rpt-blue)",
-            tagBg: "var(--rpt-blue-bg)",
-            dotColor: "var(--rpt-blue)",
-          };
-        });
-        setTimeline(tl);
+      const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+      const avgDec = (arr: number[]) => arr.length > 0 ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : null;
+
+      const hrVals = m.map(x => x.heart_rate).filter((v): v is number => v != null);
+      const stressVals = m.map(x => x.stress_level).filter((v): v is number => v != null);
+      const spo2Vals = m.map(x => x.spo2 != null ? Number(x.spo2) : null).filter((v): v is number => v != null);
+      const bpSysVals = m.map(x => x.blood_pressure_sys).filter((v): v is number => v != null);
+      const bpDiaVals = m.map(x => x.blood_pressure_dia).filter((v): v is number => v != null);
+      const rrVals = m.map(x => x.respiratory_rate).filter((v): v is number => v != null);
+      const hrvVals = m.map(x => x.hrv).filter((v): v is number => v != null);
+
+      // Extract hemoglobin & hba1c from special_measurements
+      const hbVals: number[] = [];
+      const hba1cVals: number[] = [];
+      sp.forEach((s: any) => {
+        const d = s.measurement_data;
+        if (d?.hemoglobin != null) hbVals.push(Number(d.hemoglobin));
+        if (d?.hba1c != null) hba1cVals.push(Number(d.hba1c));
       });
+
+      const bpSysA = avg(bpSysVals);
+      const bpDiaA = avg(bpDiaVals);
+
+      setTrendData({
+        hr: hrVals.slice(-7).map(v => Math.round((v / 120) * 100)),
+        hrAvg: avg(hrVals),
+        stress: stressVals.slice(-7),
+        stressAvg: avg(stressVals),
+        spo2: spo2Vals.slice(-7).map(v => Math.round(v)),
+        spo2Avg: avg(spo2Vals),
+        bpSys: bpSysVals.slice(-7).map(v => Math.round((v / 180) * 100)),
+        bpDia: bpDiaVals.slice(-7),
+        bpAvg: bpSysA != null && bpDiaA != null ? `${bpSysA}/${bpDiaA}` : null,
+        rr: rrVals.slice(-7).map(v => Math.round((v / 30) * 100)),
+        rrAvg: avg(rrVals),
+        hrv: hrvVals.slice(-7).map(v => Math.round((v / 100) * 100)),
+        hrvAvg: avg(hrvVals),
+        hb: hbVals.slice(-7).map(v => Math.round((v / 18) * 100)),
+        hbAvg: avgDec(hbVals),
+        hba1c: hba1cVals.slice(-7).map(v => Math.round((v / 10) * 100)),
+        hba1cAvg: avgDec(hba1cVals),
+      });
+
+      // Build timeline from health_measurements
+      const tl = m.map((x: any) => {
+        const d = new Date(x.measured_at);
+        const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+        const parts: string[] = [];
+        if (x.heart_rate) parts.push(`FC ${x.heart_rate} bpm`);
+        if (x.spo2 != null) parts.push(`SpO2 ${x.spo2}%`);
+        if (x.blood_pressure_sys && x.blood_pressure_dia) parts.push(`PA ${x.blood_pressure_sys}/${x.blood_pressure_dia}`);
+        if (x.respiratory_rate) parts.push(`Resp ${x.respiratory_rate} rpm`);
+        if (x.hrv) parts.push(`HRV ${x.hrv} ms`);
+        if (x.stress_level != null) parts.push(`Estresse ${x.stress_level}%`);
+        const src = x.source || x.measurement_type || "medição";
+        return {
+          day: dayStr,
+          event: parts.join(" · ") || "Medição registrada",
+          tag: src,
+          tagColor: "var(--rpt-blue)",
+          tagBg: "var(--rpt-blue-bg)",
+          dotColor: "var(--rpt-blue)",
+        };
+      });
+      setTimeline(tl);
+    });
   }, [user]);
 
   const handleShare = async () => {
@@ -132,7 +188,6 @@ export default function HealthReport() {
     }
   };
 
-  // Use real scores or defaults
   const s = scores || { score_general: 75, score_physiological: 82, score_emotional: 58, score_lifestyle: 70, recommendation_level: 3 };
   const rec = RECOMMENDATION_TEXT[s.recommendation_level] || RECOMMENDATION_TEXT[2];
   const initials = profile?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
@@ -141,10 +196,8 @@ export default function HealthReport() {
   if (profile?.has_hypertension) conditions.push("Hipertensão");
   if (profile?.has_diabetes) conditions.push("Diabetes");
   const metaText = [age ? `${age} anos` : null, ...conditions].filter(Boolean).join(" · ");
-
   const scoreHeading = s.score_general >= 70 ? "Dentro do esperado" : s.score_general >= 40 ? "Atenção moderada" : "Situação crítica";
 
-  // Demo alerts if none
   const displayAlerts = alerts.length > 0 ? alerts.map((a: any) => ({
     text: a.description,
     subtext: a.detail || `${a.days_triggered || 0} dias detectados`,
@@ -226,33 +279,65 @@ export default function HealthReport() {
         </div>
       </div>
 
-      {/* TRENDS */}
+      {/* TRENDS — 8 cards in 2x4 grid */}
       <div className="rpt-section" style={{ marginTop: 20 }}>
         <div className="rpt-section-label">Tendências — 7 dias</div>
         <div className="rpt-trend-grid">
+          {/* 1. Freq. Cardíaca */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 3C10 3 6 7.5 6 11.5A4 4 0 0014 11.5C14 7.5 10 3 10 3Z" fill="var(--rpt-red)" opacity="0.8"/></svg>}
-            iconBg="var(--rpt-red-bg)" arrow={"↑"} arrowColor="var(--rpt-red)"
+            iconBg="var(--rpt-red-bg)" arrow="↑" arrowColor="var(--rpt-red)"
             value={trendData.hrAvg != null ? String(trendData.hrAvg) : "--"} unit="bpm" name="Freq. cardíaca"
-            bars={trendData.hr.length > 0 ? trendData.hr : [40,55,50,65,70,85,100]} barColor="var(--rpt-red)"
+            bars={trendData.hr.length > 0 ? trendData.hr : []} barColor="var(--rpt-red)"
           />
+          {/* 2. Estresse */}
           <TrendCard
             icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="4" fill="var(--rpt-amber)" opacity="0.8"/><path d="M10 14V18M7 17L10 18L13 17" stroke="var(--rpt-amber)" strokeWidth="1.4" strokeLinecap="round"/></svg>}
-            iconBg="var(--rpt-amber-bg)" arrow={"↑"} arrowColor="var(--rpt-amber)"
+            iconBg="var(--rpt-amber-bg)" arrow="↑" arrowColor="var(--rpt-amber)"
             value={trendData.stressAvg != null ? String(trendData.stressAvg) : "--"} unit="/100" name="Estresse"
-            bars={trendData.stress.length > 0 ? trendData.stress : [30,55,60,70,78,88,100]} barColor="var(--rpt-amber)"
+            bars={trendData.stress.length > 0 ? trendData.stress : []} barColor="var(--rpt-amber)"
           />
+          {/* 3. SpO2 */}
           <TrendCard
-            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2C7 6 5 9 5 12a5 5 0 0010 0c0-3-2-6-5-10Z" fill="var(--rpt-purple)" opacity="0.7"/></svg>}
-            iconBg="var(--rpt-purple-bg)" arrow={"↓"} arrowColor="var(--rpt-purple)"
-            value={trendData.sleepAvg || "--"} name="Sono médio"
-            bars={trendData.sleep.length > 0 ? trendData.sleep : [90,80,70,60,55,48,38]} barColor="var(--rpt-purple)"
+            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" fill="var(--rpt-blue)" opacity="0.15"/><text x="10" y="13" textAnchor="middle" fontSize="9" fill="var(--rpt-blue)" fontWeight="bold">O₂</text></svg>}
+            iconBg="var(--rpt-blue-bg)" arrow="→" arrowColor="var(--rpt-blue)"
+            value={trendData.spo2Avg != null ? String(trendData.spo2Avg) : "--"} unit="%" name="SpO2"
+            bars={trendData.spo2.length > 0 ? trendData.spo2 : []} barColor="var(--rpt-blue)"
           />
+          {/* 4. Pressão Arterial */}
           <TrendCard
-            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="3" fill="none" stroke="var(--rpt-blue)" strokeWidth="1.5"/><path d="M10 11v7M7 15l3 3 3-3" stroke="var(--rpt-blue)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            iconBg="var(--rpt-blue-bg)" arrow={"→"} arrowColor="var(--rpt-blue)"
-            value={trendData.stepsAvg != null ? String(trendData.stepsAvg) : "--"} name="Passos/dia"
-            bars={trendData.steps.length > 0 ? trendData.steps : [55,80,45,70,65,60,58]} barColor="var(--rpt-blue)"
+            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M4 14L8 6L12 12L16 4" stroke="var(--rpt-purple)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            iconBg="var(--rpt-purple-bg)" arrow="→" arrowColor="var(--rpt-purple)"
+            value={trendData.bpAvg || "--"} unit="mmHg" name="Pressão arterial"
+            bars={trendData.bpSys.length > 0 ? trendData.bpSys : []} barColor="var(--rpt-purple)"
+          />
+          {/* 5. Respiração */}
+          <TrendCard
+            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M3 10C5 6 8 4 10 4S15 6 17 10C15 14 12 16 10 16S5 14 3 10Z" fill="var(--rpt-green)" opacity="0.2" stroke="var(--rpt-green)" strokeWidth="1.2"/></svg>}
+            iconBg="var(--rpt-green-bg)" arrow="→" arrowColor="var(--rpt-green)"
+            value={trendData.rrAvg != null ? String(trendData.rrAvg) : "--"} unit="rpm" name="Respiração"
+            bars={trendData.rr.length > 0 ? trendData.rr : []} barColor="var(--rpt-green)"
+          />
+          {/* 6. HRV SDNN */}
+          <TrendCard
+            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M2 10H6L8 4L10 16L12 8L14 10H18" stroke="var(--rpt-red)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            iconBg="var(--rpt-red-bg)" arrow="→" arrowColor="var(--rpt-red)"
+            value={trendData.hrvAvg != null ? String(trendData.hrvAvg) : "--"} unit="ms" name="HRV (SDNN)"
+            bars={trendData.hrv.length > 0 ? trendData.hrv : []} barColor="var(--rpt-red)"
+          />
+          {/* 7. Hemoglobina */}
+          <TrendCard
+            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2C7 6 5 9 5 12a5 5 0 0010 0c0-3-2-6-5-10Z" fill="var(--rpt-amber)" opacity="0.7"/></svg>}
+            iconBg="var(--rpt-amber-bg)" arrow="→" arrowColor="var(--rpt-amber)"
+            value={trendData.hbAvg != null ? String(trendData.hbAvg) : "--"} unit="g/dL" name="Hemoglobina"
+            bars={trendData.hb.length > 0 ? trendData.hb : []} barColor="var(--rpt-amber)"
+          />
+          {/* 8. HbA1c */}
+          <TrendCard
+            icon={<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" fill="var(--rpt-purple)" opacity="0.15"/><text x="10" y="13" textAnchor="middle" fontSize="8" fill="var(--rpt-purple)" fontWeight="bold">A1c</text></svg>}
+            iconBg="var(--rpt-purple-bg)" arrow="→" arrowColor="var(--rpt-purple)"
+            value={trendData.hba1cAvg != null ? String(trendData.hba1cAvg) : "--"} unit="%" name="HbA1c"
+            bars={trendData.hba1c.length > 0 ? trendData.hba1c : []} barColor="var(--rpt-purple)"
           />
         </div>
       </div>
