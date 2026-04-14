@@ -198,9 +198,56 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   };
 
 
+  const [healthScore, setHealthScore] = useState<number | null>(null);
+  const [lastMeasurement, setLastMeasurement] = useState<{ heart_rate: number | null; measured_at: string } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch latest health score
+    supabase
+      .from("health_scores")
+      .select("score_general")
+      .eq("user_id", user.id)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setHealthScore(data.score_general);
+      });
+    // Fetch latest measurement
+    supabase
+      .from("health_measurements")
+      .select("heart_rate, measured_at")
+      .eq("user_id", user.id)
+      .order("measured_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setLastMeasurement(data);
+      });
+  }, [user]);
+
   const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
   const firstName = fullName.split(" ")[0];
-  const healthScore = 82;
+  const displayScore = healthScore ?? 0;
+
+  const getTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `há ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "ontem";
+    return `há ${days} dias`;
+  };
+
+  const getScoreLabel = (s: number) => {
+    if (s >= 80) return "Muito bem! 💪";
+    if (s >= 60) return "Bom 👍";
+    if (s >= 40) return "Atenção ⚠️";
+    return "Cuidado 🔴";
+  };
 
   return (
     <div className="animate-fade-up flex-1 overflow-y-auto pb-4">
@@ -246,14 +293,18 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
           <div className="relative shrink-0" style={{ width: 56, height: 56 }}>
             <svg width="56" height="56" style={{ transform: "rotate(-90deg)" }}>
               <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--mayla-sand))" strokeWidth="5" />
-              <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--mayla-green))" strokeWidth="5" strokeDasharray={`${2 * Math.PI * 22}`} strokeDashoffset={`${2 * Math.PI * 22 * (1 - healthScore / 100)}`} strokeLinecap="round" />
+              <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--mayla-green))" strokeWidth="5" strokeDasharray={`${2 * Math.PI * 22}`} strokeDashoffset={`${2 * Math.PI * 22 * (1 - displayScore / 100)}`} strokeLinecap="round" />
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center font-display text-base font-bold text-foreground">{healthScore}</div>
+            <div className="absolute inset-0 flex items-center justify-center font-display text-base font-bold text-foreground">{displayScore}</div>
           </div>
           <div className="flex-1">
             <div className="text-xs text-muted-foreground tracking-[.07em] uppercase mb-0.5">Saúde hoje</div>
-            <div className="font-display text-lg text-foreground font-medium">Muito bem! 💪</div>
-            <div className="text-sm text-muted-foreground mt-0.5">Medição de ontem · 87 bpm</div>
+            <div className="font-display text-lg text-foreground font-medium">{getScoreLabel(displayScore)}</div>
+            <div className="text-sm text-muted-foreground mt-0.5">
+              {lastMeasurement
+                ? `${getTimeAgo(lastMeasurement.measured_at)}${lastMeasurement.heart_rate ? ` · ${lastMeasurement.heart_rate} bpm` : ""}`
+                : "Nenhuma medição ainda"}
+            </div>
           </div>
           <button onClick={() => setTab("bemestar")} className="border-none rounded-xl px-4 py-2.5 text-accent-foreground text-sm font-semibold cursor-pointer" style={{ background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))" }}>
             Medir →
@@ -262,7 +313,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <div className="border-t border-foreground/10 px-5 py-3 flex items-center gap-2">
           <span className="text-base">⭐</span>
           <span className="text-sm font-semibold text-secondary-foreground">{profilePoints.toLocaleString()} pontos</span>
-          <span className="text-sm text-muted-foreground ml-0.5">· nível {profileLevel}</span>
+          
           <span className="ml-auto text-sm text-accent font-medium cursor-pointer" onClick={() => setTab("campanhas")}>Ver missões →</span>
         </div>
       </div>
