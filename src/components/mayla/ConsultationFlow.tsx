@@ -499,8 +499,9 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   }, [selectedDate, doctorSlots]);
 
   /* ─── Handlers ─── */
-  const handleSelectSpecialty = (s: string) => {
+  const handleSelectSpecialty = (s: string, medditId?: number) => {
     setSelectedSpecialty(s);
+    setMedditSpecialtyId(medditId ?? null);
     setStep("doctors");
   };
 
@@ -834,7 +835,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
         {/* ── Step: Specialty (now second) ── */}
         {step === "specialty" && (
-          <SpecialtyStep onSelect={handleSelectSpecialty} />
+          <SpecialtyStep onSelect={handleSelectSpecialty} user={user} />
         )}
 
         {step === "doctors" && (
