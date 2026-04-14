@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
+import { useCompanyFeature } from "@/hooks/useCompanyFeature";
 
 interface NotificationItem {
   id: string;
@@ -37,6 +38,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenConsultationOnline?: () => void;
 }) {
   const { isDefault, companyId } = useCompany();
+  const { enabled: consultaEnabled } = useCompanyFeature("consulta_servico");
   const { user } = useAuth();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<NotificationItem[]>([]);
