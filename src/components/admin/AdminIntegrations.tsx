@@ -138,6 +138,14 @@ export function AdminIntegrations({ companyId }: Props) {
     setTestingBinah(false);
   };
 
+  // --- Consulta handlers ---
+  const handleConsultaToggle = async (val: boolean) => {
+    setConsultaEnabled(val);
+    const ok = await saveFeature(FEATURE_KEYS.consulta, val, {});
+    if (!ok) setConsultaEnabled(!val);
+    else toast({ title: val ? "Serviço de consulta ativado!" : "Serviço de consulta desativado" });
+  };
+
   // --- Prontuário handlers ---
   const handleProntuarioToggle = async (val: boolean) => {
     setProntuario(prev => ({ ...prev, enabled: val }));
