@@ -1,76 +1,41 @@
 
 
-# Plano: Feature toggles por empresa + Reestruturação do fluxo de consulta + Favoritar médico
+# Plano: Corrigir problemas no fluxo de consulta e toggles admin
 
-## Resumo
+## Problemas identificados
 
-Três frentes de trabalho:
-1. **Feature toggles no admin**: permitir ativar/desativar "Realizar Consulta" (e futuramente outros serviços) por empresa
-2. **Reestruturar fluxo de consulta**: mudar a ordem para Modo → Especialidade → Médico → Horário → Confirmar, e remover o dialog intermediário na HomeTab (ir direto para o fluxo)
-3. **Favoritar médico no fluxo de consulta Mayla**: permitir favoritar médicos da plataforma Mayla (partners), criando uma `prontuario_connection` com token para acesso ao relatório
+1. **Especialidades cadastradas no admin sumiram** — O step "specialty" no `ConsultationFlow` só mostra a lista hardcoded `SPECIALTIES`. Não carrega especialidades dos parceiros cadastrados no banco (`partners.specialty`).
 
----
+2. **Não há distinção entre fluxo API e fluxo interno** — O fluxo de consulta já usa parceiros internos. Este ponto está OK, mas precisa carregar especialidades dinâmicas do banco para que os médicos internos apareçam.
 
-## 1. Feature toggle "consulta" no Admin
+3. **Falta toggle no admin para médicos internos/externos** — O `AdminIntegrations` tem o toggle "Serviço de Consultas" (genérico) mas não há toggles separados para ativar/desativar agendamento com médicos internos vs médicos da API externa (Meddit).
 
-### Banco de dados
-- Sem migração necessária. Usar a tabela `company_features` existente com `feature_key = "consulta_servico"`.
+4. **Botão "Realizar Consulta" sumiu da HomeTab** — O botão está condicionado a `consultaEnabled`, que depende de um registro `consulta_servico` na tabela `company_features`. Se esse registro não existir, o botão não aparece.
 
-### AdminIntegrations.tsx (ou nova seção no AdminCompanySettings)
-- Adicionar um novo toggle na seção "Integrações" (ou "Serviços Médicos") para ativar/desativar o serviço de consulta
-- Usar o mesmo padrão `company_features.upsert` com `feature_key: "consulta_servico"`
+## Correções
 
-### Frontend (HomeTab + ServicosTab)
-- Criar hook `useCompanyFeature(featureKey)` genérico que consulta `company_features`
-- No HomeTab, condicionar a exibição do card "Consultas" ao toggle `consulta_servico`
-- No ServicosTab, condicionar o botão "Realizar Consulta" ao mesmo toggle
+### 1. `ConsultationFlow.tsx` — Carregar especialidades do banco
+- No step "specialty", além da lista hardcoded `SPECIALTIES`, fazer query `SELECT DISTINCT specialty FROM partners WHERE active = true AND approval_status = 'approved' AND specialty IS NOT NULL`
+- Mesclar as duas listas sem duplicatas (case-insensitive)
+- Exibir todas como botões clicáveis (as que vêm do banco sem emoji terão um emoji genérico 🩺)
 
----
+### 2. `AdminIntegrations.tsx` — Adicionar toggles separados
+- Adicionar dois novos feature keys: `consulta_medicos_internos` e `consulta_medicos_externos`
+- Exibir como sub-toggles dentro do card "Serviço de Consultas" (visíveis somente quando `consulta_servico` está ativo)
+- "Agendamento com médicos internos" — habilita busca na tabela `partners`
+- "Agendamento com médicos externos (API parceira)" — habilita busca via API Meddit
 
-## 2. Reestruturar fluxo de consulta
+### 3. `HomeTab.tsx` — Garantir visibilidade do botão
+- Mostrar o botão "Realizar Consulta" **sempre** (sem condicional `consultaEnabled`), pois a decisão de quais médicos mostrar é feita dentro do fluxo
+- OU: inverter a lógica para `!loading && consultaEnabled` com fallback para mostrar se o hook ainda está carregando — **melhor opção**: manter condicional mas com default `true` quando não há feature flag cadastrada (comportamento opt-out em vez de opt-in)
 
-### HomeTab.tsx
-- Remover o dialog intermediário com 4 opções (Atendimento Agora, Online, Presencial, Histórico)
-- Ao clicar no card "Consultas", ir direto para o `ConsultationFlow` (via `onOpenConsultationOnline` ou equivalente)
-
-### ConsultationFlow.tsx
-- **Mudar ordem dos steps**: `mode → specialty → doctors → schedule → confirm`
-- Step "mode" agora é o primeiro: apresentar apenas "Presencial" e "Online" (remover "Primeiro disponível" como step — pode ser um botão dentro do step doctors)
-- Step "specialty": 
-  - Carregar especialidades da API parceira (Meddit) via `prontuario-proxy?action=specialities` se feature `prontuario_conveniado` estiver ativa
-  - Carregar especialidades dos parceiros cadastrados no admin (lista `SPECIALTIES` atual + query `SELECT DISTINCT specialty FROM partners WHERE active = true`)
-  - Combinar ambas as listas sem duplicatas
-- Steps doctors, schedule, confirm: manter como estão
-- Atualizar `goBack` e `stepLabels` para refletir a nova ordem
-
----
-
-## 3. Favoritar médico (plataforma Mayla)
-
-### Contexto
-Já existe `prontuario_connections` para médicos Meddit. Estender para médicos Mayla (partners).
-
-### ConsultationFlow.tsx
-- No card do médico expandido (step doctors), adicionar botão "⭐ Favoritar"
-- Ao favoritar, criar registro em `prontuario_connections` com:
-  - `external_system: "mayla"`
-  - `source_type: "mayla_partner"`
-  - `external_professional_id: partner.id`
-  - `external_professional_name: partner.name`
-  - `report_token: crypto.randomUUID()`
-- Para médicos Meddit (via ProntuarioConveniado), o fluxo já existe
-
-### Restrição de acesso por token
-- O acesso via token já está implementado em `prontuario-verify` e na rota `/relatorio/medico/:token`
-- `FavoriteDoctors.tsx` já exibe e permite revogar conexões de ambos os sistemas
-
----
+### 4. `useCompanyFeature.ts` — Default `true` para `consulta_servico`
+- Quando o registro não existe na tabela, retornar `enabled: true` (opt-out) em vez de `false` (opt-in), para que funcionalidades não "sumam" automaticamente
 
 ## Arquivos afetados
 
-- **Editar**: `src/components/admin/AdminIntegrations.tsx` — adicionar toggle `consulta_servico`
-- **Criar**: `src/hooks/useCompanyFeature.ts` — hook genérico para consultar feature flags
-- **Editar**: `src/components/mayla/HomeTab.tsx` — remover dialog intermediário, ir direto ao fluxo, condicionar exibição
-- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — reordenar steps (mode → specialty → doctors → schedule → confirm), carregar especialidades dinâmicas, adicionar botão favoritar
-- **Editar**: `src/components/mayla/ServicosTab.tsx` — condicionar "Realizar Consulta" ao toggle
+- **Editar**: `src/hooks/useCompanyFeature.ts` — alterar default de `false` para `true` (ou aceitar parâmetro `defaultValue`)
+- **Editar**: `src/components/mayla/ConsultationFlow.tsx` — carregar especialidades dinâmicas do banco e mesclar com lista hardcoded
+- **Editar**: `src/components/admin/AdminIntegrations.tsx` — adicionar sub-toggles para médicos internos e externos
+- **Editar**: `src/components/mayla/HomeTab.tsx` — ajustar condição de exibição do botão consulta
 
