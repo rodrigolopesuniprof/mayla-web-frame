@@ -883,16 +883,21 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
             ? `${format(selectedDate, "yyyy-MM-dd")} ${selectedSlotTime.split(" – ")[0]}:00`
             : `${format(selectedDate, "yyyy-MM-dd")} 09:00:00`;
 
-          await proxyCall("register", {}, "POST", {
-            professionalId: selectedDoctor.meddit_id,
-            officeId: selectedDoctor.meddit_office_id || 1,
-            patientId,
-            startAt,
-            mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
-            interval: 30,
-            socialMidia: "mayla",
-          });
-          console.log("Meddit: appointment registered successfully");
+          if (!selectedMedditSlot) {
+            console.warn("Meddit: no slot metadata, skipping external register");
+            toast({ title: "Aviso", description: "Dados do horário incompletos. Agendamento salvo apenas localmente." });
+          } else {
+            await proxyCall("register", {}, "POST", {
+              professionalId: selectedDoctor.meddit_id,
+              officeId: selectedMedditSlot.officeId,
+              patientId,
+              startAt,
+              mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
+              interval: selectedMedditSlot.interval,
+              socialMidia: "mayla",
+            });
+            console.log("Meddit: appointment registered successfully");
+          }
         }
       } catch (medditErr: any) {
         console.error("Meddit register error:", medditErr);
@@ -1215,18 +1220,19 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                                               {WEEKDAY_NAMES[dateObj.getDay()]} ({format(dateObj, "dd/MMM", { locale: ptBR })})
                                             </p>
                                             <div className="flex flex-wrap gap-1.5">
-                                              {(times as string[]).sort().map((time, i) => (
+                                              {times.sort((a, b) => a.time.localeCompare(b.time)).map((slot, i) => (
                                                 <button
                                                   key={i}
                                                   onClick={() => {
                                                     setSelectedDoctor(d);
                                                     setSelectedDate(dateObj);
-                                                    setSelectedSlotTime(time.substring(0, 5));
+                                                    setSelectedSlotTime(slot.time.substring(0, 5));
+                                                    setSelectedMedditSlot(slot);
                                                     setStep("confirm");
                                                   }}
                                                   className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
                                                 >
-                                                  {time.substring(0, 5)}
+                                                  {slot.time.substring(0, 5)}
                                                 </button>
                                               ))}
                                             </div>
@@ -1346,17 +1352,18 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                               {WEEKDAY_NAMES[dateObj.getDay()]} — {format(dateObj, "dd/MM/yyyy")}
                             </p>
                             <div className="flex flex-wrap gap-1.5">
-                              {(times as string[]).sort().map((time, i) => (
+                              {times.sort((a, b) => a.time.localeCompare(b.time)).map((slot, i) => (
                                 <button
                                   key={i}
                                   onClick={() => {
                                     setSelectedDate(dateObj);
-                                    setSelectedSlotTime(time.substring(0, 5));
+                                    setSelectedSlotTime(slot.time.substring(0, 5));
+                                    setSelectedMedditSlot(slot);
                                     setStep("confirm");
                                   }}
                                   className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-border bg-card hover:border-primary hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
                                 >
-                                  {time.substring(0, 5)}
+                                  {slot.time.substring(0, 5)}
                                 </button>
                               ))}
                             </div>
