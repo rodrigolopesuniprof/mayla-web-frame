@@ -1,34 +1,39 @@
 
 
-# Plano: Atualizar conexão Meddit (nova URL + header)
+# Plano: Corrigir carregamento de especialidades no Prontuário Conveniado
 
-## Mudanças detectadas
+## Problema
 
-| Item | Antes | Agora |
-|------|-------|-------|
-| URL base | `http://meddit-api-clinic-nv.us-west-2.elasticbeanstalk.com` | `https://meddit-clinic-appointment.vercel.app` |
-| Header de auth | `Authorization: <key>` | `x-api-key: <key>` |
-| Chave | valor anterior do secret | `meddit-atria-2026` |
+A API Meddit retorna `{ "result": [...] }` mas o frontend espera um array direto. Além disso, o endpoint `/v1/clinics/specialities` retorna profissionais com suas especializações, não uma lista de especialidades pura. O frontend precisa extrair as especialidades únicas dessa resposta.
 
-## Implementação
+Há também um bloqueio: o fluxo regular da edge function exige CPF no perfil (linha 105), o que impede até a listagem de especialidades se o usuário não tiver CPF cadastrado.
 
-### 1. Atualizar `prontuario-proxy/index.ts`
+## O que a API retorna
 
-- Alterar `DEFAULT_BASE` para `https://meddit-clinic-appointment.vercel.app`
-- Trocar o header `Authorization` por `x-api-key` nas chamadas ao Meddit (em 2 locais: fluxo regular e `test_connection`)
-- Manter `Content-Type: application/json`
+```json
+{
+  "result": [
+    { "full_name": "John Carter", "specialization_id": 7, "specialization_name": "Clínica Geral", "user_id": 1214611 },
+    { "full_name": "Luiz Fernando", "specialization_id": 7, "specialization_name": "Clínica Geral", "user_id": 1000 },
+    { "full_name": "Israel Santiago", "specialization_id": 223, "specialization_name": "Enfermagem", "user_id": 1181618 }
+  ]
+}
+```
 
-### 2. Atualizar o secret `MEDDIT_API_KEY`
+## Correções
 
-- Atualizar o valor para `meddit-atria-2026` usando a ferramenta de secrets
+### 1. `ProntuarioConveniado.tsx` — parsing da resposta
 
-### 3. Deploy e teste
+- Em `loadSpecialities`: extrair `data.result` (se existir) e depois deduplificar por `specialization_id` para montar a lista de especialidades únicas
+- Em `searchProfessionals`: extrair `data.result` e mapear os campos (`user_id` → `id`, `full_name` → `name`, `specialization_name` → `speciality`)
+- Em `loadCalendar` e `loadPatientId`: também tratar `data.result` quando presente
 
-- Deploy da edge function
-- Testar via `curl_edge_functions` chamando `?action=specialities` (ou `test_connection`) para validar a resposta
+### 2. `prontuario-proxy/index.ts` — permitir `specialities` sem CPF
+
+- Mover a action `specialities` para antes da verificação de CPF (similar ao `test_connection`), pois listar especialidades não requer identificação do paciente
 
 ## Arquivos afetados
 
-- **Editar**: `supabase/functions/prontuario-proxy/index.ts`
-- **Atualizar secret**: `MEDDIT_API_KEY`
+- **Editar**: `src/components/mayla/ProntuarioConveniado.tsx` — ajustar parsing em todas as funções de carregamento
+- **Editar**: `supabase/functions/prontuario-proxy/index.ts` — permitir `specialities` sem CPF
 
