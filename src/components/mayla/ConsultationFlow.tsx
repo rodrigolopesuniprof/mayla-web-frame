@@ -902,7 +902,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
             startAt,
             mode: consultMode === "online" || consultMode === "first_available" ? "online" : "presencial",
             interval: String(selectedMedditSlot.interval),
-            socialMidia: "mayla",
+            socialMidia: "whatsapp",
           });
           console.log("Meddit register result:", regResult);
           medditSyncOk = true;
