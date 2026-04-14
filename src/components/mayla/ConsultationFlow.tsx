@@ -401,7 +401,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     if (!doc || doc.source !== "meddit" || !doc.meddit_id) return;
 
     setLoadingMedditCalendar(true);
-    setMedditCalendar({});
+    setMedditCalendar({} as Record<string, MedditSlot[]>);
 
     (async () => {
       try {
