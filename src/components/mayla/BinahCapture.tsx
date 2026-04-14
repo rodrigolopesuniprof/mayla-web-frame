@@ -223,9 +223,10 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       });
     } catch {}
 
+    setSaving(false);
+    setSaved(true);
     toast({ title: "Medição especial salva! 🎉", description: "+100 pontos de saúde" });
     onComplete();
-    onClose();
   };
 
   const validityInfo = VALIDITY_MESSAGES[imageValidity] || VALIDITY_MESSAGES[ImageValidity.VALID];
