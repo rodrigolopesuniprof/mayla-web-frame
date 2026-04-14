@@ -1,3 +1,43 @@
+interface VitalChip {
+  label: string;
+  value: string;
+  color: string;
+  bg: string;
+}
+
+interface TimelineGroupProps {
+  dayLabel: string;
+  entries: {
+    time: string;
+    source: string;
+    chips: VitalChip[];
+  }[];
+}
+
+export function TimelineGroup({ dayLabel, entries }: TimelineGroupProps) {
+  return (
+    <div className="rpt-tl-group">
+      <div className="rpt-tl-day-header">{dayLabel}</div>
+      {entries.map((entry, i) => (
+        <div key={i} className="rpt-tl-card">
+          <div className="rpt-tl-card-header">
+            <span className="rpt-tl-time">{entry.time}</span>
+            <span className="rpt-tl-source">{entry.source}</span>
+          </div>
+          <div className="rpt-tl-chips">
+            {entry.chips.map((chip, j) => (
+              <span key={j} className="rpt-tl-chip" style={{ background: chip.bg, color: chip.color }}>
+                {chip.label} {chip.value}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Keep legacy export for compatibility
 interface TimelineItemProps {
   day: string;
   event: string;
