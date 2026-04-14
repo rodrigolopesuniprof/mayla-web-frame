@@ -482,41 +482,63 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
       }
 
       // External Meddit professionals
-      if (loadExternal && user && medditSpecialtyId) {
-        try {
-          const profs = await proxyCall("professionals", { specialityId: String(medditSpecialtyId) });
-          if (Array.isArray(profs)) {
-            const medditDocs: Doctor[] = profs.map((p: any) => ({
-              id: `meddit-${p.id}`,
-              name: p.name,
-              partner_type: "doctor",
-              specialty: selectedSpecialty,
-              consultation_type: null,
-              consultation_price: null,
-              online_consultation_enabled: false,
-              city: null,
-              state: null,
-              full_address: p.officeName || null,
-              latitude: null,
-              longitude: null,
-              crm: null,
-              crm_state: null,
-              contact_link: null,
-              phone: null,
-              description: null,
-              logo_url: null,
-              notification_email: null,
-              email: null,
-              specialties_offered: null,
-              source: "meddit" as const,
-              meddit_id: p.id,
-              meddit_office_id: p.officeId,
-              meddit_office_name: p.officeName,
-            }));
-            allProviders.push(...medditDocs);
+      if (loadExternal && user) {
+        // Resolve meddit specialty ID: use prop or look up by name from specialities API
+        let resolvedMedditId = medditSpecialtyId;
+        if (!resolvedMedditId && selectedSpecialty) {
+          try {
+            const specData = await proxyCall("specialities");
+            const specArr = Array.isArray(specData) ? specData : Array.isArray(specData?.result) ? specData.result : [];
+            const normSel = selectedSpecialty.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+              .replace(/\b(clinico|clinica)\b/, "clinic");
+            const match = specArr.find((s: any) => {
+              const n = (s.specialization_name ?? s.name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+                .replace(/\b(clinico|clinica)\b/, "clinic");
+              return n === normSel;
+            });
+            if (match) resolvedMedditId = match.specialization_id ?? match.id;
+          } catch (e) {
+            console.warn("Failed to resolve Meddit specialty ID:", e);
           }
-        } catch (err) {
-          console.warn("Failed to load Meddit professionals:", err);
+        }
+
+        if (resolvedMedditId) {
+          try {
+            const profsData = await proxyCall("professionals", { specialityId: String(resolvedMedditId) });
+            const profs = Array.isArray(profsData) ? profsData : Array.isArray(profsData?.result) ? profsData.result : [];
+            if (profs.length) {
+              const medditDocs: Doctor[] = profs.map((p: any) => ({
+                id: `meddit-${p.id || p.user_id}`,
+                name: p.name || p.full_name || "Profissional",
+                partner_type: "doctor",
+                specialty: selectedSpecialty,
+                consultation_type: null,
+                consultation_price: null,
+                online_consultation_enabled: false,
+                city: null,
+                state: null,
+                full_address: p.officeName || null,
+                latitude: null,
+                longitude: null,
+                crm: null,
+                crm_state: null,
+                contact_link: null,
+                phone: null,
+                description: null,
+                logo_url: null,
+                notification_email: null,
+                email: null,
+                specialties_offered: null,
+                source: "meddit" as const,
+                meddit_id: p.id || p.user_id,
+                meddit_office_id: p.officeId,
+                meddit_office_name: p.officeName,
+              }));
+              allProviders.push(...medditDocs);
+            }
+          } catch (err) {
+            console.warn("Failed to load Meddit professionals:", err);
+          }
         }
       }
 
