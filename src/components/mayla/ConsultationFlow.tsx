@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { proxyCall } from "@/lib/prontuario-helpers";
 import { useCompany } from "@/contexts/CompanyContext";
 import { TopBar } from "./TopBar";
 import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
@@ -49,6 +50,11 @@ interface Doctor {
   notification_email: string | null;
   email: string | null;
   specialties_offered: string[] | null;
+  // Meddit source fields
+  source?: "internal" | "meddit";
+  meddit_id?: number;
+  meddit_office_id?: number;
+  meddit_office_name?: string;
   // computed
   distance?: number;
   display_lat?: number;
@@ -107,36 +113,116 @@ const WEEKDAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sext
 
 const DEFAULT_CENTER: [number, number] = [-20.315, -40.312];
 
-/* ── SpecialtyStep: loads specialties from DB + hardcoded list ── */
-function SpecialtyStep({ onSelect }: { onSelect: (s: string) => void }) {
+/* ── SpecialtyStep: loads specialties from internal DB + Meddit API ── */
+function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: number) => void; user: any }) {
   const [dbSpecialties, setDbSpecialties] = useState<string[]>([]);
+  const [medditSpecialties, setMedditSpecialties] = useState<{ id: number; name: string }[]>([]);
+  const [featureFlags, setFeatureFlags] = useState<{ internos: boolean; externos: boolean }>({ internos: true, externos: true });
+  const [loadingSpecs, setLoadingSpecs] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("partners")
-      .select("specialty")
-      .eq("active", true)
-      .eq("approval_status", "approved")
-      .not("specialty", "is", null)
-      .then(({ data }) => {
-        if (data) {
-          const unique = [...new Set(data.map((p: any) => (p.specialty as string).trim()).filter(Boolean))];
-          setDbSpecialties(unique);
+    const load = async () => {
+      // 1. Check feature flags
+      let internos = true, externos = true;
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+        if (profile?.company_id) {
+          const { data: features } = await supabase
+            .from("company_features")
+            .select("feature_key, enabled")
+            .eq("company_id", profile.company_id)
+            .in("feature_key", ["consulta_medicos_internos", "consulta_medicos_externos"]);
+          if (features) {
+            for (const f of features) {
+              if (f.feature_key === "consulta_medicos_internos" && f.enabled === false) internos = false;
+              if (f.feature_key === "consulta_medicos_externos" && f.enabled === false) externos = false;
+            }
+          }
         }
-      });
-  }, []);
+      }
+      setFeatureFlags({ internos, externos });
 
-  // Merge hardcoded + DB specialties without duplicates
+      // 2. Load specialties in parallel
+      const promises: Promise<any>[] = [];
+
+      if (internos) {
+        promises.push(
+          (async () => {
+            const { data } = await supabase
+              .from("partners")
+              .select("specialty")
+              .eq("active", true)
+              .eq("approval_status", "approved")
+              .not("specialty", "is", null);
+            if (data) {
+              const unique = [...new Set(data.map((p: any) => (p.specialty as string).trim()).filter(Boolean))];
+              setDbSpecialties(unique);
+            }
+          })()
+        );
+      }
+
+      if (externos && user) {
+        promises.push(
+          proxyCall("specialities")
+            .then((data: any) => {
+              if (Array.isArray(data)) {
+                setMedditSpecialties(data.map((s: any) => ({ id: s.id, name: s.name })));
+              }
+            })
+            .catch((err) => {
+              console.warn("Failed to load Meddit specialties:", err);
+            })
+        );
+      }
+
+      await Promise.all(promises);
+      setLoadingSpecs(false);
+    };
+    load();
+  }, [user]);
+
+  // Merge hardcoded + DB + Meddit specialties without duplicates
   const merged = useMemo(() => {
     const hardcodedMap = new Map(SPECIALTIES.map(s => [s.value.toLowerCase(), s]));
-    const result = [...SPECIALTIES];
-    for (const spec of dbSpecialties) {
-      if (!hardcodedMap.has(spec.toLowerCase())) {
-        result.push({ value: spec, emoji: "🩺" });
+    const result: { value: string; emoji: string; medditId?: number }[] = [...SPECIALTIES];
+    const seen = new Set(SPECIALTIES.map(s => s.value.toLowerCase()));
+
+    // Add internal DB specialties
+    if (featureFlags.internos) {
+      for (const spec of dbSpecialties) {
+        if (!seen.has(spec.toLowerCase())) {
+          result.push({ value: spec, emoji: "🩺" });
+          seen.add(spec.toLowerCase());
+        }
       }
     }
+
+    // Add Meddit specialties
+    if (featureFlags.externos) {
+      for (const ms of medditSpecialties) {
+        const key = ms.name.toLowerCase();
+        if (!seen.has(key)) {
+          result.push({ value: ms.name, emoji: "🏥", medditId: ms.id });
+          seen.add(key);
+        } else {
+          // attach medditId to existing entry
+          const existing = result.find(r => r.value.toLowerCase() === key);
+          if (existing && !existing.medditId) existing.medditId = ms.id;
+        }
+      }
+    }
+
     return result;
-  }, [dbSpecialties]);
+  }, [dbSpecialties, medditSpecialties, featureFlags]);
+
+  if (loadingSpecs) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="px-5 pt-3">
@@ -146,7 +232,7 @@ function SpecialtyStep({ onSelect }: { onSelect: (s: string) => void }) {
         {merged.map((s) => (
           <button
             key={s.value}
-            onClick={() => onSelect(s.value)}
+            onClick={() => onSelect(s.value, s.medditId)}
             className="flex items-center gap-3 p-3.5 bg-card rounded-2xl border border-border hover:border-primary/40 transition-colors cursor-pointer text-left"
           >
             <span className="text-xl">{s.emoji}</span>
@@ -231,6 +317,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
   const [step, setStep] = useState<Step>("mode");
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
+  const [medditSpecialtyId, setMedditSpecialtyId] = useState<number | null>(null);
   const [consultMode, setConsultMode] = useState<ConsultMode | null>(initialMode || null);
   const [waitingConsultationId, setWaitingConsultationId] = useState<string | null>(null);
   const [waitingStatus, setWaitingStatus] = useState<string>("confirmed");
@@ -310,55 +397,116 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     setLoading(true);
 
     const fetchData = async () => {
-      // Fetch doctors matching specialty
-      let qDoctors = supabase
-        .from("partners")
-        .select("*")
-        .eq("partner_type", "doctor")
-        .eq("active", true)
-        .eq("approval_status", "approved")
-        .ilike("specialty", `%${selectedSpecialty}%`);
-
-      if (consultMode === "online") {
-        qDoctors = qDoctors.eq("online_consultation_enabled", true);
+      // Check feature flags for internal/external
+      let loadInternal = true, loadExternal = true;
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+        if (profile?.company_id) {
+          const { data: features } = await supabase
+            .from("company_features")
+            .select("feature_key, enabled")
+            .eq("company_id", profile.company_id)
+            .in("feature_key", ["consulta_medicos_internos", "consulta_medicos_externos"]);
+          if (features) {
+            for (const f of features) {
+              if (f.feature_key === "consulta_medicos_internos" && f.enabled === false) loadInternal = false;
+              if (f.feature_key === "consulta_medicos_externos" && f.enabled === false) loadExternal = false;
+            }
+          }
+        }
       }
 
-      // Fetch clinics that offer this specialty (via specialties_offered or availability)
-      const qClinics = supabase
-        .from("partners")
-        .select("*")
-        .eq("partner_type", "clinic")
-        .eq("active", true)
-        .eq("approval_status", "approved");
+      let allProviders: Doctor[] = [];
 
-      const [{ data: docs }, { data: clinics }, { data: locs }, { data: avail }] = await Promise.all([
-        qDoctors,
-        qClinics,
-        supabase.from("partner_locations").select("*"),
-        supabase.from("doctor_availability").select("*").eq("is_active", true),
-      ]);
+      // Internal partners
+      if (loadInternal) {
+        let qDoctors = supabase
+          .from("partners")
+          .select("*")
+          .eq("partner_type", "doctor")
+          .eq("active", true)
+          .eq("approval_status", "approved")
+          .ilike("specialty", `%${selectedSpecialty}%`);
 
-      // Filter clinics: those with availability for the selected specialty
-      const clinicIds = new Set((avail || [])
-        .filter(a => a.specialty && a.specialty.toLowerCase().includes(selectedSpecialty!.toLowerCase()))
-        .map(a => a.partner_id));
-      
-      // Also include clinics that have the specialty in specialties_offered
-      const matchingClinics = (clinics || []).filter(c => {
-        if (clinicIds.has(c.id)) return true;
-        const offered = c.specialties_offered as string[] | null;
-        return offered?.some(s => s.toLowerCase().includes(selectedSpecialty!.toLowerCase()));
-      });
+        if (consultMode === "online") {
+          qDoctors = qDoctors.eq("online_consultation_enabled", true);
+        }
 
-      const allProviders = [...(docs || []), ...matchingClinics];
-      setDoctors(allProviders as Doctor[]);
-      setDoctorLocations((locs as DoctorLocation[]) || []);
-      setAvailability((avail as AvailSlot[]) || []);
+        const qClinics = supabase
+          .from("partners")
+          .select("*")
+          .eq("partner_type", "clinic")
+          .eq("active", true)
+          .eq("approval_status", "approved");
+
+        const [{ data: docs }, { data: clinics }, { data: locs }, { data: avail }] = await Promise.all([
+          qDoctors,
+          qClinics,
+          supabase.from("partner_locations").select("*"),
+          supabase.from("doctor_availability").select("*").eq("is_active", true),
+        ]);
+
+        const clinicIds = new Set((avail || [])
+          .filter(a => a.specialty && a.specialty.toLowerCase().includes(selectedSpecialty!.toLowerCase()))
+          .map(a => a.partner_id));
+
+        const matchingClinics = (clinics || []).filter(c => {
+          if (clinicIds.has(c.id)) return true;
+          const offered = c.specialties_offered as string[] | null;
+          return offered?.some(s => s.toLowerCase().includes(selectedSpecialty!.toLowerCase()));
+        });
+
+        const internalDocs = [...(docs || []), ...matchingClinics].map(d => ({ ...d, source: "internal" as const }));
+        allProviders.push(...(internalDocs as Doctor[]));
+        setDoctorLocations((locs as DoctorLocation[]) || []);
+        setAvailability((avail as AvailSlot[]) || []);
+      }
+
+      // External Meddit professionals
+      if (loadExternal && user && medditSpecialtyId) {
+        try {
+          const profs = await proxyCall("professionals", { specialityId: String(medditSpecialtyId) });
+          if (Array.isArray(profs)) {
+            const medditDocs: Doctor[] = profs.map((p: any) => ({
+              id: `meddit-${p.id}`,
+              name: p.name,
+              partner_type: "doctor",
+              specialty: selectedSpecialty,
+              consultation_type: null,
+              consultation_price: null,
+              online_consultation_enabled: false,
+              city: null,
+              state: null,
+              full_address: p.officeName || null,
+              latitude: null,
+              longitude: null,
+              crm: null,
+              crm_state: null,
+              contact_link: null,
+              phone: null,
+              description: null,
+              logo_url: null,
+              notification_email: null,
+              email: null,
+              specialties_offered: null,
+              source: "meddit" as const,
+              meddit_id: p.id,
+              meddit_office_id: p.officeId,
+              meddit_office_name: p.officeName,
+            }));
+            allProviders.push(...medditDocs);
+          }
+        } catch (err) {
+          console.warn("Failed to load Meddit professionals:", err);
+        }
+      }
+
+      setDoctors(allProviders);
       setLoading(false);
     };
 
     fetchData();
-  }, [selectedSpecialty, consultMode]);
+  }, [selectedSpecialty, consultMode, medditSpecialtyId, user]);
 
   // Enrich doctors with distance for presencial
   const enrichedDoctors = useMemo(() => {
@@ -412,8 +560,9 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
   }, [selectedDate, doctorSlots]);
 
   /* ─── Handlers ─── */
-  const handleSelectSpecialty = (s: string) => {
+  const handleSelectSpecialty = (s: string, medditId?: number) => {
     setSelectedSpecialty(s);
+    setMedditSpecialtyId(medditId ?? null);
     setStep("doctors");
   };
 
@@ -747,7 +896,7 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
 
         {/* ── Step: Specialty (now second) ── */}
         {step === "specialty" && (
-          <SpecialtyStep onSelect={handleSelectSpecialty} />
+          <SpecialtyStep onSelect={handleSelectSpecialty} user={user} />
         )}
 
         {step === "doctors" && (
@@ -862,9 +1011,15 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold text-foreground truncate">{d.name}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
-                                  ⭐ Novo
-                                </span>
+                                {d.source === "meddit" ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">
+                                    🏥 Parceiro
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
+                                    ⭐ Novo
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-muted-foreground mt-0.5">
                                 {d.partner_type === "clinic" ? "Clínica" : d.specialty}
@@ -902,7 +1057,21 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
                             >
                               {favoritedIds.has(d.id) ? "⭐ Favoritado" : "☆ Favoritar médico"}
                             </button>
-                            {upcomingDays.length === 0 ? (
+                            {d.source === "meddit" ? (
+                              /* Meddit doctor: show office info + go to schedule via API */
+                              <div className="text-center py-3">
+                                {d.meddit_office_name && (
+                                  <p className="text-xs text-muted-foreground mb-2">📍 {d.meddit_office_name}</p>
+                                )}
+                                <Button
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => { setSelectedDoctor(d); setStep("schedule"); }}
+                                >
+                                  Ver horários disponíveis
+                                </Button>
+                              </div>
+                            ) : upcomingDays.length === 0 ? (
                               <div className="text-center py-3">
                                 <span className="text-2xl block mb-1">📅</span>
                                 <p className="text-xs text-muted-foreground">Sem horários cadastrados.</p>

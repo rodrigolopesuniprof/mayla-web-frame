@@ -6,6 +6,7 @@ import { Heart, Calendar, Search, Clock, CheckCircle, ArrowRight, Loader2, Alert
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { proxyCall } from "@/lib/prontuario-helpers";
 
 type Step = "specialities" | "professionals" | "calendar" | "confirm" | "done";
 
@@ -41,30 +42,6 @@ interface Connection {
   external_clinic_name: string | null;
   report_token: string;
   active: boolean;
-}
-
-async function proxyCall(action: string, params: Record<string, string> = {}, method = "GET", body?: any) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("Não autenticado");
-
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const qs = new URLSearchParams({ action, ...params }).toString();
-  const url = `https://${projectId}.supabase.co/functions/v1/prontuario-proxy?${qs}`;
-
-  const resp = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({ error: "Erro desconhecido" }));
-    throw new Error(err.error || `HTTP ${resp.status}`);
-  }
-  return resp.json();
 }
 
 export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
