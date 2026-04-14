@@ -397,55 +397,116 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
     setLoading(true);
 
     const fetchData = async () => {
-      // Fetch doctors matching specialty
-      let qDoctors = supabase
-        .from("partners")
-        .select("*")
-        .eq("partner_type", "doctor")
-        .eq("active", true)
-        .eq("approval_status", "approved")
-        .ilike("specialty", `%${selectedSpecialty}%`);
-
-      if (consultMode === "online") {
-        qDoctors = qDoctors.eq("online_consultation_enabled", true);
+      // Check feature flags for internal/external
+      let loadInternal = true, loadExternal = true;
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+        if (profile?.company_id) {
+          const { data: features } = await supabase
+            .from("company_features")
+            .select("feature_key, enabled")
+            .eq("company_id", profile.company_id)
+            .in("feature_key", ["consulta_medicos_internos", "consulta_medicos_externos"]);
+          if (features) {
+            for (const f of features) {
+              if (f.feature_key === "consulta_medicos_internos" && f.enabled === false) loadInternal = false;
+              if (f.feature_key === "consulta_medicos_externos" && f.enabled === false) loadExternal = false;
+            }
+          }
+        }
       }
 
-      // Fetch clinics that offer this specialty (via specialties_offered or availability)
-      const qClinics = supabase
-        .from("partners")
-        .select("*")
-        .eq("partner_type", "clinic")
-        .eq("active", true)
-        .eq("approval_status", "approved");
+      let allProviders: Doctor[] = [];
 
-      const [{ data: docs }, { data: clinics }, { data: locs }, { data: avail }] = await Promise.all([
-        qDoctors,
-        qClinics,
-        supabase.from("partner_locations").select("*"),
-        supabase.from("doctor_availability").select("*").eq("is_active", true),
-      ]);
+      // Internal partners
+      if (loadInternal) {
+        let qDoctors = supabase
+          .from("partners")
+          .select("*")
+          .eq("partner_type", "doctor")
+          .eq("active", true)
+          .eq("approval_status", "approved")
+          .ilike("specialty", `%${selectedSpecialty}%`);
 
-      // Filter clinics: those with availability for the selected specialty
-      const clinicIds = new Set((avail || [])
-        .filter(a => a.specialty && a.specialty.toLowerCase().includes(selectedSpecialty!.toLowerCase()))
-        .map(a => a.partner_id));
-      
-      // Also include clinics that have the specialty in specialties_offered
-      const matchingClinics = (clinics || []).filter(c => {
-        if (clinicIds.has(c.id)) return true;
-        const offered = c.specialties_offered as string[] | null;
-        return offered?.some(s => s.toLowerCase().includes(selectedSpecialty!.toLowerCase()));
-      });
+        if (consultMode === "online") {
+          qDoctors = qDoctors.eq("online_consultation_enabled", true);
+        }
 
-      const allProviders = [...(docs || []), ...matchingClinics];
-      setDoctors(allProviders as Doctor[]);
-      setDoctorLocations((locs as DoctorLocation[]) || []);
-      setAvailability((avail as AvailSlot[]) || []);
+        const qClinics = supabase
+          .from("partners")
+          .select("*")
+          .eq("partner_type", "clinic")
+          .eq("active", true)
+          .eq("approval_status", "approved");
+
+        const [{ data: docs }, { data: clinics }, { data: locs }, { data: avail }] = await Promise.all([
+          qDoctors,
+          qClinics,
+          supabase.from("partner_locations").select("*"),
+          supabase.from("doctor_availability").select("*").eq("is_active", true),
+        ]);
+
+        const clinicIds = new Set((avail || [])
+          .filter(a => a.specialty && a.specialty.toLowerCase().includes(selectedSpecialty!.toLowerCase()))
+          .map(a => a.partner_id));
+
+        const matchingClinics = (clinics || []).filter(c => {
+          if (clinicIds.has(c.id)) return true;
+          const offered = c.specialties_offered as string[] | null;
+          return offered?.some(s => s.toLowerCase().includes(selectedSpecialty!.toLowerCase()));
+        });
+
+        const internalDocs = [...(docs || []), ...matchingClinics].map(d => ({ ...d, source: "internal" as const }));
+        allProviders.push(...(internalDocs as Doctor[]));
+        setDoctorLocations((locs as DoctorLocation[]) || []);
+        setAvailability((avail as AvailSlot[]) || []);
+      }
+
+      // External Meddit professionals
+      if (loadExternal && user && medditSpecialtyId) {
+        try {
+          const profs = await proxyCall("professionals", { specialityId: String(medditSpecialtyId) });
+          if (Array.isArray(profs)) {
+            const medditDocs: Doctor[] = profs.map((p: any) => ({
+              id: `meddit-${p.id}`,
+              name: p.name,
+              partner_type: "doctor",
+              specialty: selectedSpecialty,
+              consultation_type: null,
+              consultation_price: null,
+              online_consultation_enabled: false,
+              city: null,
+              state: null,
+              full_address: p.officeName || null,
+              latitude: null,
+              longitude: null,
+              crm: null,
+              crm_state: null,
+              contact_link: null,
+              phone: null,
+              description: null,
+              logo_url: null,
+              notification_email: null,
+              email: null,
+              specialties_offered: null,
+              source: "meddit" as const,
+              meddit_id: p.id,
+              meddit_office_id: p.officeId,
+              meddit_office_name: p.officeName,
+            }));
+            allProviders.push(...medditDocs);
+          }
+        } catch (err) {
+          console.warn("Failed to load Meddit professionals:", err);
+        }
+      }
+
+      setDoctors(allProviders);
       setLoading(false);
     };
 
     fetchData();
-  }, [selectedSpecialty, consultMode]);
+  }, [selectedSpecialty, consultMode, medditSpecialtyId, user]);
 
   // Enrich doctors with distance for presencial
   const enrichedDoctors = useMemo(() => {
