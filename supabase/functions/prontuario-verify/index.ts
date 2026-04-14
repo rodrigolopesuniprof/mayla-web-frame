@@ -51,10 +51,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if there's a valid report_share for this user, or build URL with the permanent token
-    const publicUrl = Deno.env.get("SUPABASE_URL")!.replace(".supabase.co", "");
-    // The report URL uses the report_token directly
-    const reportUrl = `${url.origin}/relatorio/medico/${connection.report_token}`;
+    // Build report URL with pid for security validation
+    const reportUrl = `${url.origin}/relatorio/medico/${connection.report_token}?pid=${encodeURIComponent(connection.external_professional_id)}`;
 
     return new Response(JSON.stringify({
       authorized: true,

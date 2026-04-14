@@ -28,9 +28,11 @@ export default function ProfessionalReport() {
   const navigate = useNavigate();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const isEmbed = searchParams.get("view") === "embed";
+  const pid = searchParams.get("pid");
   const [tab, setTab] = useState<TabId>("resumo");
   const [loading, setLoading] = useState(true);
   const [expired, setExpired] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [share, setShare] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [scores, setScores] = useState<any>(null);
@@ -62,6 +64,12 @@ export default function ProfessionalReport() {
 
         const conn = connData as any;
         if (conn && conn.user_id) {
+          // Validate pid matches the professional who owns this connection
+          if (pid && conn.external_professional_id && pid !== conn.external_professional_id) {
+            setUnauthorized(true);
+            setLoading(false);
+            return;
+          }
           setShare({ permanent: true, user_id: conn.user_id });
           userId = conn.user_id;
         }
@@ -100,12 +108,18 @@ export default function ProfessionalReport() {
     );
   }
 
-  if (expired) {
+  if (expired || unauthorized) {
     return (
       <div className="report-shell" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 32 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, textAlign: "center" }}>Link expirado ou inválido</h2>
-        <p style={{ fontSize: 13, color: "var(--rpt-text-secondary)", textAlign: "center" }}>Este link de acesso ao relatório não é mais válido. Solicite um novo link ao paciente.</p>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>{unauthorized ? "🚫" : "🔒"}</div>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, textAlign: "center" }}>
+          {unauthorized ? "Acesso não autorizado" : "Link expirado ou inválido"}
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--rpt-text-secondary)", textAlign: "center" }}>
+          {unauthorized
+            ? "Este relatório não está vinculado ao seu cadastro profissional. Solicite ao paciente um novo link de acesso."
+            : "Este link de acesso ao relatório não é mais válido. Solicite um novo link ao paciente."}
+        </p>
       </div>
     );
   }
