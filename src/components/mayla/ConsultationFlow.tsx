@@ -50,6 +50,11 @@ interface Doctor {
   notification_email: string | null;
   email: string | null;
   specialties_offered: string[] | null;
+  // Meddit source fields
+  source?: "internal" | "meddit";
+  meddit_id?: number;
+  meddit_office_id?: number;
+  meddit_office_name?: string;
   // computed
   distance?: number;
   display_lat?: number;
