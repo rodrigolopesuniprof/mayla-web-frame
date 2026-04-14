@@ -14,6 +14,11 @@ interface Speciality {
   name: string;
 }
 
+interface Office {
+  id: number;
+  name: string;
+}
+
 interface Professional {
   id: number;
   name: string;
