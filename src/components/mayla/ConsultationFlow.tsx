@@ -194,18 +194,25 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
     load();
   }, [user]);
 
+  // Normalize for fuzzy matching: remove accents, lowercase, strip gender suffixes
+  const normalize = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+      .replace(/\b(clinico|clinica)\b/, "clinic")
+      .replace(/\b(ginecologista|ginecologia)\b/, "gineco")
+      .trim();
+
   // Merge hardcoded + DB + Meddit specialties without duplicates
   const merged = useMemo(() => {
-    const hardcodedMap = new Map(SPECIALTIES.map(s => [s.value.toLowerCase(), s]));
     const result: { value: string; emoji: string; medditId?: number }[] = [...SPECIALTIES];
-    const seen = new Set(SPECIALTIES.map(s => s.value.toLowerCase()));
+    const seenNorm = new Set(SPECIALTIES.map(s => normalize(s.value)));
 
     // Add internal DB specialties
     if (featureFlags.internos) {
       for (const spec of dbSpecialties) {
-        if (!seen.has(spec.toLowerCase())) {
+        const n = normalize(spec);
+        if (!seenNorm.has(n)) {
           result.push({ value: spec, emoji: "🩺" });
-          seen.add(spec.toLowerCase());
+          seenNorm.add(n);
         }
       }
     }
@@ -213,14 +220,14 @@ function SpecialtyStep({ onSelect, user }: { onSelect: (s: string, medditId?: nu
     // Add Meddit specialties
     if (featureFlags.externos) {
       for (const ms of medditSpecialties) {
-        const key = ms.name.toLowerCase();
-        if (!seen.has(key)) {
-          result.push({ value: ms.name, emoji: "🏥", medditId: ms.id });
-          seen.add(key);
-        } else {
+        const n = normalize(ms.name);
+        const existing = result.find(r => normalize(r.value) === n);
+        if (existing) {
           // attach medditId to existing entry
-          const existing = result.find(r => r.value.toLowerCase() === key);
-          if (existing && !existing.medditId) existing.medditId = ms.id;
+          if (!existing.medditId) existing.medditId = ms.id;
+        } else {
+          result.push({ value: ms.name, emoji: "🏥", medditId: ms.id });
+          seenNorm.add(n);
         }
       }
     }
