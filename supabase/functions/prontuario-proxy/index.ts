@@ -136,7 +136,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Regular flow — needs profile + CPF ──────────────────────
+    // ── offices — no CPF needed ─────────────────────────────────
+    if (action === "offices") {
+      const { data: prof } = await adminClient
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let medditBase = "";
+      let medditApiKey = globalMedditApiKey;
+
+      if (prof?.company_id) {
+        const { data: feature } = await adminClient
+          .from("company_features")
+          .select("enabled, config")
+          .eq("company_id", prof.company_id)
+          .eq("feature_key", "prontuario_conveniado")
+          .maybeSingle();
+
+        const cfg = (feature?.config as Record<string, any>) || {};
+        if (cfg.base_url) medditBase = cfg.base_url;
+        if (cfg.api_key) medditApiKey = cfg.api_key;
+      }
+
+      medditBase = sanitizeBaseUrl(medditBase) || DEFAULT_BASE;
+
+      const offResp = await fetch(`${medditBase}/v1/clinics/offices`, {
+        method: "GET",
+        headers: { "x-api-key": medditApiKey, "Content-Type": "application/json" },
+      });
+      const offText = await offResp.text();
+      return new Response(offText, {
+        status: offResp.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     const { data: profile } = await adminClient
       .from("profiles")
       .select("cpf, company_id")
