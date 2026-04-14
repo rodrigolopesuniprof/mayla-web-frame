@@ -949,12 +949,14 @@ export function ConsultationFlow({ onBack, initialMode }: { onBack: () => void; 
         setActiveRoomToken((consultData2 as any)?.room_token || null);
         setWaitingStatus("confirmed");
         setWaitingSeconds(0);
-        toast({ title: "Consulta online agendada! ✅" });
+        const syncMsg = selectedDoctor.source === "meddit" && !medditSyncOk ? " (sincronização com parceiro pendente)" : "";
+        toast({ title: `Consulta online agendada! ✅${syncMsg}` });
         setStep("waiting_room");
       }
     } else {
       setBooking(false);
-      toast({ title: "Consulta agendada! ✅" });
+      const syncMsg = selectedDoctor.source === "meddit" && !medditSyncOk ? " (sincronização com parceiro pendente)" : "";
+      toast({ title: `Consulta agendada! ✅${syncMsg}` });
       setStep("done");
     }
 
