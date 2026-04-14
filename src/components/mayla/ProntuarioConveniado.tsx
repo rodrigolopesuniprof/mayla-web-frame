@@ -10,6 +10,40 @@ import { proxyCall } from "@/lib/prontuario-helpers";
 
 type Step = "specialities" | "professionals" | "calendar" | "confirm" | "done";
 
+interface Speciality {
+  id: number;
+  name: string;
+}
+
+interface Office {
+  id: number;
+  name: string;
+}
+
+interface Professional {
+  id: number;
+  name: string;
+  speciality?: string;
+  officeName?: string;
+  officeId?: number;
+}
+
+interface Slot {
+  date: string;
+  time: string;
+  available: boolean;
+  raw?: any;
+}
+
+interface Connection {
+  id: string;
+  external_professional_id: string;
+  external_professional_name: string | null;
+  external_clinic_name: string | null;
+  report_token: string;
+  active: boolean;
+}
+
 export function ProntuarioConveniado({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
   const [step, setStep] = useState<Step>("specialities");
