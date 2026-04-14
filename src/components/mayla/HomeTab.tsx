@@ -293,14 +293,18 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
           <div className="relative shrink-0" style={{ width: 56, height: 56 }}>
             <svg width="56" height="56" style={{ transform: "rotate(-90deg)" }}>
               <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--mayla-sand))" strokeWidth="5" />
-              <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--mayla-green))" strokeWidth="5" strokeDasharray={`${2 * Math.PI * 22}`} strokeDashoffset={`${2 * Math.PI * 22 * (1 - healthScore / 100)}`} strokeLinecap="round" />
+              <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--mayla-green))" strokeWidth="5" strokeDasharray={`${2 * Math.PI * 22}`} strokeDashoffset={`${2 * Math.PI * 22 * (1 - displayScore / 100)}`} strokeLinecap="round" />
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center font-display text-base font-bold text-foreground">{healthScore}</div>
+            <div className="absolute inset-0 flex items-center justify-center font-display text-base font-bold text-foreground">{displayScore}</div>
           </div>
           <div className="flex-1">
             <div className="text-xs text-muted-foreground tracking-[.07em] uppercase mb-0.5">Saúde hoje</div>
-            <div className="font-display text-lg text-foreground font-medium">Muito bem! 💪</div>
-            <div className="text-sm text-muted-foreground mt-0.5">Medição de ontem · 87 bpm</div>
+            <div className="font-display text-lg text-foreground font-medium">{getScoreLabel(displayScore)}</div>
+            <div className="text-sm text-muted-foreground mt-0.5">
+              {lastMeasurement
+                ? `${getTimeAgo(lastMeasurement.measured_at)}${lastMeasurement.heart_rate ? ` · ${lastMeasurement.heart_rate} bpm` : ""}`
+                : "Nenhuma medição ainda"}
+            </div>
           </div>
           <button onClick={() => setTab("bemestar")} className="border-none rounded-xl px-4 py-2.5 text-accent-foreground text-sm font-semibold cursor-pointer" style={{ background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))" }}>
             Medir →
