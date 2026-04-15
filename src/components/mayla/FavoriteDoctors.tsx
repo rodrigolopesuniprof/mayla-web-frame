@@ -120,17 +120,11 @@ export function FavoriteDoctors({ onBack }: { onBack: () => void }) {
 
           <div className="flex gap-2 mt-3">
             <button
-              onClick={() => handleCopyLink(conn.report_token)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary text-[12px] font-medium cursor-pointer border-none hover:bg-primary/20 transition-colors"
-            >
-              📋 Copiar link
-            </button>
-            <button
               onClick={() => handleRevoke(conn)}
               disabled={revoking === conn.id}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 text-destructive text-[12px] font-medium cursor-pointer border-none hover:bg-destructive/20 transition-colors disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 text-destructive text-[12px] font-medium cursor-pointer border-none hover:bg-destructive/20 transition-colors disabled:opacity-50"
             >
-              {revoking === conn.id ? "..." : "🚫 Revogar"}
+              {revoking === conn.id ? "..." : "🚫 Revogar acesso"}
             </button>
           </div>
         </div>
