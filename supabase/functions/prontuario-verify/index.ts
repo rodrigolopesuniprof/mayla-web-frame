@@ -55,31 +55,45 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate a single-use access_code (valid 5 min)
-    const accessCode = crypto.randomUUID();
-    const { error: insertErr } = await supabase.from("report_access_codes").insert({
-      report_token: connection.report_token,
-      access_code: accessCode,
-      professional_id: connection.external_professional_id,
-    });
+    const userId = connection.user_id;
 
-    if (insertErr) {
-      console.error("Failed to create access_code:", insertErr);
-      return new Response(JSON.stringify({ authorized: false, error: "Failed to generate access code" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Fetch all report data in parallel — permanent access while connection is active
+    const [profileRes, scoresRes, alertsRes, measurementsRes] = await Promise.all([
+      supabase.from("profiles")
+        .select("full_name, birth_date, has_hypertension, has_diabetes, biological_sex")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase.from("health_scores")
+        .select("*")
+        .eq("user_id", userId)
+        .order("generated_at", { ascending: false })
+        .limit(1),
+      supabase.from("health_alerts")
+        .select("*")
+        .eq("user_id", userId)
+        .is("dismissed_at", null)
+        .order("generated_at", { ascending: false })
+        .limit(5),
+      supabase.from("health_measurements")
+        .select("*")
+        .eq("user_id", userId)
+        .order("measured_at", { ascending: false })
+        .limit(20),
+    ]);
 
-    // Build report URL with temporary code (no pid exposed)
-    const reportUrl = `${url.origin}/relatorio/medico/${connection.report_token}?code=${accessCode}`;
+    // Build embed report URL for iframe usage
+    const reportUrl = `${url.origin}/relatorio/medico/${connection.report_token}?view=embed`;
 
     return new Response(JSON.stringify({
       authorized: true,
       professional_id: connection.external_professional_id,
       professional_name: connection.external_professional_name,
-      access_code: accessCode,
       report_url: reportUrl,
+      user_id: userId,
+      profile: profileRes.data,
+      scores: scoresRes.data?.[0] || null,
+      alerts: alertsRes.data || [],
+      measurements: measurementsRes.data || [],
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
