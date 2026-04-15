@@ -24,13 +24,20 @@ function formatDateRange() {
 
 type TabId = "resumo" | "sinais" | "historico" | "nota";
 
-export default function ProfessionalReport() {
+interface ProfessionalReportProps {
+  tokenOverride?: string;
+  embedMode?: boolean;
+  onBack?: () => void;
+}
+
+export default function ProfessionalReport({ tokenOverride, embedMode, onBack }: ProfessionalReportProps = {}) {
   const { user } = useAuth();
-  const { token } = useParams<{ token: string }>();
+  const { token: routeToken } = useParams<{ token: string }>();
+  const token = tokenOverride || routeToken;
   const navigate = useNavigate();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
-  const isEmbed = searchParams.get("view") === "embed";
-  const accessCode = searchParams.get("code");
+  const isEmbed = embedMode || searchParams.get("view") === "embed";
+  const accessCode = embedMode ? null : searchParams.get("code");
   const [tab, setTab] = useState<TabId>("resumo");
   const [loading, setLoading] = useState(true);
   const [expired, setExpired] = useState(false);
