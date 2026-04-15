@@ -28,12 +28,12 @@ export default function ProfessionalReport() {
   const navigate = useNavigate();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const isEmbed = searchParams.get("view") === "embed";
-  const pid = searchParams.get("pid");
+  const accessCode = searchParams.get("code");
   const [tab, setTab] = useState<TabId>("resumo");
   const [loading, setLoading] = useState(true);
   const [expired, setExpired] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [share, setShare] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [scores, setScores] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -43,56 +43,77 @@ export default function ProfessionalReport() {
   useEffect(() => {
     if (!token) return;
     (async () => {
-      // Try report_shares first (temporary 48h links)
-      const { data: shareData } = await supabase.from("report_shares").select("*").eq("token", token).maybeSingle();
-      
-      let userId: string | null = null;
+      // If we have an access_code, use the secure POST flow
+      if (accessCode) {
+        try {
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+          const resp = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/report-access`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token, access_code: accessCode }),
+            }
+          );
 
-      if (shareData && new Date(shareData.expires_at) >= new Date()) {
-        setShare(shareData);
-        userId = shareData.user_id;
-        if (!shareData.accessed_at) {
-          await supabase.from("report_shares").update({ accessed_at: new Date().toISOString() } as any).eq("id", shareData.id);
-        }
-      } else {
-        // Try prontuario_connections (permanent tokens)
-        const { data: connData } = await supabase.from("prontuario_connections" as any)
-          .select("*")
-          .eq("report_token", token)
-          .eq("active", true)
-          .maybeSingle();
-
-        const conn = connData as any;
-        if (conn && conn.user_id) {
-          // Validate pid matches the professional who owns this connection
-          if (pid && conn.external_professional_id && pid !== conn.external_professional_id) {
-            setUnauthorized(true);
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            if (resp.status === 403) {
+              setExpired(true);
+            } else {
+              setUnauthorized(true);
+            }
             setLoading(false);
             return;
           }
-          setShare({ permanent: true, user_id: conn.user_id });
-          userId = conn.user_id;
+
+          const data = await resp.json();
+          setUserId(data.user_id);
+          setProfile(data.profile);
+          setScores(data.scores);
+          setAlerts(data.alerts || []);
+          setLoading(false);
+          return;
+        } catch {
+          setExpired(true);
+          setLoading(false);
+          return;
         }
       }
 
-      if (!userId) {
+      // Fallback: try report_shares (temporary 48h links from teleconsultation)
+      const { data: shareData } = await supabase.from("report_shares").select("*").eq("token", token).maybeSingle();
+
+      let resolvedUserId: string | null = null;
+
+      if (shareData && new Date(shareData.expires_at) >= new Date()) {
+        resolvedUserId = shareData.user_id;
+        if (!shareData.accessed_at) {
+          await supabase.from("report_shares").update({ accessed_at: new Date().toISOString() } as any).eq("id", shareData.id);
+        }
+      }
+
+      if (!resolvedUserId) {
+        // No code and no valid share = expired/invalid
         setExpired(true);
         setLoading(false);
         return;
       }
 
+      setUserId(resolvedUserId);
+
       // Fetch patient data
       const { data: prof } = await supabase.from("profiles")
         .select("full_name, birth_date, has_hypertension, has_diabetes, biological_sex")
-        .eq("user_id", userId).maybeSingle();
+        .eq("user_id", resolvedUserId).maybeSingle();
       setProfile(prof);
 
       const { data: sc } = await supabase.from("health_scores").select("*")
-        .eq("user_id", userId).order("generated_at", { ascending: false }).limit(1);
+        .eq("user_id", resolvedUserId).order("generated_at", { ascending: false }).limit(1);
       if (sc && sc.length > 0) setScores(sc[0]);
 
       const { data: al } = await supabase.from("health_alerts").select("*")
-        .eq("user_id", userId).is("dismissed_at", null)
+        .eq("user_id", resolvedUserId).is("dismissed_at", null)
         .order("generated_at", { ascending: false }).limit(5);
       setAlerts(al || []);
 
@@ -118,7 +139,9 @@ export default function ProfessionalReport() {
         <p style={{ fontSize: 13, color: "var(--rpt-text-secondary)", textAlign: "center" }}>
           {unauthorized
             ? "Este relatório não está vinculado ao seu cadastro profissional. Solicite ao paciente um novo link de acesso."
-            : "Este link de acesso ao relatório não é mais válido. Solicite um novo link ao paciente."}
+            : expired && accessCode
+              ? "O código de acesso expirou (válido por 5 minutos). Solicite um novo acesso pelo sistema."
+              : "Este link de acesso ao relatório não é mais válido. Solicite um novo link ao paciente."}
         </p>
       </div>
     );
@@ -145,11 +168,11 @@ export default function ProfessionalReport() {
   ];
 
   const handleSaveNote = async () => {
-    if (!share || saving) return;
+    if (!userId || saving) return;
     setSaving(true);
     try {
       await supabase.from("clinical_notes").insert({
-        user_id: share.user_id,
+        user_id: userId,
         note_text: noteText,
       } as any);
       toast({ title: "Nota salva com sucesso" });
