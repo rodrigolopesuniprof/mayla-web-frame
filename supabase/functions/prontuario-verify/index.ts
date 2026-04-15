@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -51,13 +55,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build report URL with pid for security validation
-    const reportUrl = `${url.origin}/relatorio/medico/${connection.report_token}?pid=${encodeURIComponent(connection.external_professional_id)}`;
+    // Generate a single-use access_code (valid 5 min)
+    const accessCode = crypto.randomUUID();
+    const { error: insertErr } = await supabase.from("report_access_codes").insert({
+      report_token: connection.report_token,
+      access_code: accessCode,
+      professional_id: connection.external_professional_id,
+    });
+
+    if (insertErr) {
+      console.error("Failed to create access_code:", insertErr);
+      return new Response(JSON.stringify({ authorized: false, error: "Failed to generate access code" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Build report URL with temporary code (no pid exposed)
+    const reportUrl = `${url.origin}/relatorio/medico/${connection.report_token}?code=${accessCode}`;
 
     return new Response(JSON.stringify({
       authorized: true,
       professional_id: connection.external_professional_id,
       professional_name: connection.external_professional_name,
+      access_code: accessCode,
       report_url: reportUrl,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

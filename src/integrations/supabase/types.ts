@@ -2116,6 +2116,33 @@ export type Database = {
         }
         Relationships: []
       }
+      report_access_codes: {
+        Row: {
+          access_code: string
+          created_at: string
+          id: string
+          professional_id: string
+          report_token: string
+          used: boolean
+        }
+        Insert: {
+          access_code?: string
+          created_at?: string
+          id?: string
+          professional_id: string
+          report_token: string
+          used?: boolean
+        }
+        Update: {
+          access_code?: string
+          created_at?: string
+          id?: string
+          professional_id?: string
+          report_token?: string
+          used?: boolean
+        }
+        Relationships: []
+      }
       report_shares: {
         Row: {
           accessed_at: string | null
