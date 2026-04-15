@@ -127,9 +127,9 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
   const [infoSheet, setInfoSheet] = useState<{ open: boolean; key: string }>({ open: false, key: "score" });
 
   useEffect(() => {
-    if (!user) return;
+    if (!targetUserId) return;
     supabase.from("profiles").select("full_name, birth_date, has_hypertension, has_diabetes, company_id")
-      .eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      .eq("user_id", targetUserId).maybeSingle().then(({ data }) => {
         setProfile(data);
         // Fetch company surveys/campaigns
         if (data?.company_id) {
@@ -144,11 +144,11 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
           setCompanySurveys([]);
         }
       });
-    supabase.from("health_scores").select("*").eq("user_id", user.id)
+    supabase.from("health_scores").select("*").eq("user_id", targetUserId)
       .order("generated_at", { ascending: false }).limit(1).then(({ data }) => {
         if (data && data.length > 0) setScores(data[0]);
       });
-    supabase.from("health_alerts").select("*").eq("user_id", user.id)
+    supabase.from("health_alerts").select("*").eq("user_id", targetUserId)
       .is("dismissed_at", null).order("generated_at", { ascending: false }).limit(5)
       .then(({ data }) => setAlerts(data || []));
 
@@ -158,13 +158,13 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
 
     const measurementsPromise = supabase.from("health_measurements")
       .select("heart_rate, stress_level, spo2, blood_pressure_sys, blood_pressure_dia, respiratory_rate, hrv, measured_at, measurement_type, source")
-      .eq("user_id", user.id)
+      .eq("user_id", targetUserId)
       .gte("measured_at", weekAgo.toISOString())
       .order("measured_at", { ascending: true });
 
     const specialPromise = supabase.from("special_measurements" as any)
       .select("measurement_data, measured_at")
-      .eq("user_id", user.id)
+      .eq("user_id", targetUserId)
       .gte("measured_at", weekAgo.toISOString())
       .order("measured_at", { ascending: true });
 
@@ -254,7 +254,7 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
       });
       setTimelineGroups(Array.from(groups.values()));
     });
-  }, [user]);
+  }, [targetUserId]);
 
   const handleShare = async () => {
     if (!user || sharing) return;
