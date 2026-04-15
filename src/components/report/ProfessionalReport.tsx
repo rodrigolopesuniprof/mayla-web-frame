@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { ScoreRing } from "./ScoreRing";
+import { AlertCard } from "./AlertCard";
+import { TimelineItem } from "./TimelineItem";
 import { AlertCard } from "./AlertCard";
 import { TimelineItem } from "./TimelineItem";
 import { toast } from "@/hooks/use-toast";
@@ -24,6 +27,7 @@ function formatDateRange() {
 type TabId = "resumo" | "sinais" | "historico" | "nota";
 
 export default function ProfessionalReport() {
+  const { user } = useAuth();
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
@@ -43,26 +47,20 @@ export default function ProfessionalReport() {
   useEffect(() => {
     if (!token) return;
     (async () => {
-      // If we have an access_code, use the secure POST flow
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const fnUrl = `https://${projectId}.supabase.co/functions/v1/report-access`;
+
+      // ─── Path 1: access_code from URL (legacy/Meddit temp codes) ───
       if (accessCode) {
         try {
-          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-          const resp = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/report-access`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token, access_code: accessCode }),
-            }
-          );
+          const resp = await fetch(fnUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, access_code: accessCode }),
+          });
 
           if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            if (resp.status === 403) {
-              setExpired(true);
-            } else {
-              setUnauthorized(true);
-            }
+            resp.status === 403 ? setExpired(true) : setUnauthorized(true);
             setLoading(false);
             return;
           }
@@ -81,7 +79,38 @@ export default function ProfessionalReport() {
         }
       }
 
-      // Fallback: try report_shares (temporary 48h links from teleconsultation)
+      // ─── Path 2: Authenticated Mayla professional (JWT) ───
+      if (user) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const jwt = sessionData?.session?.access_token;
+          if (jwt) {
+            const resp = await fetch(fnUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${jwt}`,
+              },
+              body: JSON.stringify({ token }),
+            });
+
+            if (resp.ok) {
+              const data = await resp.json();
+              setUserId(data.user_id);
+              setProfile(data.profile);
+              setScores(data.scores);
+              setAlerts(data.alerts || []);
+              setLoading(false);
+              return;
+            }
+            // If 403, fall through to report_shares
+          }
+        } catch {
+          // fall through
+        }
+      }
+
+      // ─── Path 3: Fallback to report_shares (temporary 48h links from teleconsultation) ───
       const { data: shareData } = await supabase.from("report_shares").select("*").eq("token", token).maybeSingle();
 
       let resolvedUserId: string | null = null;
@@ -94,7 +123,6 @@ export default function ProfessionalReport() {
       }
 
       if (!resolvedUserId) {
-        // No code and no valid share = expired/invalid
         setExpired(true);
         setLoading(false);
         return;
@@ -102,7 +130,6 @@ export default function ProfessionalReport() {
 
       setUserId(resolvedUserId);
 
-      // Fetch patient data
       const { data: prof } = await supabase.from("profiles")
         .select("full_name, birth_date, has_hypertension, has_diabetes, biological_sex")
         .eq("user_id", resolvedUserId).maybeSingle();
@@ -119,7 +146,7 @@ export default function ProfessionalReport() {
 
       setLoading(false);
     })();
-  }, [token]);
+  }, [token, user]);
 
   if (loading) {
     return (

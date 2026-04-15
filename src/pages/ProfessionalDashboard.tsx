@@ -8,6 +8,7 @@ import { TodayConsultations } from "@/components/professional/TodayConsultations
 import { ConsultationHistory } from "@/components/professional/ConsultationHistory";
 import { OperationalAlerts } from "@/components/professional/OperationalAlerts";
 import { AvailabilityEditor } from "@/components/professional/AvailabilityEditor";
+import { LinkedPatients } from "@/components/professional/LinkedPatients";
 import { JitsiConsultationScreen } from "@/components/mayla/JitsiConsultationScreen";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -195,12 +196,15 @@ export default function ProfessionalDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="queue">
-          <TabsList className="w-full grid grid-cols-4">
+          <TabsList className="w-full grid grid-cols-5">
             <TabsTrigger value="queue" className="text-xs sm:text-sm">
               🔔 Fila {queueCount > 0 && `(${queueCount})`}
             </TabsTrigger>
             <TabsTrigger value="today" className="text-xs sm:text-sm">
               📅 Hoje
+            </TabsTrigger>
+            <TabsTrigger value="patients" className="text-xs sm:text-sm">
+              👥 Pacientes
             </TabsTrigger>
             <TabsTrigger value="availability" className="text-xs sm:text-sm">
               🕐 Horários
@@ -223,6 +227,10 @@ export default function ProfessionalDashboard() {
               partnerId={partner.id}
               onStartCall={(c) => setActiveCall(c)}
             />
+          </TabsContent>
+
+          <TabsContent value="patients" className="mt-4">
+            <LinkedPatients partnerId={partner.id} />
           </TabsContent>
 
           <TabsContent value="availability" className="mt-4">
