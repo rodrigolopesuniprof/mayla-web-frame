@@ -1,29 +1,49 @@
 
 
-# Plano: Vincular paciente ao partner correto do profissional logado
+# Plano: Corrigir nome do paciente e embutir relatório no painel
 
-## Diagnóstico
+## Problemas identificados
 
-Existem dois registros "João Lopes" na tabela `partners`:
+### 1. Nome em branco ("Paciente")
+O `LinkedPatients` busca o nome do paciente na tabela `profiles` via cliente autenticado do profissional. Mas as policies RLS de `profiles` só permitem que o usuário veja **seu próprio** perfil. O profissional (João Lopes) não tem permissão para ler o perfil do paciente (Machado de Assis) — a query retorna vazio.
 
-| Partner ID | user_id | Observação |
-|---|---|---|
-| `c5d288e5-fafc-4758-bb54-f409baf60be0` | NULL | Tem a conexão do Machado de Assis |
-| `5127cad9-1ebb-4e52-b834-8db2dcba934f` | `430b6c87-...` | É o que o profissional logado usa |
+**Correção**: Nova RLS policy em `profiles` que permite ao profissional ler nomes de pacientes vinculados via `prontuario_connections`.
 
-O painel profissional busca o partner por `user_id = auth.uid()`, encontra `5127cad9`. Mas a `prontuario_connection` do Machado de Assis aponta para `c5d288e5`. Resultado: o LinkedPatients não mostra nada.
+### 2. Relatório não carrega (ERR_BLOCKED_BY_RESPONSE)
+Dois problemas:
+- A edge function `report-access` usa `userClient.auth.getClaims(tokenStr)` — esse método **não existe** no Supabase JS SDK v2. Isso causa erro 401 imediato.
+- O `window.open` abre em nova aba, mas o usuário quer o relatório **embutido na mesma tela**.
 
-## Solução
+**Correção**:
+- Substituir `getClaims` por `getUser()` na edge function.
+- Embutir o `ProfessionalReport` diretamente no painel (inline, sem abrir nova aba), usando o modo embed já existente.
 
-Consolidar os dois registros: atualizar a conexão do Machado de Assis para apontar para o partner correto (`5127cad9`), que é o que tem `user_id` vinculado e é usado pelo painel. Opcionalmente desativar o partner duplicado sem `user_id`.
+## Mudanças
 
-## Mudanças (dados, não schema)
+### 1. Migração: RLS para profissionais lerem nomes de pacientes vinculados
+```sql
+CREATE POLICY "Professionals can view linked patient profiles"
+ON public.profiles FOR SELECT TO authenticated
+USING (
+  user_id IN (
+    SELECT pc.user_id FROM prontuario_connections pc
+    WHERE pc.active = true
+    AND pc.internal_partner_id IN (
+      SELECT id FROM partners WHERE user_id = auth.uid()
+    )
+  )
+);
+```
 
-1. **UPDATE** `prontuario_connections` SET `internal_partner_id = '5127cad9-1ebb-4e52-b834-8db2dcba934f'` WHERE `id = '63092987-f87e-4ceb-b7aa-a773d046a7d4'`
-2. **UPDATE** `partners` SET `active = false` WHERE `id = 'c5d288e5-fafc-4758-bb54-f409baf60be0'` (desativar o duplicado sem user_id)
+### 2. Edge function `report-access` — corrigir autenticação
+- Substituir `getClaims(tokenStr)` por `getUser()` que retorna o user com `id` (sub).
 
-Após isso, quando o João Lopes logado acessar o painel, o `LinkedPatients` buscará `prontuario_connections` com `internal_partner_id = 5127cad9` e encontrará o Machado de Assis.
+### 3. `LinkedPatients.tsx` — embutir relatório inline
+- Ao clicar "Ver relatório", em vez de `window.open`, mostrar o `ProfessionalReport` embutido na mesma tela (com botão "Voltar").
+- Usar o modo embed (`?view=embed`) para layout compacto.
 
 ## Arquivos afetados
-- Nenhum arquivo de código precisa mudar — apenas dados no banco via insert tool (UPDATE)
+- Nova migração SQL (RLS profiles)
+- `supabase/functions/report-access/index.ts` (corrigir getClaims → getUser)
+- `src/components/professional/LinkedPatients.tsx` (relatório inline)
 
