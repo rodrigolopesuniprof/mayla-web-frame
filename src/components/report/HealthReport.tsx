@@ -315,6 +315,11 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
       {/* TOPBAR */}
       <div className="rpt-topbar">
         <div className="rpt-topbar-meta">
+          {onBack && (
+            <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--rpt-text-secondary)", fontSize: 13, display: "flex", alignItems: "center", gap: 4, padding: 0, marginBottom: 6 }}>
+              ← Voltar
+            </button>
+          )}
           <span className="rpt-topbar-title">Relatório de saúde</span>
           <span className="rpt-week-chip">{formatDateRange()}</span>
         </div>
@@ -324,15 +329,17 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
             <div className="rpt-patient-name">{profile?.full_name || "Carregando..."}</div>
             <div className="rpt-patient-meta">{metaText || "Sem dados clínicos"}</div>
           </div>
-          <button className="rpt-share-btn" onClick={handleShare} disabled={sharing}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            Compartilhar
-          </button>
+          {!embedMode && (
+            <button className="rpt-share-btn" onClick={handleShare} disabled={sharing}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              Compartilhar
+            </button>
+          )}
         </div>
       </div>
 
       {/* EMPTY DATA BANNER */}
-      {!scores && (
+      {!scores && !embedMode && (
         <div className="rpt-empty-banner">
           <div className="rpt-empty-icon">ℹ️</div>
           <div className="rpt-empty-content">
