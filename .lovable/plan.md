@@ -1,49 +1,44 @@
 
 
-# Plano: Corrigir nome do paciente e embutir relatório no painel
+# Plano: Unificar relatório — médico vê o mesmo template do paciente
 
-## Problemas identificados
+## Problema
 
-### 1. Nome em branco ("Paciente")
-O `LinkedPatients` busca o nome do paciente na tabela `profiles` via cliente autenticado do profissional. Mas as policies RLS de `profiles` só permitem que o usuário veja **seu próprio** perfil. O profissional (João Lopes) não tem permissão para ler o perfil do paciente (Machado de Assis) — a query retorna vazio.
+O componente `LinkedPatients` (painel profissional) carrega `ProfessionalReport` — um template clínico antigo com layout diferente. O usuário quer que o médico veja **exatamente** o mesmo relatório que o paciente vê em `/relatorio` (`HealthReport`).
 
-**Correção**: Nova RLS policy em `profiles` que permite ao profissional ler nomes de pacientes vinculados via `prontuario_connections`.
+## Solução
 
-### 2. Relatório não carrega (ERR_BLOCKED_BY_RESPONSE)
-Dois problemas:
-- A edge function `report-access` usa `userClient.auth.getClaims(tokenStr)` — esse método **não existe** no Supabase JS SDK v2. Isso causa erro 401 imediato.
-- O `window.open` abre em nova aba, mas o usuário quer o relatório **embutido na mesma tela**.
+### 1. `HealthReport.tsx` — aceitar `userIdOverride` prop
 
-**Correção**:
-- Substituir `getClaims` por `getUser()` na edge function.
-- Embutir o `ProfessionalReport` diretamente no painel (inline, sem abrir nova aba), usando o modo embed já existente.
+Atualmente o componente usa `user.id` (do `useAuth`) em todas as queries. Vou adicionar:
 
-## Mudanças
-
-### 1. Migração: RLS para profissionais lerem nomes de pacientes vinculados
-```sql
-CREATE POLICY "Professionals can view linked patient profiles"
-ON public.profiles FOR SELECT TO authenticated
-USING (
-  user_id IN (
-    SELECT pc.user_id FROM prontuario_connections pc
-    WHERE pc.active = true
-    AND pc.internal_partner_id IN (
-      SELECT id FROM partners WHERE user_id = auth.uid()
-    )
-  )
-);
+```tsx
+interface HealthReportProps {
+  userIdOverride?: string;  // quando informado, carrega dados deste paciente
+  embedMode?: boolean;      // esconde botões de compartilhar/navegar
+  onBack?: () => void;      // botão voltar (para uso embutido)
+}
 ```
 
-### 2. Edge function `report-access` — corrigir autenticação
-- Substituir `getClaims(tokenStr)` por `getUser()` que retorna o user com `id` (sub).
+- Se `userIdOverride` está presente, usa esse ID em vez de `user.id` para todas as queries (profiles, scores, alerts, measurements)
+- Se `embedMode`, esconde o botão "Compartilhar" e o banner de "primeira medição"
+- Se `onBack`, mostra botão "Voltar" no topo
 
-### 3. `LinkedPatients.tsx` — embutir relatório inline
-- Ao clicar "Ver relatório", em vez de `window.open`, mostrar o `ProfessionalReport` embutido na mesma tela (com botão "Voltar").
-- Usar o modo embed (`?view=embed`) para layout compacto.
+### 2. `LinkedPatients.tsx` — usar `HealthReport` em vez de `ProfessionalReport`
+
+Trocar o import de `ProfessionalReport` por `HealthReport`, passando:
+- `userIdOverride={connection.user_id}` (o paciente vinculado)
+- `embedMode={true}`
+- `onBack={() => setViewingToken(null)}`
+
+O `report-access` edge function não será mais chamado pelo frontend neste fluxo — o profissional já tem permissão via RLS para ler os dados do paciente vinculado (policy criada na última migração).
+
+### 3. Ajuste RLS
+
+A policy de `profiles` já existe. Preciso verificar se as tabelas `health_scores`, `health_alerts`, `health_measurements` e `special_measurements` também permitem leitura pelo profissional vinculado. Se não, criar policies equivalentes.
 
 ## Arquivos afetados
-- Nova migração SQL (RLS profiles)
-- `supabase/functions/report-access/index.ts` (corrigir getClaims → getUser)
-- `src/components/professional/LinkedPatients.tsx` (relatório inline)
+- `src/components/report/HealthReport.tsx` — adicionar props `userIdOverride`, `embedMode`, `onBack`
+- `src/components/professional/LinkedPatients.tsx` — trocar `ProfessionalReport` por `HealthReport`
+- Nova migração SQL — RLS policies para health_scores, health_alerts, health_measurements, special_measurements (se necessário)
 
