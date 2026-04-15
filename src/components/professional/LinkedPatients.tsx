@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const ProfessionalReport = lazy(() => import("@/components/report/ProfessionalReport"));
+const HealthReport = lazy(() => import("@/components/report/HealthReport"));
 
 interface LinkedPatient {
   id: string;
@@ -18,7 +18,7 @@ interface LinkedPatient {
 export function LinkedPatients({ partnerId }: { partnerId: string }) {
   const [patients, setPatients] = useState<LinkedPatient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewingToken, setViewingToken] = useState<string | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetch = async () => {
@@ -49,10 +49,10 @@ export function LinkedPatients({ partnerId }: { partnerId: string }) {
   }, [partnerId]);
 
   // Inline report view
-  if (viewingToken) {
+  if (viewingUserId) {
     return (
       <div className="space-y-3">
-        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setViewingToken(null)}>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setViewingUserId(null)}>
           ← Voltar à lista de pacientes
         </Button>
         <Suspense fallback={
@@ -61,7 +61,7 @@ export function LinkedPatients({ partnerId }: { partnerId: string }) {
             <p className="text-xs text-muted-foreground">Carregando relatório...</p>
           </div>
         }>
-          <ProfessionalReport tokenOverride={viewingToken} embedMode onBack={() => setViewingToken(null)} />
+          <HealthReport userIdOverride={viewingUserId} embedMode onBack={() => setViewingUserId(null)} />
         </Suspense>
       </div>
     );
@@ -103,7 +103,7 @@ export function LinkedPatients({ partnerId }: { partnerId: string }) {
             </div>
           </div>
           <Badge variant="outline" className="text-[10px] shrink-0">Ativo</Badge>
-          <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setViewingToken(p.report_token)}>
+          <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setViewingUserId(p.user_id)}>
             Ver relatório
           </Button>
         </div>
