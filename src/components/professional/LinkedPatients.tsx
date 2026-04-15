@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+const ProfessionalReport = lazy(() => import("@/components/report/ProfessionalReport"));
 
 interface LinkedPatient {
   id: string;
@@ -16,6 +18,7 @@ interface LinkedPatient {
 export function LinkedPatients({ partnerId }: { partnerId: string }) {
   const [patients, setPatients] = useState<LinkedPatient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingToken, setViewingToken] = useState<string | null>(null);
 
   useEffect(() => {
     const fetch = async () => {
@@ -27,7 +30,6 @@ export function LinkedPatients({ partnerId }: { partnerId: string }) {
         .order("created_at", { ascending: false });
 
       if (data && data.length > 0) {
-        // Fetch profile names for each user
         const userIds = [...new Set((data as any[]).map((d: any) => d.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
@@ -46,9 +48,24 @@ export function LinkedPatients({ partnerId }: { partnerId: string }) {
     fetch();
   }, [partnerId]);
 
-  const handleOpenReport = (reportToken: string) => {
-    window.open(`/relatorio/medico/${reportToken}`, "_blank");
-  };
+  // Inline report view
+  if (viewingToken) {
+    return (
+      <div className="space-y-3">
+        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setViewingToken(null)}>
+          ← Voltar à lista de pacientes
+        </Button>
+        <Suspense fallback={
+          <div className="py-10 text-center">
+            <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">Carregando relatório...</p>
+          </div>
+        }>
+          <ProfessionalReport tokenOverride={viewingToken} embedMode onBack={() => setViewingToken(null)} />
+        </Suspense>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -86,7 +103,7 @@ export function LinkedPatients({ partnerId }: { partnerId: string }) {
             </div>
           </div>
           <Badge variant="outline" className="text-[10px] shrink-0">Ativo</Badge>
-          <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => handleOpenReport(p.report_token)}>
+          <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setViewingToken(p.report_token)}>
             Ver relatório
           </Button>
         </div>
