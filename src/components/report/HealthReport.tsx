@@ -520,27 +520,34 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
           <div className="rpt-rec-eyebrow">Com base nos dados da semana</div>
           <div className="rpt-rec-title">{rec.title}</div>
           <div className="rpt-rec-body">{rec.body}</div>
-          <button className="rpt-rec-btn" onClick={handleShare}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            Compartilhar com médico (48h)
-          </button>
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <span style={{ fontSize: 12, color: "var(--rpt-text-secondary)" }}>
-              ou gerencie o acesso permanente em{" "}
-              <span style={{ color: "var(--rpt-blue)", cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate("/")}>
-                Perfil → Meus Médicos
-              </span>
-            </span>
-          </div>
+          {!embedMode && (
+            <>
+              <button className="rpt-rec-btn" onClick={handleShare}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Compartilhar com médico (48h)
+              </button>
+              <div style={{ textAlign: "center", marginTop: 10 }}>
+                <span style={{ fontSize: 12, color: "var(--rpt-text-secondary)" }}>
+                  ou gerencie o acesso permanente em{" "}
+                  <span style={{ color: "var(--rpt-blue)", cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate("/")}>
+                    Perfil → Meus Médicos
+                  </span>
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="rpt-nav-spacer" />
-
-      <ReportBottomNav activeTab="relatorio" onNavigate={(tab) => {
-        if (tab === "inicio") navigate("/");
-        else if (tab === "perfil") navigate("/");
-      }} />
+      {!embedMode && (
+        <>
+          <div className="rpt-nav-spacer" />
+          <ReportBottomNav activeTab="relatorio" onNavigate={(tab) => {
+            if (tab === "inicio") navigate("/");
+            else if (tab === "perfil") navigate("/");
+          }} />
+        </>
+      )}
     </div>
   );
 }
