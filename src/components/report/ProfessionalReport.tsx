@@ -5,8 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ScoreRing } from "./ScoreRing";
 import { AlertCard } from "./AlertCard";
 import { TimelineItem } from "./TimelineItem";
-import { AlertCard } from "./AlertCard";
-import { TimelineItem } from "./TimelineItem";
 import { toast } from "@/hooks/use-toast";
 import "./report.css";
 
