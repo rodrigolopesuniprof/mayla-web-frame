@@ -107,9 +107,16 @@ function buildBarData(values: number[], pctValues: number[], dates: string[]): B
   }));
 }
 
-export default function HealthReport() {
+interface HealthReportProps {
+  userIdOverride?: string;
+  embedMode?: boolean;
+  onBack?: () => void;
+}
+
+export default function HealthReport({ userIdOverride, embedMode, onBack }: HealthReportProps = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const targetUserId = userIdOverride || user?.id;
   const [profile, setProfile] = useState<any>(null);
   const [scores, setScores] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -120,9 +127,9 @@ export default function HealthReport() {
   const [infoSheet, setInfoSheet] = useState<{ open: boolean; key: string }>({ open: false, key: "score" });
 
   useEffect(() => {
-    if (!user) return;
+    if (!targetUserId) return;
     supabase.from("profiles").select("full_name, birth_date, has_hypertension, has_diabetes, company_id")
-      .eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      .eq("user_id", targetUserId).maybeSingle().then(({ data }) => {
         setProfile(data);
         // Fetch company surveys/campaigns
         if (data?.company_id) {
@@ -137,11 +144,11 @@ export default function HealthReport() {
           setCompanySurveys([]);
         }
       });
-    supabase.from("health_scores").select("*").eq("user_id", user.id)
+    supabase.from("health_scores").select("*").eq("user_id", targetUserId)
       .order("generated_at", { ascending: false }).limit(1).then(({ data }) => {
         if (data && data.length > 0) setScores(data[0]);
       });
-    supabase.from("health_alerts").select("*").eq("user_id", user.id)
+    supabase.from("health_alerts").select("*").eq("user_id", targetUserId)
       .is("dismissed_at", null).order("generated_at", { ascending: false }).limit(5)
       .then(({ data }) => setAlerts(data || []));
 
@@ -151,13 +158,13 @@ export default function HealthReport() {
 
     const measurementsPromise = supabase.from("health_measurements")
       .select("heart_rate, stress_level, spo2, blood_pressure_sys, blood_pressure_dia, respiratory_rate, hrv, measured_at, measurement_type, source")
-      .eq("user_id", user.id)
+      .eq("user_id", targetUserId)
       .gte("measured_at", weekAgo.toISOString())
       .order("measured_at", { ascending: true });
 
     const specialPromise = supabase.from("special_measurements" as any)
       .select("measurement_data, measured_at")
-      .eq("user_id", user.id)
+      .eq("user_id", targetUserId)
       .gte("measured_at", weekAgo.toISOString())
       .order("measured_at", { ascending: true });
 
@@ -247,7 +254,7 @@ export default function HealthReport() {
       });
       setTimelineGroups(Array.from(groups.values()));
     });
-  }, [user]);
+  }, [targetUserId]);
 
   const handleShare = async () => {
     if (!user || sharing) return;
@@ -308,6 +315,11 @@ export default function HealthReport() {
       {/* TOPBAR */}
       <div className="rpt-topbar">
         <div className="rpt-topbar-meta">
+          {onBack && (
+            <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--rpt-text-secondary)", fontSize: 13, display: "flex", alignItems: "center", gap: 4, padding: 0, marginBottom: 6 }}>
+              ← Voltar
+            </button>
+          )}
           <span className="rpt-topbar-title">Relatório de saúde</span>
           <span className="rpt-week-chip">{formatDateRange()}</span>
         </div>
@@ -317,15 +329,17 @@ export default function HealthReport() {
             <div className="rpt-patient-name">{profile?.full_name || "Carregando..."}</div>
             <div className="rpt-patient-meta">{metaText || "Sem dados clínicos"}</div>
           </div>
-          <button className="rpt-share-btn" onClick={handleShare} disabled={sharing}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            Compartilhar
-          </button>
+          {!embedMode && (
+            <button className="rpt-share-btn" onClick={handleShare} disabled={sharing}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              Compartilhar
+            </button>
+          )}
         </div>
       </div>
 
       {/* EMPTY DATA BANNER */}
-      {!scores && (
+      {!scores && !embedMode && (
         <div className="rpt-empty-banner">
           <div className="rpt-empty-icon">ℹ️</div>
           <div className="rpt-empty-content">
@@ -506,27 +520,34 @@ export default function HealthReport() {
           <div className="rpt-rec-eyebrow">Com base nos dados da semana</div>
           <div className="rpt-rec-title">{rec.title}</div>
           <div className="rpt-rec-body">{rec.body}</div>
-          <button className="rpt-rec-btn" onClick={handleShare}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            Compartilhar com médico (48h)
-          </button>
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <span style={{ fontSize: 12, color: "var(--rpt-text-secondary)" }}>
-              ou gerencie o acesso permanente em{" "}
-              <span style={{ color: "var(--rpt-blue)", cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate("/")}>
-                Perfil → Meus Médicos
-              </span>
-            </span>
-          </div>
+          {!embedMode && (
+            <>
+              <button className="rpt-rec-btn" onClick={handleShare}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 2L14 6L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13C2 10.2 4.2 8 7 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Compartilhar com médico (48h)
+              </button>
+              <div style={{ textAlign: "center", marginTop: 10 }}>
+                <span style={{ fontSize: 12, color: "var(--rpt-text-secondary)" }}>
+                  ou gerencie o acesso permanente em{" "}
+                  <span style={{ color: "var(--rpt-blue)", cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate("/")}>
+                    Perfil → Meus Médicos
+                  </span>
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="rpt-nav-spacer" />
-
-      <ReportBottomNav activeTab="relatorio" onNavigate={(tab) => {
-        if (tab === "inicio") navigate("/");
-        else if (tab === "perfil") navigate("/");
-      }} />
+      {!embedMode && (
+        <>
+          <div className="rpt-nav-spacer" />
+          <ReportBottomNav activeTab="relatorio" onNavigate={(tab) => {
+            if (tab === "inicio") navigate("/");
+            else if (tab === "perfil") navigate("/");
+          }} />
+        </>
+      )}
     </div>
   );
 }
