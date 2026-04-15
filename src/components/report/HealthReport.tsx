@@ -107,9 +107,16 @@ function buildBarData(values: number[], pctValues: number[], dates: string[]): B
   }));
 }
 
-export default function HealthReport() {
+interface HealthReportProps {
+  userIdOverride?: string;
+  embedMode?: boolean;
+  onBack?: () => void;
+}
+
+export default function HealthReport({ userIdOverride, embedMode, onBack }: HealthReportProps = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const targetUserId = userIdOverride || user?.id;
   const [profile, setProfile] = useState<any>(null);
   const [scores, setScores] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
