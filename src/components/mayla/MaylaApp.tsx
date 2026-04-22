@@ -71,6 +71,10 @@ export function MaylaApp() {
                 consultation={{ ...activeVideoCall, consultationMode: "online" }}
                 onLeave={() => setActiveVideoCall(null)}
               />
+            ) : showAssistant ? (
+              <HealthAssistantChat onBack={() => setShowAssistant(false)} />
+            ) : activeArticleId ? (
+              <HealthMagazineArticle articleId={activeArticleId} onBack={() => setActiveArticleId(null)} />
             ) : showTelemedicine ? (
               <TelemedicineScreen onBack={() => setShowTelemedicine(false)} />
             ) : showAppointment ? (
@@ -96,6 +100,8 @@ export function MaylaApp() {
                       setActiveTab("servicos");
                       setConsultOnlineMode(true);
                     }}
+                    onOpenAssistant={() => setShowAssistant(true)}
+                    onOpenArticle={(id) => setActiveArticleId(id)}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
@@ -104,7 +110,7 @@ export function MaylaApp() {
                 {activeTab === "perfil" && <ProfileTab />}
               </div>
             )}
-            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setActiveTab(t); }} />
+            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setActiveTab(t); }} />
           </>
         )}
       </div>
