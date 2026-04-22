@@ -421,6 +421,10 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       </div>
 
 
+
+      {/* Health Magazine Carousel */}
+      {onOpenArticle && <HealthMagazineCarousel onOpenArticle={onOpenArticle} />}
+
       {/* Alerts */}
       {alerts.length > 0 &&
         <div className="px-5">
