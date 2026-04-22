@@ -13,7 +13,7 @@ interface Article {
   company_id: string | null;
 }
 
-export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: string) => void }) {
+export function HealthMagazineCarousel({ onOpenArticle, onOpenAll }: { onOpenArticle: (id: string) => void; onOpenAll?: () => void }) {
   const [articles, setArticles] = useState<Article[]>([]);
 
   useEffect(() => {
