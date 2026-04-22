@@ -150,7 +150,7 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
         <button onClick={onBack} className="text-2xl text-foreground active:opacity-60" aria-label="Voltar">‹</button>
         <div className="flex-1">
           <div className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
-            <span>✨</span> Assistente Mayla
+            <span>👩‍⚕️</span> Mayla, sua enfermeira digital
           </div>
           <div className="text-xs text-muted-foreground">Educacional · não substitui consulta médica</div>
         </div>
@@ -160,10 +160,10 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="space-y-4">
-            <div className="bg-secondary rounded-2xl p-4">
-              <div className="text-2xl mb-2">👋</div>
+            <div className="bg-secondary rounded-2xl p-4 flex gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-xl">👩‍⚕️</div>
               <p className="text-sm text-foreground leading-relaxed">
-                Olá! Sou a <strong>Mayla</strong>, sua assistente digital de saúde. Posso explicar seus indicadores, ajudar a entender seus dados e sugerir cuidados gerais. Não faço diagnósticos nem prescrevo.
+                Olá! Sou a <strong>Mayla</strong>, sua <strong>enfermeira digital</strong>. Posso explicar seus indicadores, ajudar a entender seus dados e orientar cuidados gerais de saúde. Não faço diagnósticos nem prescrevo medicamentos.
               </p>
             </div>
             <div className="space-y-2">
@@ -182,8 +182,11 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
         )}
 
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}`}>
+          <div key={i} className={`flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            {m.role === "assistant" && (
+              <div className="shrink-0 w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-base self-end mb-1" aria-label="Mayla">👩‍⚕️</div>
+            )}
+            <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}`}>
               {m.role === "assistant" ? (
                 <div className="prose prose-sm max-w-none text-foreground prose-strong:text-foreground prose-p:my-1 prose-ul:my-1 prose-li:my-0">
                   <ReactMarkdown>{m.content}</ReactMarkdown>
