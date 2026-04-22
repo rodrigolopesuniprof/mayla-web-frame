@@ -10,19 +10,9 @@ interface ChatRequest {
   conversationId?: string;
 }
 
-const SYSTEM_PROMPT = `Você é a Mayla, uma assistente digital de saúde acolhedora, em português do Brasil. Seu papel é EDUCATIVO e DESCRITIVO.
-
-REGRAS ABSOLUTAS:
-1. NUNCA forneça diagnósticos médicos.
-2. NUNCA prescreva medicamentos, dosagens ou tratamentos.
-3. SEMPRE que valores estiverem fora da faixa normal, recomende avaliação por profissional de saúde.
-4. Use tom acolhedor, claro e empático.
-5. Use respostas curtas e objetivas, com markdown leve (negrito, listas) quando ajudar a clareza.
-6. Se o usuário descrever sintomas graves (dor no peito, falta de ar súbita, perda de consciência, etc.), oriente buscar atendimento de emergência (SAMU 192) imediatamente.
-7. Você pode explicar o que cada indicador (FC, PA, SpO2, HRV, etc.) significa e comparar com faixas de referência clínica.
-8. Não invente dados. Se não souber, diga que não tem essa informação no contexto.
-
-CONTEXTO CLÍNICO DO USUÁRIO será fornecido em mensagem system separada (anonimizado, sem nome/CPF).`;
+const FALLBACK_PROMPT = `Você é a Mayla, enfermeira virtual empática. Eduque sobre indicadores de saúde, NUNCA diagnostique nem prescreva. Em emergências, oriente SAMU 192.`;
+const FALLBACK_MODEL = "gemini-2.0-flash";
+const FALLBACK_TEMPERATURE = 0.7;
 
 async function buildHealthContext(supabase: any, userId: string): Promise<{ snapshot: any; contextMsg: string }> {
   const [{ data: profile }, { data: scoreRow }, { data: measurements }, { data: alerts }] = await Promise.all([
@@ -66,6 +56,21 @@ function detectSafetyFlags(text: string): { type: string; details: any }[] {
   return flags;
 }
 
+async function loadActivePrompt(adminClient: any): Promise<{ system_prompt: string; model: string; temperature: number }> {
+  const { data } = await adminClient
+    .from("assistant_prompts")
+    .select("system_prompt, model, temperature")
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return {
+    system_prompt: data?.system_prompt ?? FALLBACK_PROMPT,
+    model: data?.model ?? FALLBACK_MODEL,
+    temperature: typeof data?.temperature === "number" ? data.temperature : FALLBACK_TEMPERATURE,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -78,18 +83,19 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY não configurada" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Auth: use getUser(token) — getClaims não existe no SDK 2.45
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: authErr } = await userClient.auth.getClaims(token);
-    if (authErr || !claims?.claims?.sub) {
+    const { data: userData, error: authErr } = await userClient.auth.getUser(token);
+    if (authErr || !userData?.user?.id) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const userId = claims.claims.sub;
+    const userId = userData.user.id;
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -98,10 +104,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "messages required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Build / reuse conversation
-    let conversationId = body.conversationId;
-    const { snapshot, contextMsg } = await buildHealthContext(adminClient, userId);
+    // Carrega prompt ativo + contexto clínico em paralelo
+    const [promptCfg, ctx] = await Promise.all([
+      loadActivePrompt(adminClient),
+      buildHealthContext(adminClient, userId),
+    ]);
+    const { snapshot, contextMsg } = ctx;
 
+    let conversationId = body.conversationId;
     if (!conversationId) {
       const { data: profile } = await adminClient.from("profiles").select("company_id").eq("user_id", userId).maybeSingle();
       const { data: conv, error: convErr } = await adminClient.from("assistant_conversations").insert({
@@ -113,7 +123,6 @@ Deno.serve(async (req) => {
       conversationId = conv.id;
     }
 
-    // Persist incoming user message (last one)
     const lastUserMsg = body.messages[body.messages.length - 1];
     if (lastUserMsg?.role === "user") {
       await adminClient.from("assistant_messages").insert({
@@ -124,54 +133,55 @@ Deno.serve(async (req) => {
     }
 
     const startedAt = Date.now();
-    const model = "google/gemini-3-flash-preview";
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Mapeia mensagens para o formato Gemini (user/model)
+    const geminiContents = body.messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${promptCfg.model}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
+    const aiResponse = await fetch(geminiUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        stream: true,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "system", content: contextMsg },
-          ...body.messages,
+        systemInstruction: { parts: [{ text: `${promptCfg.system_prompt}\n\n${contextMsg}` }] },
+        contents: geminiContents,
+        generationConfig: { temperature: promptCfg.temperature },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
         ],
       }),
     });
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Muitas requisições. Aguarde alguns instantes e tente novamente." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      const t = await aiResponse.text();
-      console.error("Gateway error:", aiResponse.status, t);
-      return new Response(JSON.stringify({ error: "Erro no gateway de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!aiResponse.ok || !aiResponse.body) {
+      const errText = await aiResponse.text().catch(() => "");
+      console.error("Gemini error:", aiResponse.status, errText);
+      const status = aiResponse.status === 429 ? 429 : aiResponse.status === 401 || aiResponse.status === 403 ? 401 : 500;
+      const message =
+        status === 429 ? "Muitas requisições. Aguarde alguns instantes." :
+        status === 401 ? "Chave Gemini inválida. Verifique GEMINI_API_KEY." :
+        "Erro ao conversar com o Gemini.";
+      return new Response(JSON.stringify({ error: message, providerStatus: aiResponse.status }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Tee the stream: pass through to client AND collect for persistence
-    const reader = aiResponse.body!.getReader();
+    const reader = aiResponse.body.getReader();
     const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
     let assistantText = "";
     let buffer = "";
 
     const stream = new ReadableStream({
       async start(controller) {
-        // Send conversation id header-equivalent as first SSE event
-        controller.enqueue(new TextEncoder().encode(`event: meta\ndata: ${JSON.stringify({ conversationId })}\n\n`));
+        controller.enqueue(encoder.encode(`event: meta\ndata: ${JSON.stringify({ conversationId })}\n\n`));
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            controller.enqueue(value);
-            buffer += chunk;
+            buffer += decoder.decode(value, { stream: true });
             let idx;
             while ((idx = buffer.indexOf("\n")) !== -1) {
               let line = buffer.slice(0, idx);
@@ -179,36 +189,41 @@ Deno.serve(async (req) => {
               if (line.endsWith("\r")) line = line.slice(0, -1);
               if (!line.startsWith("data: ")) continue;
               const json = line.slice(6).trim();
-              if (json === "[DONE]") continue;
+              if (!json || json === "[DONE]") continue;
               try {
                 const parsed = JSON.parse(json);
-                const delta = parsed.choices?.[0]?.delta?.content;
-                if (delta) assistantText += delta;
+                const parts = parsed?.candidates?.[0]?.content?.parts ?? [];
+                let delta = "";
+                for (const p of parts) if (typeof p?.text === "string") delta += p.text;
+                if (delta) {
+                  assistantText += delta;
+                  // Re-emite no formato OpenAI-like que o frontend já entende
+                  const oaiChunk = { choices: [{ delta: { content: delta } }] };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(oaiChunk)}\n\n`));
+                }
               } catch { /* partial */ }
             }
           }
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
         } catch (e) {
           console.error("stream error:", e);
         } finally {
           controller.close();
-          // Persist assistant message after stream ends
           const latency = Date.now() - startedAt;
           try {
             const { data: msg } = await adminClient.from("assistant_messages").insert({
               conversation_id: conversationId,
               role: "assistant",
               content: assistantText,
-              model,
+              model: promptCfg.model,
               latency_ms: latency,
             }).select("id").single();
 
-            // Update conversation counters
             await adminClient.from("assistant_conversations").update({
               last_message_at: new Date().toISOString(),
               message_count: (body.messages.length + 1),
             }).eq("id", conversationId);
 
-            // Safety flags
             if (msg?.id) {
               const flags = detectSafetyFlags(assistantText);
               if (flags.length > 0) {
