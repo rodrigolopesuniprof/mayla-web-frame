@@ -36,7 +36,7 @@ export function HealthMagazineCarousel({ onOpenArticle, onOpenAll }: { onOpenArt
         <div className="px-5 mb-3">
           <p className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
             <span>📰</span>
-            <span>Mayla Magazine</span>
+            <span>Saúde com Você</span>
           </p>
         </div>
         <div className="mx-5 rounded-3xl p-6 text-center border-2 border-dashed border-border bg-muted/30">
