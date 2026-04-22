@@ -140,33 +140,61 @@ Deno.serve(async (req) => {
       parts: [{ text: m.content }],
     }));
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${promptCfg.model}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
-    const aiResponse = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: `${promptCfg.system_prompt}\n\n${contextMsg}` }] },
-        contents: geminiContents,
-        generationConfig: { temperature: promptCfg.temperature },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
-        ],
-      }),
+    // Cascata de modelos: tenta o configurado, depois fallbacks conhecidos.
+    const fallbackChain = Array.from(new Set([
+      promptCfg.model,
+      "gemini-2.0-flash",
+      "gemini-2.5-flash",
+      "gemini-flash-latest",
+    ]));
+
+    const geminiPayload = JSON.stringify({
+      systemInstruction: { parts: [{ text: `${promptCfg.system_prompt}\n\n${contextMsg}` }] },
+      contents: geminiContents,
+      generationConfig: { temperature: promptCfg.temperature },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+      ],
     });
 
-    if (!aiResponse.ok || !aiResponse.body) {
-      const errText = await aiResponse.text().catch(() => "");
-      console.error("Gemini error:", aiResponse.status, errText);
-      const status = aiResponse.status === 429 ? 429 : aiResponse.status === 401 || aiResponse.status === 403 ? 401 : 500;
+    let aiResponse: Response | null = null;
+    let usedModel = promptCfg.model;
+    let lastErrText = "";
+    let lastStatus = 0;
+
+    for (const candidate of fallbackChain) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
+      console.log(`[health-assistant] trying model: ${candidate}`);
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: geminiPayload,
+      });
+      if (resp.ok && resp.body) {
+        aiResponse = resp;
+        usedModel = candidate;
+        console.log(`[health-assistant] using model: ${candidate}`);
+        break;
+      }
+      lastStatus = resp.status;
+      lastErrText = await resp.text().catch(() => "");
+      console.error(`[health-assistant] model ${candidate} failed (${resp.status}):`, lastErrText.slice(0, 300));
+      // Só faz cascata para 404 (modelo indisponível). Outros erros (401/429/5xx) param aqui.
+      if (resp.status !== 404) break;
+    }
+
+    if (!aiResponse || !aiResponse.body) {
+      const status = lastStatus === 429 ? 429 : (lastStatus === 401 || lastStatus === 403) ? 401 : 500;
       const message =
         status === 429 ? "Muitas requisições. Aguarde alguns instantes." :
         status === 401 ? "Chave Gemini inválida. Verifique GEMINI_API_KEY." :
-        "Erro ao conversar com o Gemini.";
-      return new Response(JSON.stringify({ error: message, providerStatus: aiResponse.status }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        "Erro ao conversar com o Gemini (nenhum modelo disponível).";
+      return new Response(JSON.stringify({ error: message, providerStatus: lastStatus }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    promptCfg.model = usedModel;
 
     const reader = aiResponse.body.getReader();
     const decoder = new TextDecoder();

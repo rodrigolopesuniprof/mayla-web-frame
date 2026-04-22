@@ -23,6 +23,7 @@ const MODELS = [
   { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (rápido, recomendado)" },
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro (mais preciso, mais caro)" },
+  { value: "gemini-flash-latest", label: "Gemini Flash Latest (sempre atual)" },
 ];
 
 export function AdminAssistantPrompt() {
@@ -117,6 +118,9 @@ export function AdminAssistantPrompt() {
                 {MODELS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Se o modelo escolhido falhar com 404, o sistema tenta automaticamente o próximo disponível.
+            </p>
           </div>
         </div>
 
