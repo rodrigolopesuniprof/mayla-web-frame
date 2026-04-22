@@ -20,8 +20,15 @@ REGRAS DE FORMATO (CRÍTICO):
 PERSONALIZAÇÃO: se diabetes=true priorize diabetes; hypertension=true priorize hipertensão; sem condições use dicas gerais (sono, hidratação, atividade).
 
 TOM: empático, brasileiro, claro. Use 1 emoji ocasional.`;
-const FALLBACK_MODEL = "gemini-2.0-flash";
+const FALLBACK_MODEL = "gemini-2.5-flash";
 const FALLBACK_TEMPERATURE = 0.7;
+
+// Mensagem de fallback amigável quando todos os modelos estão sobrecarregados/indisponíveis.
+const OVERLOAD_REPLY = `Estou com bastante demanda agora e não consegui processar sua pergunta com toda atenção que ela merece 🙏
+
+Enquanto isso, posso te ajudar com algumas coisas rapidinho. O que faz mais sentido pra você?
+
+[ACTIONS][{"id":"saude_geral","label":"Entender minha saúde"},{"id":"tour_app","label":"Conhecer o app"},{"id":"noticias","label":"Ver novidades de saúde"}][/ACTIONS]`;
 
 async function buildHealthContext(supabase: any, userId: string): Promise<{ snapshot: any; contextMsg: string }> {
   const [{ data: profile }, { data: scoreRow }, { data: measurements }, { data: alerts }] = await Promise.all([
@@ -152,10 +159,10 @@ Deno.serve(async (req) => {
     // Cascata de modelos: tenta o configurado, depois fallbacks conhecidos.
     const fallbackChain = Array.from(new Set([
       promptCfg.model,
-      "gemini-2.0-flash",
       "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
       "gemini-flash-latest",
-    ]));
+    ].filter((m) => m && m !== "gemini-2.0-flash"))); // remove modelo descontinuado
 
     const geminiPayload = JSON.stringify({
       systemInstruction: { parts: [{ text: `${promptCfg.system_prompt}\n\n${contextMsg}` }] },
@@ -191,17 +198,58 @@ Deno.serve(async (req) => {
       lastStatus = resp.status;
       lastErrText = await resp.text().catch(() => "");
       console.error(`[health-assistant] model ${candidate} failed (${resp.status}):`, lastErrText.slice(0, 300));
-      // Só faz cascata para 404 (modelo indisponível). Outros erros (401/429/5xx) param aqui.
-      if (resp.status !== 404) break;
+      // Faz cascata para 404 (modelo indisponível), 429 (rate limit) e 5xx (sobrecarga/erro do provider).
+      // Erros 401/403 (auth) param imediatamente.
+      const shouldFallback = resp.status === 404 || resp.status === 429 || resp.status >= 500;
+      if (!shouldFallback) break;
     }
 
+    // Se todos os modelos falharem, devolve uma resposta amigável (em vez de erro)
+    // com chips de ação para o usuário continuar interagindo.
     if (!aiResponse || !aiResponse.body) {
-      const status = lastStatus === 429 ? 429 : (lastStatus === 401 || lastStatus === 403) ? 401 : 500;
-      const message =
-        status === 429 ? "Muitas requisições. Aguarde alguns instantes." :
-        status === 401 ? "Chave Gemini inválida. Verifique GEMINI_API_KEY." :
-        "Erro ao conversar com o Gemini (nenhum modelo disponível).";
-      return new Response(JSON.stringify({ error: message, providerStatus: lastStatus }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // Erro de autenticação: ainda devolve como erro (problema de configuração).
+      if (lastStatus === 401 || lastStatus === 403) {
+        return new Response(JSON.stringify({ error: "Chave Gemini inválida. Verifique GEMINI_API_KEY.", providerStatus: lastStatus }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Sobrecarga / rate limit / 5xx → stream sintético com fallback amigável.
+      console.warn(`[health-assistant] all models failed (lastStatus=${lastStatus}), returning friendly fallback`);
+      const fallbackText = OVERLOAD_REPLY;
+      const encoder = new TextEncoder();
+      const fallbackStream = new ReadableStream({
+        async start(controller) {
+          controller.enqueue(encoder.encode(`event: meta\ndata: ${JSON.stringify({ conversationId })}\n\n`));
+          // Envia em alguns chunks para manter UX de streaming
+          const chunks = fallbackText.match(/[\s\S]{1,80}/g) || [fallbackText];
+          for (const c of chunks) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: c } }] })}\n\n`));
+            await new Promise((r) => setTimeout(r, 30));
+          }
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          controller.close();
+          // Persiste a resposta de fallback
+          try {
+            await adminClient.from("assistant_messages").insert({
+              conversation_id: conversationId,
+              role: "assistant",
+              content: fallbackText,
+              model: "fallback-overload",
+              latency_ms: Date.now() - startedAt,
+            });
+            await adminClient.from("assistant_conversations").update({
+              last_message_at: new Date().toISOString(),
+              message_count: (body.messages.length + 1),
+            }).eq("id", conversationId);
+          } catch (e) {
+            console.error("persist fallback error:", e);
+          }
+        },
+      });
+      return new Response(fallbackStream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+      });
     }
     promptCfg.model = usedModel;
 
