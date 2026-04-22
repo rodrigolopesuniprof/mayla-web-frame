@@ -15,6 +15,7 @@ import { EsfLinkScreen } from "./EsfLinkScreen";
 import { OnDemandFlow } from "./OnDemandFlow";
 import { HealthAssistantChat } from "./HealthAssistantChat";
 import { HealthMagazineArticle } from "./HealthMagazineArticle";
+import { HealthMagazineList } from "./HealthMagazineList";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { useAuth } from "@/contexts/AuthContext";
 
