@@ -30,6 +30,9 @@ const ACTION_LABELS: Record<string, { label: string; emoji: string }> = {
   dicas: { label: "Dicas de bem-estar", emoji: "🌿" },
   relatorio: { label: "Ver relatório", emoji: "📊" },
   magazine: { label: "Ver Magazine", emoji: "📰" },
+  saude_geral: { label: "Entender minha saúde", emoji: "❤️" },
+  tour_app: { label: "Conhecer o app", emoji: "✨" },
+  noticias: { label: "Novidades de saúde", emoji: "📰" },
 };
 
 function parseActions(text: string): { clean: string; actions: ActionChip[] } {
@@ -166,6 +169,18 @@ export function HealthAssistantChat({ onBack, onAction, initialMessage }: Props)
   const handleChip = (id: string) => {
     if (id === "dicas") {
       send("Quero dicas de bem-estar para hoje");
+      return;
+    }
+    if (id === "saude_geral") {
+      send("Como está minha saúde hoje?");
+      return;
+    }
+    if (id === "tour_app") {
+      send("Quero conhecer o aplicativo");
+      return;
+    }
+    if (id === "noticias") {
+      send("Quais as novidades de saúde para hoje?");
       return;
     }
     if (id === "relatorio") {
