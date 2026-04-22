@@ -128,7 +128,7 @@ export function MaylaApp() {
                 {activeTab === "perfil" && <ProfileTab />}
               </div>
             )}
-            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setActiveTab(t); }} />
+            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setShowAllArticles(false); setActiveTab(t); }} />
             {!activeVideoCall && !showAssistant && (
               <MaylaFloatingButton
                 containerRef={containerRef}
