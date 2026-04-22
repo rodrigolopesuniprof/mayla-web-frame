@@ -6,19 +6,8 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-interface NewsItem {
-  id: string;
-  title: string;
-  body: string | null;
-  emoji: string;
-  color: string;
-  external_url: string | null;
-  created_at: string;
-}
-
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle }: {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
   onOpenAppointment: () => void;
