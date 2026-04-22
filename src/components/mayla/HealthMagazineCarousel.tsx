@@ -27,7 +27,26 @@ export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: 
       });
   }, []);
 
-  if (articles.length === 0) return null;
+  if (articles.length === 0) {
+    return (
+      <div className="mb-6">
+        <div className="px-5 mb-3">
+          <p className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
+            <span>📰</span>
+            <span>Mayla Magazine</span>
+          </p>
+        </div>
+        <div className="mx-5 rounded-3xl p-6 text-center border-2 border-dashed border-border bg-muted/30">
+          <div className="text-3xl mb-2">📰</div>
+          <p className="text-sm font-semibold text-foreground mb-1">Em breve, novidades aqui</p>
+          <p className="text-xs text-muted-foreground leading-snug">
+            Artigos e dicas de saúde aparecerão neste espaço.<br />
+            <span className="text-muted-foreground/70">Admins: cadastre em <strong>Admin → Magazine</strong>.</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-6">

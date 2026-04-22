@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { TabId } from "@/lib/mayla-config";
 import { SplashScreen } from "./SplashScreen";
 import { OnboardingScreen } from "./OnboardingScreen";
@@ -33,6 +33,7 @@ export function MaylaApp() {
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (hasChecked) return;
@@ -48,7 +49,8 @@ export function MaylaApp() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-mayla-bg">
       <div
-        className="flex flex-col bg-background overflow-hidden"
+        ref={containerRef}
+        className="flex flex-col bg-background overflow-hidden relative"
         style={{
           width: "100%",
           maxWidth: 430,
@@ -121,6 +123,7 @@ export function MaylaApp() {
             <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setActiveTab(t); }} />
             {!activeVideoCall && !showAssistant && (
               <MaylaFloatingButton
+                containerRef={containerRef}
                 onAction={(action) => {
                   if (action === "consulta") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("servicos"); setConsultOnlineMode(true); }
                   else if (action === "medicao") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("bemestar"); }

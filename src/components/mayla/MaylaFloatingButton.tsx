@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, RefObject } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,16 +36,19 @@ interface FabItem {
   notification?: NotificationItem;
 }
 
-const STORAGE_KEY = "mayla_fab_position";
+const STORAGE_KEY = "mayla_fab_position_v2";
 const SEEN_KEY_PREFIX = "mayla_fab_seen_";
 const READ_NOTIF_KEY = "mayla_fab_read_notifs";
 const FAB_SIZE = 56;
+const MARGIN = 12;
+const BOTTOM_NAV_HEIGHT = 80;
 
 interface Props {
   onAction: (action: "team" | "consulta" | "medicao" | "magazine") => void;
+  containerRef: RefObject<HTMLDivElement>;
 }
 
-export function MaylaFloatingButton({ onAction }: Props) {
+export function MaylaFloatingButton({ onAction, containerRef }: Props) {
   const { user } = useAuth();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [items, setItems] = useState<FabItem[]>([]);
@@ -57,22 +60,53 @@ export function MaylaFloatingButton({ onAction }: Props) {
   const offsetRef = useRef({ x: 0, y: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  // Initial position: bottom-right above bottom nav
+  // Compute initial / clamped position relative to container
+  const clampToContainer = (x: number, y: number) => {
+    const c = containerRef.current;
+    if (!c) return { x, y };
+    const rect = c.getBoundingClientRect();
+    const maxX = rect.width - FAB_SIZE - MARGIN;
+    const maxY = rect.height - FAB_SIZE - BOTTOM_NAV_HEIGHT;
+    return {
+      x: Math.max(MARGIN, Math.min(maxX, x)),
+      y: Math.max(MARGIN, Math.min(maxY, y)),
+    };
+  };
+
+  // Initial position: bottom-right of container
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
-          setPos(parsed);
-          return;
-        }
-      } catch {}
-    }
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    setPos({ x: w - FAB_SIZE - 16, y: h - FAB_SIZE - 100 });
-  }, []);
+    const setInitial = () => {
+      const c = containerRef.current;
+      if (!c) {
+        // retry next frame if container not mounted yet
+        requestAnimationFrame(setInitial);
+        return;
+      }
+      const rect = c.getBoundingClientRect();
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+            setPos(clampToContainer(parsed.x, parsed.y));
+            return;
+          }
+        } catch {}
+      }
+      setPos({
+        x: rect.width - FAB_SIZE - MARGIN,
+        y: rect.height - FAB_SIZE - BOTTOM_NAV_HEIGHT,
+      });
+    };
+    setInitial();
+
+    const onResize = () => {
+      setPos((prev) => (prev ? clampToContainer(prev.x, prev.y) : prev));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerRef]);
 
   // Load notifications and pick a CTA
   useEffect(() => {
@@ -92,16 +126,12 @@ export function MaylaFloatingButton({ onAction }: Props) {
           .filter((n) => !readNotifs.includes(n.id))
           .map((n) => ({ kind: "notification" as const, notification: n }));
 
-        // Pick a CTA not seen today
         const availableCtas = CTAS.filter((c) => !seenCtas.includes(c.id));
         const pool = availableCtas.length > 0 ? availableCtas : CTAS;
         const pickedCta = pool[Math.floor(Math.random() * pool.length)];
         const ctaItem: FabItem = { kind: "cta", cta: pickedCta };
-
-        // Mark as seen
         localStorage.setItem(seenKey, JSON.stringify([...seenCtas, pickedCta.id]));
 
-        // Notifications first (priority), then CTA
         setItems([...notifItems, ctaItem]);
       });
   }, [user]);
@@ -111,22 +141,24 @@ export function MaylaFloatingButton({ onAction }: Props) {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (!btnRef.current) return;
+    if (!btnRef.current || !containerRef.current) return;
     btnRef.current.setPointerCapture(e.pointerId);
     draggingRef.current = true;
     draggedRef.current = false;
-    const rect = btnRef.current.getBoundingClientRect();
-    offsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const btnRect = btnRef.current.getBoundingClientRect();
+    offsetRef.current = { x: e.clientX - btnRect.left, y: e.clientY - btnRect.top };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
-    const dx = e.clientX - (offsetRef.current.x + (pos?.x ?? 0));
-    const dy = e.clientY - (offsetRef.current.y + (pos?.y ?? 0));
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) draggedRef.current = true;
-    const x = Math.max(8, Math.min(window.innerWidth - FAB_SIZE - 8, e.clientX - offsetRef.current.x));
-    const y = Math.max(8, Math.min(window.innerHeight - FAB_SIZE - 8, e.clientY - offsetRef.current.y));
-    setPos({ x, y });
+    if (!draggingRef.current || !containerRef.current) return;
+    const cRect = containerRef.current.getBoundingClientRect();
+    // Position relative to container
+    const rawX = e.clientX - cRect.left - offsetRef.current.x;
+    const rawY = e.clientY - cRect.top - offsetRef.current.y;
+    if (Math.abs(rawX - (pos?.x ?? 0)) > 4 || Math.abs(rawY - (pos?.y ?? 0)) > 4) {
+      draggedRef.current = true;
+    }
+    setPos(clampToContainer(rawX, rawY));
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -135,8 +167,7 @@ export function MaylaFloatingButton({ onAction }: Props) {
     btnRef.current?.releasePointerCapture(e.pointerId);
     if (pos) persist(pos);
     if (!draggedRef.current) {
-      // Treat as click
-      if (items.length > 0) setOpen(true);
+      setOpen(true);
     }
   };
 
@@ -144,7 +175,10 @@ export function MaylaFloatingButton({ onAction }: Props) {
   const hasItems = items.length > 0;
 
   const handleAction = () => {
-    if (!current) return;
+    if (!current) {
+      setOpen(false);
+      return;
+    }
     if (current.kind === "cta" && current.cta) {
       const action = current.cta.action;
       setOpen(false);
@@ -156,7 +190,6 @@ export function MaylaFloatingButton({ onAction }: Props) {
     } else if (current.kind === "notification" && current.notification?.external_url) {
       window.open(current.notification.external_url, "_blank", "noopener");
     }
-    // Mark notification as read and move to next
     if (current.kind === "notification" && current.notification) {
       const readNotifs: string[] = JSON.parse(localStorage.getItem(READ_NOTIF_KEY) || "[]");
       localStorage.setItem(READ_NOTIF_KEY, JSON.stringify([...readNotifs, current.notification.id]));
@@ -184,7 +217,7 @@ export function MaylaFloatingButton({ onAction }: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className="fixed z-[60] rounded-full shadow-2xl border-2 border-white/40 select-none touch-none flex items-center justify-center text-2xl active:scale-95 transition-transform"
+        className="absolute z-[60] rounded-full shadow-2xl border-2 border-white/40 select-none touch-none flex items-center justify-center text-2xl active:scale-95 transition-transform"
         style={{
           width: FAB_SIZE,
           height: FAB_SIZE,
@@ -227,11 +260,17 @@ export function MaylaFloatingButton({ onAction }: Props) {
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{itemEmoji}</span>
-              <span>{itemTitle}</span>
+              <span className="text-2xl">{itemEmoji ?? "👩‍⚕️"}</span>
+              <span>{itemTitle ?? "Mayla"}</span>
             </DialogTitle>
           </DialogHeader>
-          {itemBody && <p className="text-base text-muted-foreground">{itemBody}</p>}
+          {itemBody ? (
+            <p className="text-base text-muted-foreground">{itemBody}</p>
+          ) : !current ? (
+            <p className="text-base text-muted-foreground">
+              Nenhum aviso novo por enquanto. Toque em uma das abas para explorar o app! 🌿
+            </p>
+          ) : null}
           {itemColor && (
             <div className="flex items-center gap-2">
               <span
@@ -244,21 +283,23 @@ export function MaylaFloatingButton({ onAction }: Props) {
               </span>
             </div>
           )}
-          <div className="flex gap-2 pt-2">
-            <button
-              onClick={() => { advance(); }}
-              className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
-            >
-              Depois
-            </button>
-            <button
-              onClick={handleAction}
-              className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-accent-foreground"
-              style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
-            >
-              {current?.kind === "notification" && current.notification?.external_url ? "Abrir →" : "Fazer agora →"}
-            </button>
-          </div>
+          {current && (
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => { advance(); }}
+                className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+              >
+                Depois
+              </button>
+              <button
+                onClick={handleAction}
+                className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-accent-foreground"
+                style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
+              >
+                {current?.kind === "notification" && current.notification?.external_url ? "Abrir →" : "Fazer agora →"}
+              </button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
