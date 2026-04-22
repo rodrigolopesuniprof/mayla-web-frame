@@ -73,7 +73,14 @@ export function MaylaApp() {
                 onLeave={() => setActiveVideoCall(null)}
               />
             ) : showAssistant ? (
-              <HealthAssistantChat onBack={() => setShowAssistant(false)} />
+              <HealthAssistantChat
+                onBack={() => setShowAssistant(false)}
+                onAction={(id) => {
+                  if (id === "consulta") { setShowAssistant(false); setActiveTab("servicos"); setConsultOnlineMode(true); }
+                  else if (id === "medicao") { setShowAssistant(false); setActiveTab("bemestar"); }
+                  else if (id === "magazine") { setShowAssistant(false); setActiveTab("inicio"); }
+                }}
+              />
             ) : activeArticleId ? (
               <HealthMagazineArticle articleId={activeArticleId} onBack={() => setActiveArticleId(null)} />
             ) : showTelemedicine ? (
