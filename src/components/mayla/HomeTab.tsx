@@ -81,20 +81,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
     });
   }, [user]);
 
-  // News card (latest notification)
-  const [latestNews, setLatestNews] = useState<NewsItem | null>(null);
-  const [showNewsDialog, setShowNewsDialog] = useState(false);
-  useEffect(() => {
-    supabase.from("notifications")
-      .select("id, title, body, emoji, color, external_url, created_at")
-      .order("priority", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setLatestNews(data as NewsItem);
-      });
-  }, [user]);
+
 
   const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
   const firstName = fullName.split(" ")[0];
