@@ -322,6 +322,42 @@ export type Database = {
           },
         ]
       }
+      assistant_prompts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          model: string
+          name: string
+          system_prompt: string
+          temperature: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          model?: string
+          name: string
+          system_prompt: string
+          temperature?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          model?: string
+          name?: string
+          system_prompt?: string
+          temperature?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       assistant_safety_flags: {
         Row: {
           created_at: string
