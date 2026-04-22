@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import maylaSaudacao from "@/assets/mayla-saudacao.gif";
+import maylaAviso from "@/assets/mayla-aviso.gif";
 
 interface ActionChip {
   id: string;
@@ -49,18 +51,28 @@ function parseActions(text: string): { clean: string; actions: ActionChip[] } {
 interface Props {
   onBack: () => void;
   onAction?: (action: string) => void;
+  initialMessage?: string;
 }
 
-export function HealthAssistantChat({ onBack, onAction }: Props) {
+export function HealthAssistantChat({ onBack, onAction, initialMessage }: Props) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const initialSentRef = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (initialMessage && !initialSentRef.current && messages.length === 0) {
+      initialSentRef.current = true;
+      send(initialMessage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage]);
 
   const send = async (text: string) => {
     const userMsg: Msg = { role: "user", content: text };
@@ -191,14 +203,24 @@ export function HealthAssistantChat({ onBack, onAction }: Props) {
 
   return (
     <div className="flex-1 flex flex-col bg-background overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-        <button onClick={onBack} className="text-2xl text-foreground active:opacity-60" aria-label="Voltar">‹</button>
-        <div className="flex-1">
-          <div className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
-            <span>👩‍⚕️</span> Mayla, sua enfermeira digital
+      {/* Header — Mayla grande no canto superior direito */}
+      <div className="sticky top-0 z-20 px-5 pt-4 pb-3 border-b border-border bg-background/90 backdrop-blur-md flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <button onClick={onBack} className="text-2xl text-foreground active:opacity-60 self-start -ml-1" aria-label="Voltar">‹</button>
+          <div className="font-display text-lg font-semibold text-foreground leading-tight">
+            Mayla Assistente
           </div>
-          <div className="text-xs text-muted-foreground">Educacional · não substitui consulta médica</div>
+          <div className="text-xs text-muted-foreground">Sua enfermeira virtual · não substitui consulta médica</div>
+        </div>
+        <div
+          className="w-24 h-24 rounded-full overflow-hidden shrink-0 border-2 border-background shadow-lg"
+          style={{ boxShadow: "0 8px 24px rgba(26,92,138,.18)" }}
+        >
+          <img
+            src={loading ? maylaAviso : maylaSaudacao}
+            alt="Mayla"
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
 

@@ -33,6 +33,7 @@ export function MaylaApp() {
   const [showAssistant, setShowAssistant] = useState(false);
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [showAllArticles, setShowAllArticles] = useState(false);
+  const [assistantInitialMessage, setAssistantInitialMessage] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,11 +79,12 @@ export function MaylaApp() {
               />
             ) : showAssistant ? (
               <HealthAssistantChat
-                onBack={() => setShowAssistant(false)}
+                onBack={() => { setShowAssistant(false); setAssistantInitialMessage(null); }}
+                initialMessage={assistantInitialMessage ?? undefined}
                 onAction={(id) => {
-                  if (id === "consulta") { setShowAssistant(false); setActiveTab("servicos"); setConsultOnlineMode(true); }
-                  else if (id === "medicao") { setShowAssistant(false); setActiveTab("bemestar"); }
-                  else if (id === "magazine") { setShowAssistant(false); setActiveTab("inicio"); }
+                  if (id === "consulta") { setShowAssistant(false); setAssistantInitialMessage(null); setActiveTab("servicos"); setConsultOnlineMode(true); }
+                  else if (id === "medicao") { setShowAssistant(false); setAssistantInitialMessage(null); setActiveTab("bemestar"); }
+                  else if (id === "magazine") { setShowAssistant(false); setAssistantInitialMessage(null); setActiveTab("inicio"); }
                 }}
               />
             ) : activeArticleId ? (
@@ -128,10 +130,20 @@ export function MaylaApp() {
                 {activeTab === "perfil" && <ProfileTab />}
               </div>
             )}
-            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setShowAllArticles(false); setActiveTab(t); }} />
+            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setAssistantInitialMessage(null); setActiveArticleId(null); setShowAllArticles(false); setActiveTab(t); }} />
             {!activeVideoCall && !showAssistant && (
               <MaylaFloatingButton
                 containerRef={containerRef}
+                onOpenAssistantWithMessage={(msg) => {
+                  setShowTelemedicine(false);
+                  setShowAppointment(false);
+                  setShowOnDemand(false);
+                  setShowEsfLink(false);
+                  setActiveArticleId(null);
+                  setShowAllArticles(false);
+                  setAssistantInitialMessage(msg);
+                  setShowAssistant(true);
+                }}
                 onAction={(action) => {
                   if (action === "consulta") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("servicos"); setConsultOnlineMode(true); }
                   else if (action === "medicao") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("bemestar"); }

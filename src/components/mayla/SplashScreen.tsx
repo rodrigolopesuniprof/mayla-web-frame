@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { CompanyLogo } from "./MaylaIcons";
 import { COMPANY_CONFIG } from "@/lib/mayla-config";
+import maylaSaudacao from "@/assets/mayla-saudacao.gif";
 
 export function SplashScreen({ onDone }: { onDone: () => void }) {
   const { company } = useCompany();
@@ -75,6 +76,15 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
         </div>
         <div className="text-[11px] text-muted-foreground mt-2 tracking-[.14em] uppercase">
           bem-estar corporativo
+        </div>
+      </div>
+
+      <div className="animate-splash-sub mt-8">
+        <div
+          className="w-24 h-24 rounded-full overflow-hidden border-2 border-background"
+          style={{ boxShadow: "0 12px 32px rgba(26,92,138,.18)" }}
+        >
+          <img src={maylaSaudacao} alt="Mayla" className="w-full h-full object-cover" />
         </div>
       </div>
 

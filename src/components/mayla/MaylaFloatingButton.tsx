@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamPickerDialog } from "./TeamPickerDialog";
+import maylaSaudacao from "@/assets/mayla-saudacao.gif";
+import maylaAviso from "@/assets/mayla-aviso.gif";
 
 interface NotificationItem {
   id: string;
@@ -39,28 +41,29 @@ interface FabItem {
 const STORAGE_KEY = "mayla_fab_position_v2";
 const SEEN_KEY_PREFIX = "mayla_fab_seen_";
 const READ_NOTIF_KEY = "mayla_fab_read_notifs";
-const FAB_SIZE = 56;
+const FAB_SIZE = 76;
 const MARGIN = 12;
 const BOTTOM_NAV_HEIGHT = 80;
 
 interface Props {
   onAction: (action: "team" | "consulta" | "medicao" | "magazine") => void;
+  onOpenAssistantWithMessage?: (msg: string) => void;
   containerRef: RefObject<HTMLDivElement>;
 }
 
-export function MaylaFloatingButton({ onAction, containerRef }: Props) {
+export function MaylaFloatingButton({ onAction, onOpenAssistantWithMessage, containerRef }: Props) {
   const { user } = useAuth();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [items, setItems] = useState<FabItem[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [open, setOpen] = useState(false);
   const [showTeamDialog, setShowTeamDialog] = useState(false);
+  const [chatInput, setChatInput] = useState("");
   const draggingRef = useRef(false);
   const draggedRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  // Compute initial / clamped position relative to container
   const clampToContainer = (x: number, y: number) => {
     const c = containerRef.current;
     if (!c) return { x, y };
@@ -73,12 +76,10 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
     };
   };
 
-  // Initial position: bottom-right of container
   useEffect(() => {
     const setInitial = () => {
       const c = containerRef.current;
       if (!c) {
-        // retry next frame if container not mounted yet
         requestAnimationFrame(setInitial);
         return;
       }
@@ -108,7 +109,6 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef]);
 
-  // Load notifications and pick a CTA
   useEffect(() => {
     if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
@@ -152,7 +152,6 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
   const onPointerMove = (e: React.PointerEvent) => {
     if (!draggingRef.current || !containerRef.current) return;
     const cRect = containerRef.current.getBoundingClientRect();
-    // Position relative to container
     const rawX = e.clientX - cRect.left - offsetRef.current.x;
     const rawY = e.clientY - cRect.top - offsetRef.current.y;
     if (Math.abs(rawX - (pos?.x ?? 0)) > 4 || Math.abs(rawY - (pos?.y ?? 0)) > 4) {
@@ -203,12 +202,21 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
     setOpen(false);
   };
 
+  const handleSendChat = () => {
+    const msg = chatInput.trim();
+    if (!msg) return;
+    setOpen(false);
+    setChatInput("");
+    onOpenAssistantWithMessage?.(msg);
+  };
+
   if (!pos) return null;
 
   const itemColor = current?.kind === "notification" ? current.notification?.color : current?.cta?.color;
   const itemEmoji = current?.kind === "notification" ? current.notification?.emoji : current?.cta?.emoji;
   const itemTitle = current?.kind === "notification" ? current.notification?.title : current?.cta?.title;
   const itemBody = current?.kind === "notification" ? current.notification?.body : current?.cta?.body;
+  const fabGif = hasItems ? maylaAviso : maylaSaudacao;
 
   return (
     <>
@@ -217,19 +225,23 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className="absolute z-[60] rounded-full shadow-2xl border-2 border-white/40 select-none touch-none flex items-center justify-center text-2xl active:scale-95 transition-transform"
+        className="absolute z-[60] rounded-full shadow-2xl border border-border bg-background select-none touch-none flex items-center justify-center overflow-hidden active:scale-95 transition-transform"
         style={{
           width: FAB_SIZE,
           height: FAB_SIZE,
           left: pos.x,
           top: pos.y,
-          background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))",
           touchAction: "none",
           cursor: "grab",
         }}
-        aria-label="Avisos da Mayla"
+        aria-label="Mayla, sua enfermeira virtual"
       >
-        <span className="text-2xl">👩‍⚕️</span>
+        <img
+          src={fabGif}
+          alt="Mayla"
+          draggable={false}
+          className="w-full h-full object-cover rounded-full pointer-events-none"
+        />
         {hasItems && (
           <>
             <span
@@ -240,7 +252,7 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
               }}
             />
             <span
-              className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
+              className="absolute -top-1 -right-1 w-6 h-6 rounded-full text-[11px] font-bold text-white flex items-center justify-center border-2 border-background"
               style={{ background: "hsl(var(--destructive))" }}
             >
               {items.length}
@@ -250,7 +262,7 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
         <style>{`
           @keyframes fab-pulse {
             0% { box-shadow: 0 0 0 0 hsl(var(--destructive) / .7); }
-            70% { box-shadow: 0 0 0 14px hsl(var(--destructive) / 0); }
+            70% { box-shadow: 0 0 0 16px hsl(var(--destructive) / 0); }
             100% { box-shadow: 0 0 0 0 hsl(var(--destructive) / 0); }
           }
         `}</style>
@@ -259,19 +271,24 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{itemEmoji ?? "👩‍⚕️"}</span>
-              <span>{itemTitle ?? "Mayla"}</span>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden border border-border shrink-0">
+                <img src={hasItems ? maylaAviso : maylaSaudacao} alt="Mayla" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-base">{itemTitle ?? "Olá! Sou a Mayla"}</span>
+                {!current && (
+                  <span className="text-xs text-muted-foreground font-normal">Sua enfermeira virtual</span>
+                )}
+              </div>
             </DialogTitle>
           </DialogHeader>
-          {itemBody ? (
+
+          {current && itemBody && (
             <p className="text-base text-muted-foreground">{itemBody}</p>
-          ) : !current ? (
-            <p className="text-base text-muted-foreground">
-              Nenhum aviso novo por enquanto. Toque em uma das abas para explorar o app! 🌿
-            </p>
-          ) : null}
-          {itemColor && (
+          )}
+
+          {itemColor && current && (
             <div className="flex items-center gap-2">
               <span
                 className="text-xs font-semibold rounded-md px-2 py-0.5 tracking-[.06em] uppercase"
@@ -281,10 +298,12 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
                   ? current.notification?.scope === "company" ? "Empresa" : current.notification?.scope === "municipal" ? "Município" : "Você"
                   : "Sugestão"}
               </span>
+              {itemEmoji && <span className="text-lg">{itemEmoji}</span>}
             </div>
           )}
+
           {current && (
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <button
                 onClick={() => { advance(); }}
                 className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
@@ -300,6 +319,29 @@ export function MaylaFloatingButton({ onAction, containerRef }: Props) {
               </button>
             </div>
           )}
+
+          {/* Chat input — sempre disponível */}
+          <div className="pt-3 mt-1 border-t border-border">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Quer conversar comigo?</div>
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleSendChat(); }}
+              className="flex gap-2"
+            >
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Digite sua dúvida sobre saúde..."
+                className="flex-1 bg-secondary rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border-none outline-none focus:ring-2 focus:ring-accent/40"
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim()}
+                className="rounded-full px-4 bg-accent text-accent-foreground text-sm font-semibold disabled:opacity-40"
+              >
+                Enviar
+              </button>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
