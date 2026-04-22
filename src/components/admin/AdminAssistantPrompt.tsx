@@ -118,6 +118,9 @@ export function AdminAssistantPrompt() {
                 {MODELS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Se o modelo escolhido falhar com 404, o sistema tenta automaticamente o próximo disponível.
+            </p>
           </div>
         </div>
 
