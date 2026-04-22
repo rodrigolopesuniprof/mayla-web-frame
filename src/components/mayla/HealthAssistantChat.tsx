@@ -182,8 +182,11 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
         )}
 
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}`}>
+          <div key={i} className={`flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            {m.role === "assistant" && (
+              <div className="shrink-0 w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-base self-end mb-1" aria-label="Mayla">👩‍⚕️</div>
+            )}
+            <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}`}>
               {m.role === "assistant" ? (
                 <div className="prose prose-sm max-w-none text-foreground prose-strong:text-foreground prose-p:my-1 prose-ul:my-1 prose-li:my-0">
                   <ReactMarkdown>{m.content}</ReactMarkdown>
