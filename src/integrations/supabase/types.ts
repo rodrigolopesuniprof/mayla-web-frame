@@ -196,6 +196,167 @@ export type Database = {
           },
         ]
       }
+      assistant_conversations: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          health_context_snapshot: Json | null
+          id: string
+          last_message_at: string
+          message_count: number
+          started_at: string
+          topic_tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          health_context_snapshot?: Json | null
+          id?: string
+          last_message_at?: string
+          message_count?: number
+          started_at?: string
+          topic_tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          health_context_snapshot?: Json | null
+          id?: string
+          last_message_at?: string
+          message_count?: number
+          started_at?: string
+          topic_tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          message_id: string
+          rating: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          message_id: string
+          rating: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string
+          rating?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_feedback_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          latency_ms: number | null
+          model: string | null
+          role: string
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          model?: string | null
+          role: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          model?: string | null
+          role?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_safety_flags: {
+        Row: {
+          created_at: string
+          details: Json | null
+          flag_type: string
+          id: string
+          message_id: string
+          reviewed: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          flag_type: string
+          id?: string
+          message_id: string
+          reviewed?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          flag_type?: string
+          id?: string
+          message_id?: string
+          reviewed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_safety_flags_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_missions: {
         Row: {
           campaign_id: string
@@ -985,6 +1146,95 @@ export type Database = {
           metric?: string
           severity?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      health_article_views: {
+        Row: {
+          article_id: string
+          completed: boolean | null
+          id: string
+          read_duration_seconds: number | null
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          article_id: string
+          completed?: boolean | null
+          id?: string
+          read_duration_seconds?: number | null
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          article_id?: string
+          completed?: boolean | null
+          id?: string
+          read_duration_seconds?: number | null
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_article_views_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "health_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_articles: {
+        Row: {
+          author_name: string | null
+          content_markdown: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          id: string
+          is_active: boolean
+          published_at: string | null
+          reading_time_minutes: number | null
+          slug: string
+          sort_order: number | null
+          tags: string[] | null
+          target_conditions: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string | null
+          content_markdown: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          is_active?: boolean
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug: string
+          sort_order?: number | null
+          tags?: string[] | null
+          target_conditions?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string | null
+          content_markdown?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          is_active?: boolean
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug?: string
+          sort_order?: number | null
+          tags?: string[] | null
+          target_conditions?: string[] | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

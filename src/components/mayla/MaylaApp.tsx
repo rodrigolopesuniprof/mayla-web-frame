@@ -13,6 +13,8 @@ import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { EsfLinkScreen } from "./EsfLinkScreen";
 import { OnDemandFlow } from "./OnDemandFlow";
+import { HealthAssistantChat } from "./HealthAssistantChat";
+import { HealthMagazineArticle } from "./HealthMagazineArticle";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "main";
@@ -26,6 +28,8 @@ export function MaylaApp() {
   const [showEsfLink, setShowEsfLink] = useState(false);
   const [showOnDemand, setShowOnDemand] = useState(false);
   const [consultOnlineMode, setConsultOnlineMode] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
+  const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
 
@@ -67,6 +71,10 @@ export function MaylaApp() {
                 consultation={{ ...activeVideoCall, consultationMode: "online" }}
                 onLeave={() => setActiveVideoCall(null)}
               />
+            ) : showAssistant ? (
+              <HealthAssistantChat onBack={() => setShowAssistant(false)} />
+            ) : activeArticleId ? (
+              <HealthMagazineArticle articleId={activeArticleId} onBack={() => setActiveArticleId(null)} />
             ) : showTelemedicine ? (
               <TelemedicineScreen onBack={() => setShowTelemedicine(false)} />
             ) : showAppointment ? (
@@ -92,6 +100,8 @@ export function MaylaApp() {
                       setActiveTab("servicos");
                       setConsultOnlineMode(true);
                     }}
+                    onOpenAssistant={() => setShowAssistant(true)}
+                    onOpenArticle={(id) => setActiveArticleId(id)}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
@@ -100,7 +110,7 @@ export function MaylaApp() {
                 {activeTab === "perfil" && <ProfileTab />}
               </div>
             )}
-            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setActiveTab(t); }} />
+            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setActiveTab(t); }} />
           </>
         )}
       </div>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { useCompanyFeature } from "@/hooks/useCompanyFeature";
+import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
 
 interface NotificationItem {
   id: string;
@@ -28,7 +29,7 @@ interface TeamInfo {
   is_default: boolean | null;
 }
 
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline }: {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
   onOpenAppointment: () => void;
@@ -36,6 +37,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenVideoCall: (consultation: { id: string; professionalName: string; professionalType: string; specialty: string }) => void;
   onOpenOnDemand: () => void;
   onOpenConsultationOnline?: () => void;
+  onOpenAssistant?: () => void;
+  onOpenArticle?: (id: string) => void;
 }) {
   const { isDefault, companyId } = useCompany();
   const { enabled: consultaEnabled } = useCompanyFeature("consulta_servico");
@@ -318,7 +321,23 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       </div>
 
-      {/* Meu Time Card */}
+      {/* Assistente Digital de Saúde Card */}
+      {onOpenAssistant && (
+        <div
+          className="mx-5 mb-5 rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform relative overflow-hidden"
+          style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
+          onClick={onOpenAssistant}
+        >
+          <div className="absolute rounded-full" style={{ top: -20, right: -10, width: 80, height: 80, background: "rgba(255,255,255,.10)" }} />
+          <div className="shrink-0 flex items-center justify-center text-2xl relative z-[1]" style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,.18)" }}>✨</div>
+          <div className="flex-1 relative z-[1]">
+            <div className="text-[15px] font-semibold text-primary-foreground mb-0.5">Assistente Mayla</div>
+            <div className="text-sm leading-snug" style={{ color: "rgba(255,255,255,.75)" }}>Tire dúvidas sobre seus dados de saúde</div>
+          </div>
+          <span style={{ fontSize: 20, color: "rgba(255,255,255,.5)" }} className="relative z-[1]">›</span>
+        </div>
+      )}
+
       <div className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform" onClick={handleOpenTeamDialog}>
         <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--accent) / .12)" }}>
           {myTeam?.emoji || "👥"}
@@ -401,6 +420,10 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <span style={{ fontSize: 20, color: "rgba(255,255,255,.4)" }}>›</span>
       </div>
 
+
+
+      {/* Health Magazine Carousel */}
+      {onOpenArticle && <HealthMagazineCarousel onOpenArticle={onOpenArticle} />}
 
       {/* Alerts */}
       {alerts.length > 0 &&
