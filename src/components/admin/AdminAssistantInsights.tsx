@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { AdminAssistantPrompt } from "./AdminAssistantPrompt";
 
 export function AdminAssistantInsights() {
   const [stats, setStats] = useState({ conversations: 0, messages: 0, users: 0, up: 0, down: 0 });
@@ -36,6 +37,8 @@ export function AdminAssistantInsights() {
         <Card className="p-4"><div className="text-xs text-muted-foreground">👍 Positivos</div><div className="text-2xl font-semibold text-primary">{stats.up}</div></Card>
         <Card className="p-4"><div className="text-xs text-muted-foreground">👎 Negativos</div><div className="text-2xl font-semibold text-destructive">{stats.down}</div></Card>
       </div>
+      <AdminAssistantPrompt />
+
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Safety flags pendentes ({flags.length})</h3>
         <div className="space-y-2">
