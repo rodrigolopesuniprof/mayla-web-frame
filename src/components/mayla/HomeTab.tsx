@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { useCompanyFeature } from "@/hooks/useCompanyFeature";
+import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
 
 interface NotificationItem {
   id: string;
@@ -28,7 +29,7 @@ interface TeamInfo {
   is_default: boolean | null;
 }
 
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline }: {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
   onOpenAppointment: () => void;
@@ -36,6 +37,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenVideoCall: (consultation: { id: string; professionalName: string; professionalType: string; specialty: string }) => void;
   onOpenOnDemand: () => void;
   onOpenConsultationOnline?: () => void;
+  onOpenAssistant?: () => void;
+  onOpenArticle?: (id: string) => void;
 }) {
   const { isDefault, companyId } = useCompany();
   const { enabled: consultaEnabled } = useCompanyFeature("consulta_servico");
