@@ -197,7 +197,53 @@ export function AdminMagazine({ companyId }: Props) {
               <div><Label>Slug</Label><Input value={editing.slug || ""} onChange={(e) => setEditing({ ...editing, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })} /></div>
               <div><Label>Imagem de capa (URL)</Label><Input value={editing.cover_image_url || ""} onChange={(e) => setEditing({ ...editing, cover_image_url: e.target.value })} /></div>
               <div><Label>Resumo</Label><Textarea value={editing.excerpt || ""} onChange={(e) => setEditing({ ...editing, excerpt: e.target.value })} /></div>
-              <div><Label>Conteúdo (markdown)</Label><Textarea rows={10} value={editing.content_markdown || ""} onChange={(e) => setEditing({ ...editing, content_markdown: e.target.value })} /></div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <Label>Conteúdo (markdown)</Label>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPreviewMode((p) => !p)} className="h-7 px-2 text-xs gap-1">
+                    {previewMode ? <><Pencil className="w-3 h-3" /> Editar</> : <><Eye className="w-3 h-3" /> Visualizar</>}
+                  </Button>
+                </div>
+                {!previewMode && (
+                  <div className="flex flex-wrap gap-1 p-1 border border-b-0 rounded-t-md bg-muted/40">
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Negrito (Ctrl+B)" onClick={() => wrapSelection("**")}><Bold className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Itálico (Ctrl+I)" onClick={() => wrapSelection("*")}><Italic className="w-3.5 h-3.5" /></Button>
+                    <div className="w-px bg-border mx-0.5" />
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Título 1" onClick={() => insertLinePrefix("# ")}><Heading1 className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Título 2" onClick={() => insertLinePrefix("## ")}><Heading2 className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Título 3" onClick={() => insertLinePrefix("### ")}><Heading3 className="w-3.5 h-3.5" /></Button>
+                    <div className="w-px bg-border mx-0.5" />
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Lista" onClick={() => insertLinePrefix("- ")}><List className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Lista numerada" onClick={() => insertLinePrefix("1. ")}><ListOrdered className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Citação" onClick={() => insertLinePrefix("> ")}><Quote className="w-3.5 h-3.5" /></Button>
+                    <div className="w-px bg-border mx-0.5" />
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Link" onClick={insertLink}><LinkIcon className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Imagem" onClick={insertImage}><ImageIcon className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Código" onClick={() => wrapSelection("`")}><Code className="w-3.5 h-3.5" /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" title="Linha horizontal" onClick={() => insertBlock("\n---\n")}><Minus className="w-3.5 h-3.5" /></Button>
+                  </div>
+                )}
+                {previewMode ? (
+                  <div className="prose prose-sm max-w-none border rounded-md p-4 min-h-[260px] bg-background prose-headings:font-display prose-headings:text-foreground prose-p:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                    {editing.content_markdown
+                      ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{editing.content_markdown}</ReactMarkdown>
+                      : <p className="text-muted-foreground italic text-sm">Sem conteúdo para visualizar.</p>}
+                  </div>
+                ) : (
+                  <Textarea
+                    ref={contentRef}
+                    rows={12}
+                    className="rounded-t-none font-mono text-sm"
+                    placeholder="Escreva em markdown. Use a barra de ferramentas acima para formatar."
+                    value={editing.content_markdown || ""}
+                    onChange={(e) => setEditing({ ...editing, content_markdown: e.target.value })}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); wrapSelection("**"); }
+                      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") { e.preventDefault(); wrapSelection("*"); }
+                    }}
+                  />
+                )}
+              </div>
               <div><Label>Tags (separadas por vírgula)</Label><Input value={(editing.tags || []).join(", ")} onChange={(e) => setEditing({ ...editing, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Tempo de leitura (min)</Label><Input type="number" value={editing.reading_time_minutes || ""} onChange={(e) => setEditing({ ...editing, reading_time_minutes: parseInt(e.target.value) || null })} /></div>
