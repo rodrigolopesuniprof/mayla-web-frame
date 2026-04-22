@@ -104,7 +104,7 @@ export function HealthMagazineCarousel({ onOpenArticle, onOpenAll }: { onOpenArt
                 className="absolute top-3 right-3 text-[10px] font-bold rounded-full px-2.5 py-1 backdrop-blur-md"
                 style={{ background: "rgba(0,0,0,.55)", color: "white" }}
               >
-                Mayla Saúde
+                Saúde com Você
               </span>
             )}
             {/* Title overlay */}
