@@ -160,10 +160,10 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="space-y-4">
-            <div className="bg-secondary rounded-2xl p-4">
-              <div className="text-2xl mb-2">👋</div>
+            <div className="bg-secondary rounded-2xl p-4 flex gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-xl">👩‍⚕️</div>
               <p className="text-sm text-foreground leading-relaxed">
-                Olá! Sou a <strong>Mayla</strong>, sua assistente digital de saúde. Posso explicar seus indicadores, ajudar a entender seus dados e sugerir cuidados gerais. Não faço diagnósticos nem prescrevo.
+                Olá! Sou a <strong>Mayla</strong>, sua <strong>enfermeira digital</strong>. Posso explicar seus indicadores, ajudar a entender seus dados e orientar cuidados gerais de saúde. Não faço diagnósticos nem prescrevo medicamentos.
               </p>
             </div>
             <div className="space-y-2">
