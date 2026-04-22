@@ -150,7 +150,7 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
         <button onClick={onBack} className="text-2xl text-foreground active:opacity-60" aria-label="Voltar">‹</button>
         <div className="flex-1">
           <div className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
-            <span>✨</span> Assistente Mayla
+            <span>👩‍⚕️</span> Mayla, sua enfermeira digital
           </div>
           <div className="text-xs text-muted-foreground">Educacional · não substitui consulta médica</div>
         </div>
