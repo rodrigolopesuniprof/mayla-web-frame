@@ -224,8 +224,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       )}
 
-      {/* Health Magazine Carousel — destaque visual da Home */}
-      {onOpenArticle && <HealthMagazineCarousel onOpenArticle={onOpenArticle} />}
+      {/* Saúde com Você — destaque visual da Home */}
+      {onOpenArticle && <HealthMagazineCarousel onOpenArticle={onOpenArticle} onOpenAll={onOpenAllArticles} />}
     </div>
   );
 }
