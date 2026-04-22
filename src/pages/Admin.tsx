@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashboard";
 import { AdminCompanyDetail } from "@/components/admin/AdminCompanyDetail";
 import { AdminAssistantInsights } from "@/components/admin/AdminAssistantInsights";
+import { AdminMagazine } from "@/components/admin/AdminMagazine";
 import { toast } from "@/hooks/use-toast";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
@@ -20,7 +21,7 @@ interface Company {
   primary_color: string;
 }
 
-type Tab = "dashboard" | "empresas" | "assistente";
+type Tab = "dashboard" | "empresas" | "assistente" | "magazine-global";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
@@ -93,6 +94,7 @@ export default function Admin() {
     { id: "dashboard", label: "📊 Dashboard" },
     { id: "empresas", label: "🏢 Empresas" },
     { id: "assistente", label: "👩‍⚕️ Assistente" },
+    { id: "magazine-global", label: "📰 Magazine Global" },
   ];
 
   const handleNewCompany = async () => {
@@ -148,6 +150,7 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto px-6 py-6">
         {activeTab === "dashboard" && <AdminCorporateDashboard />}
         {activeTab === "assistente" && <AdminAssistantInsights />}
+        {activeTab === "magazine-global" && <AdminMagazine />}
         {activeTab === "empresas" && (
           <div>
             <div className="flex items-center justify-between mb-6">
