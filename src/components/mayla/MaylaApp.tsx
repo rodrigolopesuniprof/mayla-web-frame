@@ -13,6 +13,8 @@ import { JitsiConsultationScreen } from "./JitsiConsultationScreen";
 import { AppointmentBooking } from "./AppointmentBooking";
 import { EsfLinkScreen } from "./EsfLinkScreen";
 import { OnDemandFlow } from "./OnDemandFlow";
+import { HealthAssistantChat } from "./HealthAssistantChat";
+import { HealthMagazineArticle } from "./HealthMagazineArticle";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "main";
@@ -26,6 +28,8 @@ export function MaylaApp() {
   const [showEsfLink, setShowEsfLink] = useState(false);
   const [showOnDemand, setShowOnDemand] = useState(false);
   const [consultOnlineMode, setConsultOnlineMode] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
+  const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
 
