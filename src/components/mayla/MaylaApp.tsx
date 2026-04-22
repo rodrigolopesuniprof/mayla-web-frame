@@ -119,6 +119,15 @@ export function MaylaApp() {
               </div>
             )}
             <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setActiveTab(t); }} />
+            {!activeVideoCall && !showAssistant && (
+              <MaylaFloatingButton
+                onAction={(action) => {
+                  if (action === "consulta") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("servicos"); setConsultOnlineMode(true); }
+                  else if (action === "medicao") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("bemestar"); }
+                  else if (action === "magazine") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("inicio"); }
+                }}
+              />
+            )}
           </>
         )}
       </div>
