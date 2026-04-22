@@ -321,7 +321,23 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       </div>
 
-      {/* Meu Time Card */}
+      {/* Assistente Digital de Saúde Card */}
+      {onOpenAssistant && (
+        <div
+          className="mx-5 mb-5 rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform relative overflow-hidden"
+          style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
+          onClick={onOpenAssistant}
+        >
+          <div className="absolute rounded-full" style={{ top: -20, right: -10, width: 80, height: 80, background: "rgba(255,255,255,.10)" }} />
+          <div className="shrink-0 flex items-center justify-center text-2xl relative z-[1]" style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,.18)" }}>✨</div>
+          <div className="flex-1 relative z-[1]">
+            <div className="text-[15px] font-semibold text-primary-foreground mb-0.5">Assistente Mayla</div>
+            <div className="text-sm leading-snug" style={{ color: "rgba(255,255,255,.75)" }}>Tire dúvidas sobre seus dados de saúde</div>
+          </div>
+          <span style={{ fontSize: 20, color: "rgba(255,255,255,.5)" }} className="relative z-[1]">›</span>
+        </div>
+      )}
+
       <div className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform" onClick={handleOpenTeamDialog}>
         <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--accent) / .12)" }}>
           {myTeam?.emoji || "👥"}
