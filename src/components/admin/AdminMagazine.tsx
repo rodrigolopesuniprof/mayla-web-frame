@@ -37,6 +37,65 @@ export function AdminMagazine({ companyId }: Props) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [editing, setEditing] = useState<Partial<Article> | null>(null);
   const isGlobalChannel = !companyId;
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const [previewMode, setPreviewMode] = useState(false);
+
+  const wrapSelection = (before: string, after = before, placeholder = "texto") => {
+    const ta = contentRef.current;
+    if (!ta || !editing) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const value = editing.content_markdown || "";
+    const selected = value.slice(start, end) || placeholder;
+    const next = value.slice(0, start) + before + selected + after + value.slice(end);
+    setEditing({ ...editing, content_markdown: next });
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(start + before.length, start + before.length + selected.length);
+    });
+  };
+
+  const insertLinePrefix = (prefix: string) => {
+    const ta = contentRef.current;
+    if (!ta || !editing) return;
+    const start = ta.selectionStart;
+    const value = editing.content_markdown || "";
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    const next = value.slice(0, lineStart) + prefix + value.slice(lineStart);
+    setEditing({ ...editing, content_markdown: next });
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(start + prefix.length, start + prefix.length);
+    });
+  };
+
+  const insertBlock = (block: string) => {
+    const ta = contentRef.current;
+    if (!ta || !editing) return;
+    const start = ta.selectionStart;
+    const value = editing.content_markdown || "";
+    const needsNewlineBefore = start > 0 && value[start - 1] !== "\n";
+    const insertion = (needsNewlineBefore ? "\n" : "") + block;
+    const next = value.slice(0, start) + insertion + value.slice(start);
+    setEditing({ ...editing, content_markdown: next });
+    requestAnimationFrame(() => {
+      ta.focus();
+      const pos = start + insertion.length;
+      ta.setSelectionRange(pos, pos);
+    });
+  };
+
+  const insertLink = () => {
+    const url = prompt("URL do link:", "https://");
+    if (!url) return;
+    wrapSelection("[", `](${url})`, "texto do link");
+  };
+
+  const insertImage = () => {
+    const url = prompt("URL da imagem:", "https://");
+    if (!url) return;
+    insertBlock(`![imagem](${url})\n`);
+  };
 
   const load = useCallback(async () => {
     let query = supabase
