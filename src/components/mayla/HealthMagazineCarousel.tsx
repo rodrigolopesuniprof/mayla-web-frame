@@ -56,9 +56,16 @@ export function HealthMagazineCarousel({ onOpenArticle, onOpenAll }: { onOpenArt
       <div className="px-5 mb-3 flex items-baseline justify-between">
         <p className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
           <span>📰</span>
-          <span>Mayla Magazine</span>
+          <span>Saúde com Você</span>
         </p>
-        <span className="text-xs font-semibold text-accent">Ver todas →</span>
+        {onOpenAll && (
+          <button
+            onClick={onOpenAll}
+            className="text-xs font-semibold text-accent bg-transparent border-none cursor-pointer p-0 hover:underline"
+          >
+            Ver todas →
+          </button>
+        )}
       </div>
       <div
         className="flex gap-3 overflow-x-auto px-5 pb-3 snap-x snap-mandatory"
