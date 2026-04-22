@@ -6,6 +6,17 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+interface NewsItem {
+  id: string;
+  title: string;
+  body: string | null;
+  emoji: string;
+  color: string;
+  external_url: string | null;
+  created_at: string;
+}
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle }: {
   setTab: (id: TabId) => void;
@@ -78,6 +89,21 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
     supabase.from("health_measurements").select("heart_rate, measured_at").eq("user_id", user.id).order("measured_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
       if (data) setLastMeasurement(data);
     });
+  }, [user]);
+
+  // News card (latest notification)
+  const [latestNews, setLatestNews] = useState<NewsItem | null>(null);
+  const [showNewsDialog, setShowNewsDialog] = useState(false);
+  useEffect(() => {
+    supabase.from("notifications")
+      .select("id, title, body, emoji, color, external_url, created_at")
+      .order("priority", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setLatestNews(data as NewsItem);
+      });
   }, [user]);
 
   const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
@@ -186,6 +212,59 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
           <span style={{ fontSize: 20, color: "rgba(255,255,255,.5)" }} className="relative z-[1]">›</span>
         </div>
       )}
+
+      {/* Avisos & Novidades Card */}
+      {latestNews && (
+        <div
+          className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
+          onClick={() => setShowNewsDialog(true)}
+        >
+          <div
+            className="shrink-0 flex items-center justify-center text-2xl relative"
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 14,
+              background: latestNews.color ? `hsl(${latestNews.color} / .15)` : "hsl(var(--accent) / .12)",
+            }}
+          >
+            {latestNews.emoji || "📢"}
+            <span
+              className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
+              style={{ background: "hsl(var(--destructive))", animation: "pulse 1.6s ease-in-out infinite" }}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[.08em] text-accent mb-0.5">Avisos & Novidades</div>
+            <div className="text-[15px] font-semibold text-foreground truncate">{latestNews.title}</div>
+            {latestNews.body && (
+              <div className="text-xs text-muted-foreground leading-snug line-clamp-1">{latestNews.body}</div>
+            )}
+          </div>
+          <span className="text-xl text-muted-foreground">›</span>
+        </div>
+      )}
+
+      <Dialog open={showNewsDialog} onOpenChange={setShowNewsDialog}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">{latestNews?.emoji || "📢"}</span>
+              <span>{latestNews?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          {latestNews?.body && <p className="text-base text-muted-foreground">{latestNews.body}</p>}
+          {latestNews?.external_url && (
+            <button
+              onClick={() => window.open(latestNews.external_url!, "_blank", "noopener")}
+              className="rounded-xl px-4 py-2.5 text-sm font-semibold text-accent-foreground"
+              style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
+            >
+              Abrir →
+            </button>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Questionnaire Card */}
       {latestQuestionnaire && !alreadyAnswered && !showQuestionnaire && (
