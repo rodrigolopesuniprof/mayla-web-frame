@@ -9,15 +9,18 @@ interface Article {
   excerpt: string | null;
   tags: string[] | null;
   reading_time_minutes: number | null;
+  is_global: boolean | null;
+  company_id: string | null;
 }
 
 export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: string) => void }) {
   const [articles, setArticles] = useState<Article[]>([]);
 
   useEffect(() => {
+    // RLS already restricts to: own-company articles + global Mayla articles.
     supabase
       .from("health_articles")
-      .select("id, slug, title, cover_image_url, excerpt, tags, reading_time_minutes")
+      .select("id, slug, title, cover_image_url, excerpt, tags, reading_time_minutes, is_global, company_id")
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("published_at", { ascending: false })
@@ -86,6 +89,15 @@ export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: 
                 style={{ background: "rgba(255,255,255,.92)", color: "hsl(var(--mayla-pref))" }}
               >
                 {a.tags[0]}
+              </span>
+            )}
+            {/* Source pill: Mayla Saúde for global, otherwise hidden (company content is the default) */}
+            {a.is_global && (
+              <span
+                className="absolute top-3 right-3 text-[10px] font-bold rounded-full px-2.5 py-1 backdrop-blur-md"
+                style={{ background: "rgba(0,0,0,.55)", color: "white" }}
+              >
+                Mayla Saúde
               </span>
             )}
             {/* Title overlay */}

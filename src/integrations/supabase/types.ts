@@ -1223,12 +1223,14 @@ export type Database = {
       health_articles: {
         Row: {
           author_name: string | null
+          company_id: string | null
           content_markdown: string
           cover_image_url: string | null
           created_at: string
           excerpt: string | null
           id: string
           is_active: boolean
+          is_global: boolean
           published_at: string | null
           reading_time_minutes: number | null
           slug: string
@@ -1240,12 +1242,14 @@ export type Database = {
         }
         Insert: {
           author_name?: string | null
+          company_id?: string | null
           content_markdown: string
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null
           id?: string
           is_active?: boolean
+          is_global?: boolean
           published_at?: string | null
           reading_time_minutes?: number | null
           slug: string
@@ -1257,12 +1261,14 @@ export type Database = {
         }
         Update: {
           author_name?: string | null
+          company_id?: string | null
           content_markdown?: string
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null
           id?: string
           is_active?: boolean
+          is_global?: boolean
           published_at?: string | null
           reading_time_minutes?: number | null
           slug?: string
@@ -1272,7 +1278,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "health_articles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       health_measurements: {
         Row: {

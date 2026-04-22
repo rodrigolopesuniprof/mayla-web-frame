@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -20,17 +21,37 @@ interface Article {
   reading_time_minutes: number | null;
   author_name: string | null;
   is_active: boolean;
+  company_id: string | null;
+  is_global: boolean;
 }
 
-export function AdminMagazine() {
+interface Props {
+  /** When provided: scoped to that company. When undefined: global Mayla Saúde channel (super admin only). */
+  companyId?: string;
+}
+
+export function AdminMagazine({ companyId }: Props) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [editing, setEditing] = useState<Partial<Article> | null>(null);
+  const isGlobalChannel = !companyId;
 
-  const load = async () => {
-    const { data } = await supabase.from("health_articles").select("*").order("sort_order").order("created_at", { ascending: false });
+  const load = useCallback(async () => {
+    let query = supabase
+      .from("health_articles")
+      .select("*")
+      .order("sort_order")
+      .order("created_at", { ascending: false });
+
+    if (isGlobalChannel) {
+      query = query.eq("is_global", true).is("company_id", null);
+    } else {
+      query = query.eq("company_id", companyId);
+    }
+    const { data } = await query;
     setArticles((data || []) as Article[]);
-  };
-  useEffect(() => { load(); }, []);
+  }, [companyId, isGlobalChannel]);
+
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     if (!editing?.title || !editing.slug || !editing.content_markdown) {
@@ -47,6 +68,8 @@ export function AdminMagazine() {
       reading_time_minutes: editing.reading_time_minutes || null,
       author_name: editing.author_name || null,
       is_active: editing.is_active ?? true,
+      company_id: isGlobalChannel ? null : companyId,
+      is_global: isGlobalChannel,
     };
     const { error } = editing.id
       ? await supabase.from("health_articles").update(payload).eq("id", editing.id)
@@ -59,7 +82,8 @@ export function AdminMagazine() {
 
   const remove = async (id: string) => {
     if (!confirm("Excluir artigo?")) return;
-    await supabase.from("health_articles").delete().eq("id", id);
+    const { error } = await supabase.from("health_articles").delete().eq("id", id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     load();
   };
 
@@ -67,8 +91,14 @@ export function AdminMagazine() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-display font-semibold text-foreground">Magazine de Saúde</h2>
-          <p className="text-sm text-muted-foreground">Artigos exibidos na tela inicial dos colaboradores</p>
+          <h2 className="text-2xl font-display font-semibold text-foreground">
+            {isGlobalChannel ? "📰 Magazine Global — Mayla Saúde" : "📰 Magazine da Empresa"}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isGlobalChannel
+              ? "Artigos publicados aqui aparecem para colaboradores de todas as empresas."
+              : "Artigos exclusivos para os colaboradores desta empresa."}
+          </p>
         </div>
         <Button onClick={() => setEditing({ is_active: true, tags: [] })}>+ Novo artigo</Button>
       </div>
@@ -77,13 +107,23 @@ export function AdminMagazine() {
         {articles.map((a) => (
           <Card key={a.id} className="p-4 flex items-center gap-4">
             <div className="flex-1">
-              <div className="font-semibold text-foreground">{a.title}</div>
+              <div className="font-semibold text-foreground flex items-center gap-2">
+                {a.title}
+                {a.is_global ? (
+                  <Badge variant="secondary" className="text-[10px]">🌐 Global Mayla</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">🏢 Empresa</Badge>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground">{a.slug} · {a.is_active ? "Ativo" : "Inativo"}</div>
             </div>
             <Button variant="outline" size="sm" onClick={() => setEditing(a)}>Editar</Button>
             <Button variant="destructive" size="sm" onClick={() => remove(a.id)}>Excluir</Button>
           </Card>
         ))}
+        {articles.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-8">Nenhum artigo cadastrado ainda.</p>
+        )}
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
@@ -102,6 +142,11 @@ export function AdminMagazine() {
                 <div><Label>Autor</Label><Input value={editing.author_name || ""} onChange={(e) => setEditing({ ...editing, author_name: e.target.value })} /></div>
               </div>
               <div className="flex items-center gap-2"><Switch checked={editing.is_active ?? true} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} /><Label>Ativo</Label></div>
+              <div className="text-xs text-muted-foreground">
+                {isGlobalChannel
+                  ? "🌐 Este artigo será publicado no canal global Mayla Saúde."
+                  : "🏢 Este artigo será exclusivo desta empresa."}
+              </div>
               <div className="flex gap-2 pt-2"><Button variant="ghost" onClick={() => setEditing(null)} className="flex-1">Cancelar</Button><Button onClick={save} className="flex-1">Salvar</Button></div>
             </div>
           )}
