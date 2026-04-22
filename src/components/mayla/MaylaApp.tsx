@@ -87,6 +87,11 @@ export function MaylaApp() {
               />
             ) : activeArticleId ? (
               <HealthMagazineArticle articleId={activeArticleId} onBack={() => setActiveArticleId(null)} />
+            ) : showAllArticles ? (
+              <HealthMagazineList
+                onBack={() => setShowAllArticles(false)}
+                onOpenArticle={(id) => { setShowAllArticles(false); setActiveArticleId(id); }}
+              />
             ) : showTelemedicine ? (
               <TelemedicineScreen onBack={() => setShowTelemedicine(false)} />
             ) : showAppointment ? (
