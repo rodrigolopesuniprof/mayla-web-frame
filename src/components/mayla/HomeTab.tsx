@@ -4,30 +4,8 @@ import { BrandBadge, Avatar } from "./MaylaIcons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
-import { useCompanyFeature } from "@/hooks/useCompanyFeature";
 import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  body: string | null;
-  emoji: string;
-  color: string;
-  external_url: string | null;
-  scope: string;
-}
-
-interface TeamInfo {
-  id: string;
-  name: string;
-  emoji: string | null;
-  is_default: boolean | null;
-}
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle }: {
   setTab: (id: TabId) => void;
@@ -40,79 +18,37 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenAssistant?: () => void;
   onOpenArticle?: (id: string) => void;
 }) {
-  const { isDefault, companyId } = useCompany();
-  const { enabled: consultaEnabled } = useCompanyFeature("consulta_servico");
+  const { isDefault } = useCompany();
   const { user } = useAuth();
   const [profileName, setProfileName] = useState<string | null>(null);
-  const [alerts, setAlerts] = useState<NotificationItem[]>([]);
-  const [selectedAlert, setSelectedAlert] = useState<NotificationItem | null>(null);
   const [profilePoints, setProfilePoints] = useState(0);
-  const [profileLevel, setProfileLevel] = useState("Colaborador");
 
   // Questionnaire state
   const [latestQuestionnaire, setLatestQuestionnaire] = useState<{ id: string; title: string } | null>(null);
   const [alreadyAnswered, setAlreadyAnswered] = useState(false);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
 
-  // Team state
-  const [myTeam, setMyTeam] = useState<TeamInfo | null>(null);
-  const [availableTeams, setAvailableTeams] = useState<TeamInfo[]>([]);
-  const [showTeamDialog, setShowTeamDialog] = useState(false);
-  const [teamDialogMode, setTeamDialogMode] = useState<"list" | "create">("list");
-  const [newTeamName, setNewTeamName] = useState("");
-  const [newTeamEmoji, setNewTeamEmoji] = useState("🏃");
-
-  // Direct consultation navigation (no intermediate dialog)
-
-
   useEffect(() => {
     if (!user) return;
-
-    // Profile data
-    supabase.from("profiles").select("full_name, points, level, esf_team_id").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    supabase.from("profiles").select("full_name, points").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setProfileName(data.full_name);
         setProfilePoints(data.points);
-        setProfileLevel(data.level);
       }
     });
-
-    // Notifications
-    supabase.from("notifications").select("id, title, body, emoji, color, external_url, scope").order("priority", { ascending: false }).order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setAlerts(data);
-    });
-
-    // Fetch user's team
-    fetchMyTeam();
-
-    // Fetch latest questionnaire from admin "Pesquisas"
     fetchLatestQuestionnaire();
   }, [user]);
-
 
   const fetchLatestQuestionnaire = async () => {
     if (!user) return;
 
     const [{ data: questionnaires }, { data: missions }] = await Promise.all([
-      supabase
-        .from("questionnaires")
-        .select("id, title")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("missions")
-        .select("questionnaire_id")
-        .not("questionnaire_id", "is", null),
+      supabase.from("questionnaires").select("id, title").order("created_at", { ascending: false }),
+      supabase.from("missions").select("questionnaire_id").not("questionnaire_id", "is", null),
     ]);
 
-    const linkedQuestionnaireIds = new Set(
-      (missions || [])
-        .map((mission: any) => mission.questionnaire_id)
-        .filter(Boolean)
-    );
-
-    const q = (questionnaires || []).find(
-      (questionnaire: any) => !linkedQuestionnaireIds.has(questionnaire.id)
-    );
+    const linkedIds = new Set((missions || []).map((m: any) => m.questionnaire_id).filter(Boolean));
+    const q = (questionnaires || []).find((x: any) => !linkedIds.has(x.id));
 
     if (q) {
       setLatestQuestionnaire({ id: q.id, title: q.title });
@@ -126,108 +62,22 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       setAlreadyAnswered(!!resp);
       return;
     }
-
     setLatestQuestionnaire(null);
     setAlreadyAnswered(false);
     setShowQuestionnaire(false);
   };
-
-  const fetchMyTeam = async () => {
-    if (!user) return;
-    const { data: membership } = await supabase
-      .from("team_members")
-      .select("team_id, collaborative_teams(id, name, emoji, is_default)")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-
-    if (membership && (membership as any).collaborative_teams) {
-      const t = (membership as any).collaborative_teams;
-      setMyTeam({ id: t.id, name: t.name, emoji: t.emoji, is_default: t.is_default });
-    } else {
-      setMyTeam(null);
-    }
-  };
-
-  const fetchAvailableTeams = async () => {
-    if (!companyId) return;
-    const { data } = await supabase
-      .from("collaborative_teams")
-      .select("id, name, emoji, is_default")
-      .eq("company_id", companyId)
-      .order("name");
-    setAvailableTeams((data || []) as TeamInfo[]);
-  };
-
-  const handleOpenTeamDialog = () => {
-    setTeamDialogMode("list");
-    fetchAvailableTeams();
-    setShowTeamDialog(true);
-  };
-
-  const handleJoinTeam = async (teamId: string) => {
-    if (!user) return;
-    // Leave current team first
-    await supabase.from("team_members").delete().eq("user_id", user.id);
-    const { error } = await supabase.from("team_members").insert({ team_id: teamId, user_id: user.id });
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Time atualizado! 🎉" });
-      fetchMyTeam();
-      setShowTeamDialog(false);
-    }
-  };
-
-  const handleCreateTeam = async () => {
-    if (!user || !companyId || !newTeamName.trim()) return;
-    const { data, error } = await supabase.from("collaborative_teams").insert({
-      company_id: companyId,
-      name: newTeamName.trim(),
-      emoji: newTeamEmoji || "🏃",
-      created_by: user.id,
-    }).select("id").single();
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else if (data) {
-      await handleJoinTeam(data.id);
-      setNewTeamName("");
-      setNewTeamEmoji("🏃");
-    }
-  };
-
-  const handleOpenConsultas = () => {
-    if (onOpenConsultationOnline) onOpenConsultationOnline();
-  };
-
 
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [lastMeasurement, setLastMeasurement] = useState<{ heart_rate: number | null; measured_at: string } | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    // Fetch latest health score
-    supabase
-      .from("health_scores")
-      .select("score_general")
-      .eq("user_id", user.id)
-      .order("generated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setHealthScore(data.score_general);
-      });
-    // Fetch latest measurement
-    supabase
-      .from("health_measurements")
-      .select("heart_rate, measured_at")
-      .eq("user_id", user.id)
-      .order("measured_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setLastMeasurement(data);
-      });
+    supabase.from("health_scores").select("score_general").eq("user_id", user.id).order("generated_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+      if (data) setHealthScore(data.score_general);
+    });
+    supabase.from("health_measurements").select("heart_rate, measured_at").eq("user_id", user.id).order("measured_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+      if (data) setLastMeasurement(data);
+    });
   }, [user]);
 
   const fullName = profileName || user?.user_metadata?.full_name || "Colaborador";
@@ -316,7 +166,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         <div className="border-t border-foreground/10 px-5 py-3 flex items-center gap-2">
           <span className="text-base">⭐</span>
           <span className="text-sm font-semibold text-secondary-foreground">{profilePoints.toLocaleString()} pontos</span>
-          
           <span className="ml-auto text-sm text-accent font-medium cursor-pointer" onClick={() => setTab("campanhas")}>Ver missões →</span>
         </div>
       </div>
@@ -338,21 +187,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       )}
 
-      <div className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform" onClick={handleOpenTeamDialog}>
-        <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--accent) / .12)" }}>
-          {myTeam?.emoji || "👥"}
-        </div>
-        <div className="flex-1">
-          <div className="text-[15px] font-semibold text-foreground mb-0.5">
-            {myTeam ? myTeam.name : "Entrar em um time"}
-          </div>
-          <div className="text-sm text-muted-foreground leading-snug">
-            {myTeam ? (myTeam.is_default ? "Time padrão da empresa" : "Time colaborativo") : "Crie ou entre em um time para competir"}
-          </div>
-        </div>
-        <span className="text-xl text-muted-foreground">›</span>
-      </div>
-
       {/* Questionnaire Card */}
       {latestQuestionnaire && !alreadyAnswered && !showQuestionnaire && (
         <div
@@ -363,12 +197,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             📋
           </div>
           <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground mb-0.5">
-              Preencher pesquisa
-            </div>
-            <div className="text-sm text-muted-foreground leading-snug">
-              {latestQuestionnaire.title}
-            </div>
+            <div className="text-[15px] font-semibold text-foreground mb-0.5">Preencher pesquisa</div>
+            <div className="text-sm text-muted-foreground leading-snug">{latestQuestionnaire.title}</div>
           </div>
           <span className="text-xl text-muted-foreground">›</span>
         </div>
@@ -389,144 +219,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       )}
 
-
-      {consultaEnabled && (
-        <div className="mx-5 mb-5">
-          <div
-            className="rounded-[18px] p-5 cursor-pointer active:scale-[.97] transition-transform"
-            style={{ background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-pref-lt)))" }}
-            onClick={handleOpenConsultas}
-          >
-            <span className="text-3xl block mb-2">🩺</span>
-            <span className="text-[15px] font-semibold text-primary-foreground block">Realizar Consulta</span>
-            <span className="text-sm block mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>Online ou presencial</span>
-          </div>
-        </div>
-      )}
-
-
-      {/* rPPG CTA */}
-      <div
-        className="mx-5 mb-5 rounded-[18px] px-5 py-4 flex items-center gap-4 relative overflow-hidden cursor-pointer"
-        style={{ background: "linear-gradient(135deg, hsl(var(--mayla-ink)), #3D2820)" }}
-        onClick={() => setTab("bemestar")}
-      >
-        <div className="absolute rounded-full" style={{ top: -20, right: -20, width: 90, height: 90, background: "rgba(255,255,255,.04)" }} />
-        <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))" }}>📷</div>
-        <div className="flex-1">
-          <div className="text-[15px] font-semibold text-primary-foreground mb-0.5">Fazer medição de hoje</div>
-          <div className="text-sm leading-snug" style={{ color: "rgba(255,255,255,.55)" }}>30 segundos · câmera rPPG · ganhe +50 pts</div>
-        </div>
-        <span style={{ fontSize: 20, color: "rgba(255,255,255,.4)" }}>›</span>
-      </div>
-
-
-
-      {/* Health Magazine Carousel */}
+      {/* Health Magazine Carousel — destaque visual da Home */}
       {onOpenArticle && <HealthMagazineCarousel onOpenArticle={onOpenArticle} />}
-
-      {/* Alerts */}
-      {alerts.length > 0 &&
-        <div className="px-5">
-          <p className="text-xs font-medium text-muted-foreground tracking-[.1em] uppercase mb-3.5">Informações importantes</p>
-          <div className="flex flex-col gap-2.5">
-            {alerts.map((alert) => (
-              <div key={alert.id} className="bg-secondary rounded-2xl p-4 flex items-start gap-3 cursor-pointer active:opacity-80 transition-opacity" style={{ borderLeft: `3px solid hsl(${alert.color})` }} onClick={() => setSelectedAlert(alert)}>
-                <span className="text-xl shrink-0 mt-0.5">{alert.emoji}</span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="text-[15px] font-semibold text-foreground">{alert.title}</span>
-                    <span className="text-[10px] font-semibold rounded-md px-2 py-px tracking-[.06em] uppercase" style={{ color: `hsl(${alert.color})`, background: `hsl(${alert.color} / .1)` }}>
-                      {alert.scope === "company" ? "Empresa" : alert.scope === "municipal" ? "Município" : "Você"}
-                    </span>
-                  </div>
-                  {alert.body && <div className="text-sm text-muted-foreground leading-snug">{alert.body}</div>}
-                </div>
-                <span className="text-xl text-muted-foreground mt-0.5">›</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      }
-
-      {/* Alert Detail Dialog */}
-      <Dialog open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
-        <DialogContent className="max-w-sm rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{selectedAlert?.emoji}</span>
-              <span>{selectedAlert?.title}</span>
-            </DialogTitle>
-          </DialogHeader>
-          {selectedAlert?.body && <p className="text-base text-muted-foreground">{selectedAlert.body}</p>}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold rounded-md px-2 py-0.5 tracking-[.06em] uppercase" style={{ color: selectedAlert ? `hsl(${selectedAlert.color})` : undefined, background: selectedAlert ? `hsl(${selectedAlert.color} / .1)` : undefined }}>
-              {selectedAlert?.scope === "company" ? "Empresa" : selectedAlert?.scope === "municipal" ? "Município" : "Você"}
-            </span>
-          </div>
-          {selectedAlert?.external_url && <a href={selectedAlert.external_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-base font-medium text-accent hover:underline">Abrir link externo →</a>}
-        </DialogContent>
-      </Dialog>
-
-      {/* Team Dialog */}
-      <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
-        <DialogContent className="max-w-sm rounded-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">👥</span>
-              <span>Times Colaborativos</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          {teamDialogMode === "list" ? (
-            <div className="space-y-3">
-              {myTeam && (
-                <div className="bg-accent/10 rounded-2xl p-4 border border-accent/20">
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Seu time atual</div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{myTeam.emoji}</span>
-                    <span className="text-base font-semibold text-foreground">{myTeam.name}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Times disponíveis</div>
-              {availableTeams.map((team) => (
-                <div key={team.id} className="bg-secondary rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleJoinTeam(team.id)}>
-                  <span className="text-xl">{team.emoji}</span>
-                  <span className="text-sm font-medium text-foreground flex-1">{team.name}</span>
-                  {myTeam?.id === team.id && <span className="text-xs text-accent font-semibold">Atual</span>}
-                  {myTeam?.id !== team.id && <span className="text-xs text-primary font-medium">Entrar</span>}
-                </div>
-              ))}
-
-              <Button variant="outline" className="w-full" onClick={() => setTeamDialogMode("create")}>
-                ✨ Criar novo time
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Nome do time</label>
-                <Input value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} placeholder="Ex: Runners, Wellness Squad..." />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Emoji</label>
-                <div className="flex gap-2 flex-wrap">
-                  {["🏃", "💪", "🧘", "🚴", "⚡", "🌟", "🎯", "🔥"].map((e) => (
-                    <button key={e} onClick={() => setNewTeamEmoji(e)} className={`text-2xl p-2 rounded-xl cursor-pointer transition-colors ${newTeamEmoji === e ? "bg-accent/20 ring-2 ring-accent" : "bg-secondary"}`}>{e}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="ghost" className="flex-1" onClick={() => setTeamDialogMode("list")}>Voltar</Button>
-                <Button className="flex-1" onClick={handleCreateTeam} disabled={!newTeamName.trim()}>Criar time</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 }

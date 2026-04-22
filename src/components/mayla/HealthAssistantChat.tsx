@@ -3,20 +3,55 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
+interface ActionChip {
+  id: string;
+  label: string;
+}
+
 interface Msg {
   id?: string;
   role: "user" | "assistant";
   content: string;
+  actions?: ActionChip[];
 }
 
 const SUGGESTIONS = [
-  "Como está minha pressão?",
-  "Explique meu score de saúde",
-  "Dicas de bem-estar para hoje",
-  "O que significa HRV?",
+  { label: "Como está minha saúde hoje?", emoji: "❤️" },
+  { label: "Quero dicas de bem-estar para hoje", emoji: "🌿" },
+  { label: "Quais as novidades para hoje", emoji: "📰" },
+  { label: "Quero conhecer o aplicativo", emoji: "✨" },
 ];
 
-export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
+const ACTION_LABELS: Record<string, { label: string; emoji: string }> = {
+  consulta: { label: "Fazer consulta", emoji: "🩺" },
+  medicao: { label: "Medir saúde", emoji: "📷" },
+  dicas: { label: "Dicas de bem-estar", emoji: "🌿" },
+  relatorio: { label: "Ver relatório", emoji: "📊" },
+  magazine: { label: "Ver Magazine", emoji: "📰" },
+};
+
+function parseActions(text: string): { clean: string; actions: ActionChip[] } {
+  const match = text.match(/\[ACTIONS\]([\s\S]*?)\[\/ACTIONS\]/);
+  if (!match) return { clean: text, actions: [] };
+  let actions: ActionChip[] = [];
+  try {
+    const parsed = JSON.parse(match[1].trim());
+    if (Array.isArray(parsed)) {
+      actions = parsed
+        .filter((a) => a && typeof a.id === "string")
+        .map((a) => ({ id: a.id, label: a.label || ACTION_LABELS[a.id]?.label || a.id }));
+    }
+  } catch {}
+  const clean = text.replace(/\[ACTIONS\][\s\S]*?\[\/ACTIONS\]/, "").trim();
+  return { clean, actions };
+}
+
+interface Props {
+  onBack: () => void;
+  onAction?: (action: string) => void;
+}
+
+export function HealthAssistantChat({ onBack, onAction }: Props) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -80,7 +115,6 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
           buffer = buffer.slice(idx + 1);
           if (line.endsWith("\r")) line = line.slice(0, -1);
           if (!line.startsWith("data: ")) {
-            // handle meta event
             if (line.startsWith("event: meta")) continue;
             continue;
           }
@@ -95,12 +129,13 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) {
               assistant += delta;
+              const { clean, actions } = parseActions(assistant);
               setMessages((prev) => {
                 if (!inserted) {
                   inserted = true;
-                  return [...prev, { role: "assistant", content: assistant }];
+                  return [...prev, { role: "assistant", content: clean, actions }];
                 }
-                return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistant } : m));
+                return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: clean, actions } : m));
               });
             }
           } catch {
@@ -116,8 +151,19 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const handleChip = (id: string) => {
+    if (id === "dicas") {
+      send("Quero dicas de bem-estar para hoje");
+      return;
+    }
+    if (id === "relatorio") {
+      window.open("/relatorio", "_blank", "noopener");
+      return;
+    }
+    if (onAction) onAction(id);
+  };
+
   const sendFeedback = async (messageIndex: number, rating: "up" | "down") => {
-    // Find the assistant message id by querying recent messages
     if (!conversationId) return;
     const assistantMessages = messages.filter((m) => m.role === "assistant");
     const msgPosition = assistantMessages.indexOf(messages[messageIndex]);
@@ -163,18 +209,19 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
             <div className="bg-secondary rounded-2xl p-4 flex gap-3">
               <div className="shrink-0 w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-xl">👩‍⚕️</div>
               <p className="text-sm text-foreground leading-relaxed">
-                Olá! Sou a <strong>Mayla</strong>, sua <strong>enfermeira digital</strong>. Posso explicar seus indicadores, ajudar a entender seus dados e orientar cuidados gerais de saúde. Não faço diagnósticos nem prescrevo medicamentos.
+                Olá! Sou a <strong>Mayla</strong>, sua <strong>enfermeira digital</strong>. Posso explicar seus indicadores e orientar cuidados gerais. Não faço diagnósticos nem prescrevo.
               </p>
             </div>
             <div className="space-y-2">
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sugestões</div>
               {SUGGESTIONS.map((s) => (
                 <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="w-full text-left bg-secondary/60 hover:bg-secondary rounded-xl px-4 py-3 text-sm text-foreground transition-colors"
+                  key={s.label}
+                  onClick={() => send(s.label)}
+                  className="w-full text-left bg-secondary/60 hover:bg-secondary rounded-xl px-4 py-3 text-sm text-foreground transition-colors flex items-center gap-2"
                 >
-                  {s}
+                  <span className="text-base">{s.emoji}</span>
+                  <span>{s.label}</span>
                 </button>
               ))}
             </div>
@@ -186,18 +233,37 @@ export function HealthAssistantChat({ onBack }: { onBack: () => void }) {
             {m.role === "assistant" && (
               <div className="shrink-0 w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-base self-end mb-1" aria-label="Mayla">👩‍⚕️</div>
             )}
-            <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}`}>
-              {m.role === "assistant" ? (
-                <div className="prose prose-sm max-w-none text-foreground prose-strong:text-foreground prose-p:my-1 prose-ul:my-1 prose-li:my-0">
-                  <ReactMarkdown>{m.content}</ReactMarkdown>
-                </div>
-              ) : (
-                <p className="text-sm whitespace-pre-wrap">{m.content}</p>
-              )}
-              {m.role === "assistant" && m.content && !loading && (
-                <div className="flex gap-2 mt-2 pt-2 border-t border-foreground/10">
-                  <button onClick={() => sendFeedback(i, "up")} className="text-base hover:scale-110 transition-transform" aria-label="Útil">👍</button>
-                  <button onClick={() => sendFeedback(i, "down")} className="text-base hover:scale-110 transition-transform" aria-label="Não útil">👎</button>
+            <div className={`max-w-[85%] flex flex-col gap-2 ${m.role === "user" ? "items-end" : "items-start"}`}>
+              <div className={`rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-accent text-accent-foreground" : "bg-secondary text-foreground"}`}>
+                {m.role === "assistant" ? (
+                  <div className="prose prose-sm max-w-none text-foreground prose-strong:text-foreground prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+                )}
+                {m.role === "assistant" && m.content && !loading && (
+                  <div className="flex gap-2 mt-2 pt-2 border-t border-foreground/10">
+                    <button onClick={() => sendFeedback(i, "up")} className="text-base hover:scale-110 transition-transform" aria-label="Útil">👍</button>
+                    <button onClick={() => sendFeedback(i, "down")} className="text-base hover:scale-110 transition-transform" aria-label="Não útil">👎</button>
+                  </div>
+                )}
+              </div>
+              {m.role === "assistant" && m.actions && m.actions.length > 0 && !loading && (
+                <div className="flex flex-wrap gap-2">
+                  {m.actions.map((a) => {
+                    const meta = ACTION_LABELS[a.id];
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => handleChip(a.id)}
+                        className="rounded-full px-3 py-1.5 text-xs font-semibold bg-accent/10 hover:bg-accent/20 text-accent transition-colors flex items-center gap-1.5"
+                      >
+                        {meta && <span className="text-sm">{meta.emoji}</span>}
+                        <span>{a.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

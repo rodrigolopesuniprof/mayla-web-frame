@@ -15,6 +15,7 @@ import { EsfLinkScreen } from "./EsfLinkScreen";
 import { OnDemandFlow } from "./OnDemandFlow";
 import { HealthAssistantChat } from "./HealthAssistantChat";
 import { HealthMagazineArticle } from "./HealthMagazineArticle";
+import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "main";
@@ -72,7 +73,14 @@ export function MaylaApp() {
                 onLeave={() => setActiveVideoCall(null)}
               />
             ) : showAssistant ? (
-              <HealthAssistantChat onBack={() => setShowAssistant(false)} />
+              <HealthAssistantChat
+                onBack={() => setShowAssistant(false)}
+                onAction={(id) => {
+                  if (id === "consulta") { setShowAssistant(false); setActiveTab("servicos"); setConsultOnlineMode(true); }
+                  else if (id === "medicao") { setShowAssistant(false); setActiveTab("bemestar"); }
+                  else if (id === "magazine") { setShowAssistant(false); setActiveTab("inicio"); }
+                }}
+              />
             ) : activeArticleId ? (
               <HealthMagazineArticle articleId={activeArticleId} onBack={() => setActiveArticleId(null)} />
             ) : showTelemedicine ? (
@@ -111,6 +119,15 @@ export function MaylaApp() {
               </div>
             )}
             <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setActiveTab(t); }} />
+            {!activeVideoCall && !showAssistant && (
+              <MaylaFloatingButton
+                onAction={(action) => {
+                  if (action === "consulta") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("servicos"); setConsultOnlineMode(true); }
+                  else if (action === "medicao") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("bemestar"); }
+                  else if (action === "magazine") { setShowTelemedicine(false); setShowAppointment(false); setShowOnDemand(false); setActiveTab("inicio"); }
+                }}
+              />
+            )}
           </>
         )}
       </div>
