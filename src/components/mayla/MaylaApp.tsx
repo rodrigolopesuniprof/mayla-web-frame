@@ -15,6 +15,7 @@ import { EsfLinkScreen } from "./EsfLinkScreen";
 import { OnDemandFlow } from "./OnDemandFlow";
 import { HealthAssistantChat } from "./HealthAssistantChat";
 import { HealthMagazineArticle } from "./HealthMagazineArticle";
+import { HealthMagazineList } from "./HealthMagazineList";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -31,6 +32,7 @@ export function MaylaApp() {
   const [consultOnlineMode, setConsultOnlineMode] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
+  const [showAllArticles, setShowAllArticles] = useState(false);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,6 +87,11 @@ export function MaylaApp() {
               />
             ) : activeArticleId ? (
               <HealthMagazineArticle articleId={activeArticleId} onBack={() => setActiveArticleId(null)} />
+            ) : showAllArticles ? (
+              <HealthMagazineList
+                onBack={() => setShowAllArticles(false)}
+                onOpenArticle={(id) => { setShowAllArticles(false); setActiveArticleId(id); }}
+              />
             ) : showTelemedicine ? (
               <TelemedicineScreen onBack={() => setShowTelemedicine(false)} />
             ) : showAppointment ? (
@@ -112,6 +119,7 @@ export function MaylaApp() {
                     }}
                     onOpenAssistant={() => setShowAssistant(true)}
                     onOpenArticle={(id) => setActiveArticleId(id)}
+                    onOpenAllArticles={() => setShowAllArticles(true)}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
@@ -120,7 +128,7 @@ export function MaylaApp() {
                 {activeTab === "perfil" && <ProfileTab />}
               </div>
             )}
-            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setActiveTab(t); }} />
+            <BottomNav active={activeTab} setActive={(t) => { setShowTelemedicine(false); setShowAppointment(false); setShowEsfLink(false); setShowOnDemand(false); setConsultOnlineMode(false); setActiveVideoCall(null); setShowAssistant(false); setActiveArticleId(null); setShowAllArticles(false); setActiveTab(t); }} />
             {!activeVideoCall && !showAssistant && (
               <MaylaFloatingButton
                 containerRef={containerRef}

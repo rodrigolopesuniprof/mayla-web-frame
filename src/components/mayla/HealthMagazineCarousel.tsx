@@ -13,7 +13,7 @@ interface Article {
   company_id: string | null;
 }
 
-export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: string) => void }) {
+export function HealthMagazineCarousel({ onOpenArticle, onOpenAll }: { onOpenArticle: (id: string) => void; onOpenAll?: () => void }) {
   const [articles, setArticles] = useState<Article[]>([]);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: 
         <div className="px-5 mb-3">
           <p className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
             <span>📰</span>
-            <span>Mayla Magazine</span>
+            <span>Saúde com Você</span>
           </p>
         </div>
         <div className="mx-5 rounded-3xl p-6 text-center border-2 border-dashed border-border bg-muted/30">
@@ -56,9 +56,16 @@ export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: 
       <div className="px-5 mb-3 flex items-baseline justify-between">
         <p className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
           <span>📰</span>
-          <span>Mayla Magazine</span>
+          <span>Saúde com Você</span>
         </p>
-        <span className="text-xs font-semibold text-accent">Ver todas →</span>
+        {onOpenAll && (
+          <button
+            onClick={onOpenAll}
+            className="text-xs font-semibold text-accent bg-transparent border-none cursor-pointer p-0 hover:underline"
+          >
+            Ver todas →
+          </button>
+        )}
       </div>
       <div
         className="flex gap-3 overflow-x-auto px-5 pb-3 snap-x snap-mandatory"
@@ -97,7 +104,7 @@ export function HealthMagazineCarousel({ onOpenArticle }: { onOpenArticle: (id: 
                 className="absolute top-3 right-3 text-[10px] font-bold rounded-full px-2.5 py-1 backdrop-blur-md"
                 style={{ background: "rgba(0,0,0,.55)", color: "white" }}
               >
-                Mayla Saúde
+                Saúde com Você
               </span>
             )}
             {/* Title overlay */}
