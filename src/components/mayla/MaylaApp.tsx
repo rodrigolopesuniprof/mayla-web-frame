@@ -32,6 +32,7 @@ export function MaylaApp() {
   const [consultOnlineMode, setConsultOnlineMode] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
+  const [showAllArticles, setShowAllArticles] = useState(false);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
