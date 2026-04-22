@@ -17,6 +17,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenConsultationOnline?: () => void;
   onOpenAssistant?: () => void;
   onOpenArticle?: (id: string) => void;
+  onOpenAllArticles?: () => void;
 }) {
   const { isDefault } = useCompany();
   const { user } = useAuth();
