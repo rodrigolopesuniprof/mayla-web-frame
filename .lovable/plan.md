@@ -1,64 +1,72 @@
 
 
-# Ajustes Mobile-First: FAB no container + Conteúdo
+# Plano: Magazine por Empresa + Canal Global Mayla
 
-## Problema 1: FAB sai do container do celular
-
-O FAB usa `position: fixed` com coordenadas calculadas a partir de `window.innerWidth/Height`. No desktop, isso o joga para o canto da janela do navegador, **fora do "celular" de 430px** centralizado.
-
-### Correção em `MaylaFloatingButton.tsx`
-- Trocar `position: fixed` por `position: absolute` ancorado ao container do app (430px).
-- Calcular limites de drag com base no **bounding rect do container pai**, não em `window`.
-- Adicionar `ref` no `MaylaApp.tsx` no div interno (430px) e passar como prop `containerRef` para o FAB.
-- Posição inicial: canto inferior direito do container (não da tela), acima do `BottomNav` (~80px do bottom).
-- Ao redimensionar o navegador, recalcular para manter o FAB dentro dos limites do container.
-
-### Correção em `MaylaApp.tsx`
-- Criar `useRef<HTMLDivElement>` no div do container 430px.
-- Passar `containerRef` para `<MaylaFloatingButton containerRef={containerRef} />`.
-- O FAB renderiza **dentro** do container (já está, mas com `fixed` ele escapa visualmente).
+## Diagnóstico
+1. O componente `AdminMagazine.tsx` existe, mas **não está conectado em nenhuma tela** do admin — por isso você não acha.
+2. A tabela `health_articles` é **100% global** (sem `company_id`) — todo artigo cadastrado aparece para todos os usuários.
+3. Sua decisão correta: cada empresa precisa do seu próprio canal, com a opção de um canal "Mayla Saúde" global que envia para todas.
 
 ---
 
-## Problema 2: Conteúdo vazio (Magazine + Notificações)
+## 1. Banco de dados — adicionar escopo por empresa
 
-### Diagnóstico do banco
-- `health_articles`: **0 registros** → carrossel não renderiza (já tem `if (articles.length === 0) return null`).
-- `notifications`: 1 registro ("Campanha contra a dengue") → o FAB deveria mostrar, mas está fora da tela.
+Migração que adiciona à tabela `health_articles`:
 
-### Onde criar conteúdo (já existe, só precisa de orientação):
-| Conteúdo | Onde gerenciar |
-|---|---|
-| **Notícias / avisos do FAB** | Painel Admin → Empresa → aba **"Notificações"** (`AdminNotifications`) |
-| **Mayla Magazine** (artigos) | Painel Admin → aba **"Magazine"** (`AdminMagazine`) |
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `company_id` | `uuid` nullable, FK → `companies(id)` | Quando preenchido, artigo só aparece para essa empresa. **NULL** = canal global Mayla Saúde (todas as empresas) |
+| `is_global` | `boolean` default `false` | Flag explícita só para super admin marcar como global (segurança extra além de `company_id IS NULL`) |
 
-### Ajuste de UX para estado vazio
-- **HomeTab**: quando não houver artigos, mostrar um card placeholder amigável: *"📰 Em breve, novidades de saúde aqui."* — em vez de simplesmente sumir.
-- **FAB**: quando não houver notificações nem CTAs disponíveis para o dia, ainda assim aparecer (sem pulso vermelho) como atalho rápido para a Mayla. Hoje ele só aparece se há itens — vamos sempre mostrar, com badge apenas se houver itens.
-
----
-
-## Problema 3: Cards informativos visíveis na Home
-
-A Home ficou muito vazia porque tudo migrou para o FAB que está invisível. Vamos:
-- **Reintroduzir um card "Avisos & Novidades"** na Home (abaixo do card da Mayla) que mostra a notificação mais recente de forma resumida, com seta para abrir o popup (mesmo conteúdo do FAB). Isso garante visibilidade mesmo se o usuário ignorar o FAB.
-- O FAB continua existindo como atalho flutuante, mas a Home não fica mais "só com Score + Mayla".
+**RLS atualizada**:
+- **Leitura**: usuário vê artigos onde `company_id = profile.company_id` **OU** `is_global = true AND company_id IS NULL`
+- **Escrita**:
+  - Super admin: pode criar/editar artigos globais (`is_global=true`) e de qualquer empresa
+  - Company admin: só pode CRUD em artigos da própria empresa (`company_id = sua_empresa`); **não pode** marcar `is_global`
 
 ---
 
-## Arquivos afetados
+## 2. Admin — onde a Magazine vai aparecer
+
+### Dentro de cada Empresa (`AdminCompanyDetail.tsx`)
+Nova seção na sidebar: **"📰 Magazine"** (entre "Notificações" e "Programas de Saúde"). Reutiliza o componente `AdminMagazine` adaptado para receber `companyId` como prop. Lista, cria e edita só artigos daquela empresa.
+
+### Canal global Mayla Saúde (no nível raiz do Admin)
+Nova aba ao lado de **Dashboard / Empresas / Assistente**: **"📰 Magazine Global"**. Permite ao super admin publicar artigos com `is_global=true` e `company_id=null`, que aparecem automaticamente para todos os colaboradores de todas as empresas.
+
+### Adaptação em `AdminMagazine.tsx`
+- Aceita prop opcional `companyId?: string`:
+  - Se presente → filtra `eq("company_id", companyId)` e força esse `company_id` no insert
+  - Se ausente → modo global, filtra `is_global=true` e força `is_global=true, company_id=null` no insert
+- Badge visual no card do artigo: "🏢 Empresa" ou "🌐 Global Mayla"
+
+---
+
+## 3. Frontend — leitura no app do colaborador
+
+`HealthMagazineCarousel.tsx` passa a consultar:
+```ts
+.or(`company_id.eq.${userCompanyId},and(is_global.eq.true,company_id.is.null)`)
+```
+Carregando o `company_id` do perfil via `useAuth`/`profiles`. Artigos da própria empresa **e** globais Mayla aparecem misturados, ordenados por `sort_order` + `published_at`.
+
+Pequeno indicador no card global: pill "Mayla Saúde" para diferenciar do conteúdo da empresa, se desejado.
+
+---
+
+## 4. Resumo dos arquivos afetados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/components/mayla/MaylaFloatingButton.tsx` | `position: absolute` ancorado ao container; cálculo de drag por `containerRef`; sempre visível |
-| `src/components/mayla/MaylaApp.tsx` | `useRef` no container 430px; passa `containerRef` ao FAB |
-| `src/components/mayla/HomeTab.tsx` | Novo card "Avisos & Novidades" lendo `notifications` (top 1, com modal de detalhe) + placeholder para Magazine vazia |
-| `src/components/mayla/HealthMagazineCarousel.tsx` | Renderiza placeholder amigável quando `articles.length === 0` |
+| `supabase/migrations/<nova>.sql` | Adiciona `company_id` + `is_global` em `health_articles`; nova RLS de leitura/escrita |
+| `src/components/admin/AdminCompanyDetail.tsx` | Nova seção "📰 Magazine" na sidebar; renderiza `<AdminMagazine companyId={...} />` |
+| `src/pages/Admin.tsx` | Nova aba "📰 Magazine Global" (super admin) renderiza `<AdminMagazine />` sem `companyId` |
+| `src/components/admin/AdminMagazine.tsx` | Aceita `companyId` opcional; filtra/insere com escopo correto; badge global vs empresa |
+| `src/components/mayla/HealthMagazineCarousel.tsx` | Query passa a filtrar por `company_id` do usuário + globais |
 
 ## Validação
-1. FAB aparece **dentro** do retângulo do celular (canto inferior direito do container 430px), tanto no preview quanto em mobile real.
-2. Arrastar o FAB respeita os limites do container (não escapa).
-3. Card "Avisos & Novidades" mostra "Campanha contra a dengue" na Home.
-4. Carrossel da Magazine mostra placeholder até admin cadastrar artigos.
-5. Mensagem clara ao usuário: notícias se cadastram em **Admin → Empresa → Notificações**; artigos em **Admin → Magazine**.
+1. Super admin acessa **Admin → Magazine Global** e cria artigo "Outubro Rosa" → aparece para colaboradores de **todas** as empresas
+2. Super admin entra em **Empresas → MEDDIT → Magazine** e cria artigo "Comunicado MEDDIT" → aparece **apenas** para colaboradores da MEDDIT
+3. Colaborador da MEDDIT vê os 2 artigos no carrossel; colaborador de outra empresa vê só o global
+4. Company admin não consegue criar/editar artigos globais nem de outras empresas (bloqueado por RLS)
 
