@@ -234,7 +234,7 @@ export function MaylaFloatingButton({ onAction, onOpenAssistantWithMessage, cont
           touchAction: "none",
           cursor: "grab",
         }}
-        aria-label="Mayla, sua enfermeira virtual"
+        aria-label="Mayla, sua assistente de saúde e bem-estar"
       >
         <img
           src={fabGif}
@@ -278,7 +278,7 @@ export function MaylaFloatingButton({ onAction, onOpenAssistantWithMessage, cont
               <div className="flex flex-col items-start">
                 <span className="text-base">{itemTitle ?? "Olá! Sou a Mayla"}</span>
                 {!current && (
-                  <span className="text-xs text-muted-foreground font-normal">Sua enfermeira virtual</span>
+                  <span className="text-xs text-muted-foreground font-normal">Sua assistente de saúde e bem-estar</span>
                 )}
               </div>
             </DialogTitle>
