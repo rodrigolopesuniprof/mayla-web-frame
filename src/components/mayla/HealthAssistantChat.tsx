@@ -225,7 +225,7 @@ export function HealthAssistantChat({ onBack, onAction, initialMessage }: Props)
           <div className="font-display text-lg font-semibold text-foreground leading-tight">
             Mayla Assistente
           </div>
-          <div className="text-xs text-muted-foreground">Sua enfermeira virtual · não substitui consulta médica</div>
+          <div className="text-xs text-muted-foreground">Sua assistente de saúde e bem-estar · não substitui consulta médica</div>
         </div>
         <div
           className="w-24 h-24 rounded-full overflow-hidden shrink-0 border-2 border-background shadow-lg"
@@ -246,7 +246,7 @@ export function HealthAssistantChat({ onBack, onAction, initialMessage }: Props)
             <div className="bg-secondary rounded-2xl p-4 flex gap-3">
               <div className="shrink-0 w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-xl">👩‍⚕️</div>
               <p className="text-sm text-foreground leading-relaxed">
-                Olá! Sou a <strong>Mayla</strong>, sua <strong>enfermeira digital</strong>. Posso explicar seus indicadores e orientar cuidados gerais. Não faço diagnósticos nem prescrevo.
+                Olá! Sou a <strong>Mayla</strong>, sua <strong>assistente de saúde e bem-estar</strong>. Posso explicar seus indicadores e orientar cuidados gerais. Não faço diagnósticos nem prescrevo.
               </p>
             </div>
             <div className="space-y-2">

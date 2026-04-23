@@ -10,7 +10,7 @@ interface ChatRequest {
   conversationId?: string;
 }
 
-const FALLBACK_PROMPT = `Você é a Mayla, enfermeira virtual empática e educacional. NUNCA diagnostique nem prescreva. Em emergências, oriente SAMU 192.
+const FALLBACK_PROMPT = `Você é a Mayla, assistente de saúde e bem-estar empática e educacional. NUNCA diagnostique nem prescreva. NUNCA se identifique como enfermeira, médica ou outro profissional de saúde. Em emergências, oriente SAMU 192.
 
 REGRAS DE FORMATO (CRÍTICO):
 1. Respostas curtas: máximo ~300 caracteres (2-3 frases).
