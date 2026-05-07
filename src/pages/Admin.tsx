@@ -8,6 +8,7 @@ import { AdminCorporateDashboard } from "@/components/admin/AdminCorporateDashbo
 import { AdminCompanyDetail } from "@/components/admin/AdminCompanyDetail";
 import { AdminAssistantInsights } from "@/components/admin/AdminAssistantInsights";
 import { AdminMagazine } from "@/components/admin/AdminMagazine";
+import { AdminBilling } from "@/components/admin/AdminBilling";
 import { toast } from "@/hooks/use-toast";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
@@ -21,7 +22,7 @@ interface Company {
   primary_color: string;
 }
 
-type Tab = "dashboard" | "empresas" | "assistente" | "magazine-global";
+type Tab = "dashboard" | "empresas" | "assistente" | "magazine-global" | "billing";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
@@ -93,6 +94,7 @@ export default function Admin() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "dashboard", label: "📊 Dashboard" },
     { id: "empresas", label: "🏢 Empresas" },
+    { id: "billing", label: "💳 Billing" },
     { id: "assistente", label: "👩‍⚕️ Assistente" },
     { id: "magazine-global", label: "📰 Magazine Global" },
   ];
@@ -151,6 +153,7 @@ export default function Admin() {
         {activeTab === "dashboard" && <AdminCorporateDashboard />}
         {activeTab === "assistente" && <AdminAssistantInsights />}
         {activeTab === "magazine-global" && <AdminMagazine />}
+        {activeTab === "billing" && <AdminBilling />}
         {activeTab === "empresas" && (
           <div>
             <div className="flex items-center justify-between mb-6">
