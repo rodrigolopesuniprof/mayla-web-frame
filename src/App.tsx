@@ -18,6 +18,7 @@ import CompanyLanding from "./pages/CompanyLanding.tsx";
 import CompanyDashboard from "./pages/CompanyDashboard.tsx";
 import PartnerRegistration from "./pages/PartnerRegistration.tsx";
 import CompanySignup from "./pages/CompanySignup.tsx";
+import Subscribe from "./pages/Subscribe.tsx";
 import { lazy, Suspense } from "react";
 
 const HealthReport = lazy(() => import("./components/report/HealthReport"));
