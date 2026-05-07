@@ -38,6 +38,7 @@ const App = () => (
               <Route path="/empresa/:slug" element={<CompanyLanding />} />
               <Route path="/cadastro-parceiro" element={<PartnerRegistration />} />
               <Route path="/cadastro/:token" element={<CompanySignup />} />
+              <Route path="/assinar/:slug" element={<Subscribe />} />
               {/* Backward compat */}
               <Route path="/cidade/:slug" element={<CompanyLanding />} />
               <Route path="/painel/:slug" element={<CompanyDashboard />} />
