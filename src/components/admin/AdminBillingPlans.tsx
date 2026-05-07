@@ -34,7 +34,7 @@ export function AdminBillingPlans() {
       description: editing.description ?? null,
       price_cents: Number(editing.price_cents),
       billing_interval: editing.billing_interval ?? "monthly",
-      payment_methods: editing.payment_methods ?? ["credit_card", "pix"],
+      payment_methods: (editing.payment_methods ?? ["credit_card", "pix"]) as ("credit_card" | "pix")[],
       trial_days: Number(editing.trial_days ?? 0),
       active: editing.active ?? true,
     };
