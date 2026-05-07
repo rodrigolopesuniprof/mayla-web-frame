@@ -19,6 +19,8 @@ import CompanyDashboard from "./pages/CompanyDashboard.tsx";
 import PartnerRegistration from "./pages/PartnerRegistration.tsx";
 import CompanySignup from "./pages/CompanySignup.tsx";
 import Subscribe from "./pages/Subscribe.tsx";
+import MySubscription from "./pages/MySubscription.tsx";
+import { AccessGate } from "./components/AccessGate";
 import { lazy, Suspense } from "react";
 
 const HealthReport = lazy(() => import("./components/report/HealthReport"));
@@ -63,10 +65,20 @@ const App = () => (
                 }
               />
               <Route
+                path="/perfil/assinatura"
+                element={
+                  <ProtectedRoute>
+                    <MySubscription />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/"
                 element={
                   <ProtectedRoute>
-                    <Index />
+                    <AccessGate>
+                      <Index />
+                    </AccessGate>
                   </ProtectedRoute>
                 }
               />
