@@ -14,6 +14,121 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          affiliate_id: string
+          amount_cents: number
+          commission_percent: number
+          created_at: string
+          id: string
+          invoice_id: string | null
+          pagarme_split_id: string | null
+          paid_at: string | null
+          status: Database["public"]["Enums"]["commission_status"]
+          subscription_id: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount_cents: number
+          commission_percent: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          pagarme_split_id?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["commission_status"]
+          subscription_id: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount_cents?: number
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          pagarme_split_id?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["commission_status"]
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          active: boolean
+          bank_account: Json | null
+          commission_percent: number
+          company_id: string | null
+          cpf_cnpj: string
+          created_at: string
+          email: string
+          id: string
+          kyc_status: Database["public"]["Enums"]["kyc_status"]
+          name: string
+          notes: string | null
+          pagarme_recipient_id: string | null
+          phone: string | null
+          referral_code: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          bank_account?: Json | null
+          commission_percent?: number
+          company_id?: string | null
+          cpf_cnpj: string
+          created_at?: string
+          email: string
+          id?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          name: string
+          notes?: string | null
+          pagarme_recipient_id?: string | null
+          phone?: string | null
+          referral_code: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          bank_account?: Json | null
+          commission_percent?: number
+          company_id?: string | null
+          cpf_cnpj?: string
+          created_at?: string
+          email?: string
+          id?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          name?: string
+          notes?: string | null
+          pagarme_recipient_id?: string | null
+          phone?: string | null
+          referral_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appointment_reminders: {
         Row: {
           appointment_id: string
@@ -828,6 +943,80 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_payment_credentials: {
+        Row: {
+          company_id: string
+          created_at: string
+          enabled: boolean
+          environment: Database["public"]["Enums"]["pagarme_environment"]
+          id: string
+          pagarme_api_key_encrypted: string | null
+          pagarme_recipient_id: string | null
+          require_paid_subscription: boolean
+          updated_at: string
+          webhook_secret: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          enabled?: boolean
+          environment?: Database["public"]["Enums"]["pagarme_environment"]
+          id?: string
+          pagarme_api_key_encrypted?: string | null
+          pagarme_recipient_id?: string | null
+          require_paid_subscription?: boolean
+          updated_at?: string
+          webhook_secret?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          enabled?: boolean
+          environment?: Database["public"]["Enums"]["pagarme_environment"]
+          id?: string
+          pagarme_api_key_encrypted?: string | null
+          pagarme_recipient_id?: string | null
+          require_paid_subscription?: boolean
+          updated_at?: string
+          webhook_secret?: string | null
+        }
+        Relationships: []
+      }
+      company_plan_assignments: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          custom_price_cents: number | null
+          id: string
+          plan_id: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          custom_price_cents?: number | null
+          id?: string
+          plan_id: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          custom_price_cents?: number | null
+          id?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_plan_assignments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -2566,6 +2755,185 @@ export type Database = {
           },
         ]
       }
+      subscription_invoices: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          due_date: string | null
+          failure_reason: string | null
+          id: string
+          pagarme_charge_id: string | null
+          pagarme_invoice_id: string | null
+          paid_at: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          pix_expires_at: string | null
+          pix_qr_code: string | null
+          pix_qr_code_url: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          due_date?: string | null
+          failure_reason?: string | null
+          id?: string
+          pagarme_charge_id?: string | null
+          pagarme_invoice_id?: string | null
+          paid_at?: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_url?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          due_date?: string | null
+          failure_reason?: string | null
+          id?: string
+          pagarme_charge_id?: string | null
+          pagarme_invoice_id?: string | null
+          paid_at?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_url?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          active: boolean
+          billing_interval: Database["public"]["Enums"]["billing_interval"]
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          name: string
+          payment_methods: Database["public"]["Enums"]["payment_method"][]
+          price_cents: number
+          trial_days: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          name: string
+          payment_methods?: Database["public"]["Enums"]["payment_method"][]
+          price_cents: number
+          trial_days?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          name?: string
+          payment_methods?: Database["public"]["Enums"]["payment_method"][]
+          price_cents?: number
+          trial_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          affiliate_id: string | null
+          canceled_at: string | null
+          card_brand: string | null
+          card_last4: string | null
+          company_id: string
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          metadata: Json | null
+          pagarme_customer_id: string | null
+          pagarme_subscription_id: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          plan_id: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          affiliate_id?: string | null
+          canceled_at?: string | null
+          card_brand?: string | null
+          card_last4?: string | null
+          company_id: string
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          metadata?: Json | null
+          pagarme_customer_id?: string | null
+          pagarme_subscription_id?: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          plan_id: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          affiliate_id?: string | null
+          canceled_at?: string | null
+          card_brand?: string | null
+          card_last4?: string | null
+          company_id?: string
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          metadata?: Json | null
+          pagarme_customer_id?: string | null
+          pagarme_subscription_id?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          plan_id?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_notes: {
         Row: {
           admin_user_id: string
@@ -2776,6 +3144,42 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_events: {
+        Row: {
+          company_id: string | null
+          error: string | null
+          event_type: string
+          id: string
+          pagarme_event_id: string
+          payload: Json
+          processed: boolean
+          processed_at: string | null
+          received_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          error?: string | null
+          event_type: string
+          id?: string
+          pagarme_event_id: string
+          payload: Json
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          error?: string | null
+          event_type?: string
+          id?: string
+          pagarme_event_id?: string
+          payload?: Json
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+        }
+        Relationships: []
+      }
       wellbeing_checkins: {
         Row: {
           company_id: string | null
@@ -2976,6 +3380,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      generate_referral_code: { Args: never; Returns: string }
       get_company_wellbeing_summary: {
         Args: { _company_id: string }
         Returns: {
@@ -2991,6 +3396,7 @@ export type Database = {
       }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_municipality_id: { Args: { _user_id: string }; Returns: string }
+      has_platform_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3029,6 +3435,8 @@ export type Database = {
         | "wellbeing_manager"
         | "employee"
       approval_status: "pending" | "approved" | "blocked"
+      billing_interval: "monthly" | "yearly"
+      commission_status: "pending" | "paid" | "canceled"
       consultation_flow_type: "scheduled" | "on_demand"
       consultation_professional_type: "doctor" | "nurse"
       consultation_status:
@@ -3041,7 +3449,17 @@ export type Database = {
         | "no_show"
         | "finished"
         | "missed"
+      invoice_status: "pending" | "paid" | "failed" | "canceled" | "refunded"
+      kyc_status: "pending" | "approved" | "rejected"
+      pagarme_environment: "test" | "live"
       partner_type: "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy"
+      payment_method: "credit_card" | "pix"
+      subscription_status:
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "pending"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3179,6 +3597,8 @@ export const Constants = {
         "employee",
       ],
       approval_status: ["pending", "approved", "blocked"],
+      billing_interval: ["monthly", "yearly"],
+      commission_status: ["pending", "paid", "canceled"],
       consultation_flow_type: ["scheduled", "on_demand"],
       consultation_professional_type: ["doctor", "nurse"],
       consultation_status: [
@@ -3192,7 +3612,18 @@ export const Constants = {
         "finished",
         "missed",
       ],
+      invoice_status: ["pending", "paid", "failed", "canceled", "refunded"],
+      kyc_status: ["pending", "approved", "rejected"],
+      pagarme_environment: ["test", "live"],
       partner_type: ["doctor", "clinic", "gym", "laboratory", "pharmacy"],
+      payment_method: ["credit_card", "pix"],
+      subscription_status: [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "pending",
+      ],
     },
   },
 } as const
