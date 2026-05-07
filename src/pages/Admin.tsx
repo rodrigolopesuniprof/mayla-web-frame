@@ -94,6 +94,7 @@ export default function Admin() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "dashboard", label: "📊 Dashboard" },
     { id: "empresas", label: "🏢 Empresas" },
+    { id: "billing", label: "💳 Billing" },
     { id: "assistente", label: "👩‍⚕️ Assistente" },
     { id: "magazine-global", label: "📰 Magazine Global" },
   ];
