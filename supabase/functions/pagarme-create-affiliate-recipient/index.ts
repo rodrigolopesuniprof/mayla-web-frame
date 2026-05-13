@@ -39,6 +39,16 @@ function normalizeBankCode(value: unknown): string {
   return BANK_CODE_BY_NAME[normalizeText(value)] ?? String(value ?? "").trim();
 }
 
+function toBrDate(value: unknown): string | null {
+  if (!value) return null;
+  const s = String(value).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return s;
+  return null;
+}
+
 function normalizePhone(registerInfo: any, fallbackPhone: unknown) {
   const phone = registerInfo?.phone ?? {};
   let ddd = digits(phone.ddd ?? phone.area_code ?? phone.areaCode).slice(0, 2);
