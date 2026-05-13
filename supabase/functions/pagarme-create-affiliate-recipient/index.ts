@@ -7,6 +7,53 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const BANK_CODE_BY_NAME: Record<string, string> = {
+  itau: "341",
+  bradesco: "237",
+  santander: "033",
+  bancodobrasil: "001",
+  bb: "001",
+  caixa: "104",
+  nubank: "260",
+  inter: "077",
+  sicoob: "756",
+  sicredi: "748",
+  mercadopago: "323",
+};
+
+function digits(value: unknown): string {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeBankCode(value: unknown): string {
+  const numeric = digits(value);
+  if (numeric) return numeric.length <= 3 ? numeric.padStart(3, "0") : numeric;
+  return BANK_CODE_BY_NAME[normalizeText(value)] ?? String(value ?? "").trim();
+}
+
+function normalizePhone(registerInfo: any, fallbackPhone: unknown) {
+  const phone = registerInfo?.phone ?? {};
+  let ddd = digits(phone.ddd ?? phone.area_code ?? phone.areaCode).slice(0, 2);
+  let number = digits(phone.number ?? phone.phone);
+  const fallback = digits(fallbackPhone);
+
+  if ((!ddd || !number) && fallback.length >= 10) {
+    ddd = fallback.slice(0, 2);
+    number = fallback.slice(2);
+  }
+
+  if (!ddd || !number) return null;
+  return { ddd, number: number.slice(-9), type: "mobile" };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -31,7 +78,21 @@ Deno.serve(async (req) => {
 
     const ri = aff.register_info || {};
     if (!ri.address) return j({ error: "Endereço obrigatório (preencha em editar)" }, 400);
-    if (!ri.phone) return j({ error: "Telefone com DDD obrigatório" }, 400);
+    const phoneNumber = normalizePhone(ri, aff.phone);
+    if (!phoneNumber) return j({ error: "Telefone com DDD obrigatório. Edite o afiliado e informe DDD + número." }, 400);
+
+    const bankCode = normalizeBankCode(aff.bank_account.bank);
+    if (!/^\d{3}$/.test(bankCode)) {
+      return j({ error: "Código do banco inválido. Informe o código COMPE de 3 dígitos, ex.: Itaú 341, Bradesco 237." }, 400);
+    }
+    const default_bank_account = {
+      ...aff.bank_account,
+      holder_document: digits(aff.bank_account.holder_document),
+      bank: bankCode,
+      branch_number: digits(aff.bank_account.branch_number),
+      account_number: digits(aff.bank_account.account_number),
+      account_check_digit: digits(aff.bank_account.account_check_digit),
+    };
 
     const creds = await getCompanyCredentials(admin, company_id);
 
@@ -45,13 +106,6 @@ Deno.serve(async (req) => {
       zip_code: (ri.address.zip_code || "").replace(/\D/g, ""),
       reference_point: "N/A",
     };
-    const phones = {
-      mobile_phone: {
-        country_code: ri.phone.country_code || "55",
-        area_code: ri.phone.area_code, number: ri.phone.number,
-      },
-    };
-
     const register_information = isCnpj ? {
       email: aff.email,
       document: docDigits,
@@ -62,14 +116,15 @@ Deno.serve(async (req) => {
       corporation_type: "ltda",
       founding_date: ri.birthdate || "2020-01-01",
       main_address: address,
-      phone_numbers: [phones.mobile_phone],
+      phone_numbers: [phoneNumber],
       managing_partners: [{
         email: aff.email, name: aff.name, mother_name: "N/I",
+        type: "individual",
         birthdate: ri.birthdate || "1990-01-01",
         monthly_income: 10000, professional_occupation: "Empresário",
         self_declared_legal_representative: true,
         document: docDigits.slice(0, 11), // fallback
-        address, phone_numbers: [phones.mobile_phone],
+        address, phone_numbers: [phoneNumber],
       }],
     } : {
       email: aff.email,
@@ -81,13 +136,13 @@ Deno.serve(async (req) => {
       monthly_income: 10000,
       professional_occupation: "Autônomo",
       main_address: address,
-      phone_numbers: [phones.mobile_phone],
+      phone_numbers: [phoneNumber],
     };
 
     const body = {
       register_information,
-      default_bank_account: aff.bank_account,
-      transfer_settings: { transfer_enabled: true, transfer_interval: "weekly", transfer_day: 5 },
+      default_bank_account,
+      transfer_settings: { transfer_enabled: true, transfer_interval: "Weekly", transfer_day: 5 },
       automatic_anticipation_settings: { enabled: false },
     };
 
