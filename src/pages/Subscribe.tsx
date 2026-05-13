@@ -178,7 +178,7 @@ export default function Subscribe() {
             <div className="bg-secondary rounded-lg p-3 text-sm">
               <div className="font-medium">{selected.name}</div>
               <div className="text-primary">R$ {(selected.effective_price_cents / 100).toFixed(2)} / {selected.billing_interval === "monthly" ? "mês" : "ano"}</div>
-              <button onClick={() => setSelected(null)} className="text-xs text-muted-foreground underline mt-1 bg-transparent border-none cursor-pointer">trocar plano</button>
+              {!lockedPlanId && <button onClick={() => setSelected(null)} className="text-xs text-muted-foreground underline mt-1 bg-transparent border-none cursor-pointer">trocar plano</button>}
             </div>
 
             <div><Label>Nome completo</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
