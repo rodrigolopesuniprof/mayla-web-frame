@@ -132,7 +132,7 @@ export function AdminBillingAffiliates({ companyId }: Props) {
       name: editing.name, email: editing.email,
       phone: phoneArea && phoneNumber ? `(${phoneArea}) ${phoneNumber}` : (editing.phone ?? null),
       cpf_cnpj: editing.cpf_cnpj, commission_percent: Number(editing.commission_percent ?? 10),
-      active: editing.active ?? true, company_id: editing.company_id ?? null,
+      active: editing.active ?? true, company_id: companyId,
       bank_account, register_info,
     };
     if (!editing.id) {
