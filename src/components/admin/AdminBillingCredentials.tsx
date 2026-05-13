@@ -110,6 +110,10 @@ export function AdminBillingCredentials() {
               <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk_test_..." />
             </div>
             <div>
+              <Label>Public Key (pk_test_... ou pk_live_...)</Label>
+              <Input value={publicKey} onChange={(e) => setPublicKey(e.target.value)} placeholder="pk_test_..." />
+            </div>
+            <div>
               <Label>Recipient ID (conta da empresa)</Label>
               <Input value={recipientId} onChange={(e) => setRecipientId(e.target.value)} placeholder="rp_..." />
             </div>
