@@ -31,7 +31,7 @@ interface Company {
   secondary_color: string;
 }
 
-type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "integracoes" | "notificacoes" | "magazine";
+type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "integracoes" | "notificacoes" | "magazine" | "billing";
 
 const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "dados", label: "Dados da Conta", emoji: "🏢" },
@@ -43,6 +43,7 @@ const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "integracoes", label: "Integrações", emoji: "🔌" },
   { id: "notificacoes", label: "Notificações", emoji: "📢" },
   { id: "magazine", label: "Magazine", emoji: "📰" },
+  { id: "billing", label: "Billing", emoji: "💳" },
 ];
 
 interface Props {
