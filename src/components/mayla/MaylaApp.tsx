@@ -73,6 +73,7 @@ export function MaylaApp() {
         {phase === "onboarding" && <OnboardingScreen onDone={handleOnboardingDone} />}
         {phase === "main" && (
           <>
+            {user && <ProfileCompletionGate onComplete={() => {}} />}
             {activeVideoCall ? (
               <JitsiConsultationScreen
                 consultation={{ ...activeVideoCall, consultationMode: "online" }}
