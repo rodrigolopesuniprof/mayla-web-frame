@@ -17,6 +17,7 @@ import { HealthAssistantChat } from "./HealthAssistantChat";
 import { HealthMagazineArticle } from "./HealthMagazineArticle";
 import { HealthMagazineList } from "./HealthMagazineList";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
+import { ProfileCompletionGate } from "./ProfileCompletionGate";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "main";
