@@ -57,6 +57,10 @@ export default function Subscribe() {
         effective_price_cents: a.custom_price_cents ?? a.plan.price_cents,
       })).filter((p) => p.active);
       setPlans(enriched);
+      if (lockedPlanId) {
+        const found = enriched.find((p) => p.id === lockedPlanId);
+        if (found) setSelected(found);
+      }
     })();
   }, [slug]);
 
