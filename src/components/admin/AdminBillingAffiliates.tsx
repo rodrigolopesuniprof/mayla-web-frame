@@ -160,8 +160,8 @@ export function AdminBillingAffiliates({ companyId }: Props) {
     if (!a.register_info?.address || !a.register_info?.phone || (a.cpf_cnpj.replace(/\D/g, "").length !== 14 && !a.register_info?.birthdate)) {
       toast({ title: "Faltam dados", description: "Preencha endereço, telefone e data de nascimento (PF) antes de criar o recipient.", variant: "destructive" }); return;
     }
-    const company_id = a.company_id ?? companies[0]?.id;
-    if (!company_id) { toast({ title: "Vincule a uma empresa com Pagar.me", variant: "destructive" }); return; }
+    const company_id = companyId;
+    if (!company_id) { toast({ title: "Empresa sem Pagar.me configurado", variant: "destructive" }); return; }
     const { data, error } = await supabase.functions.invoke("pagarme-create-affiliate-recipient", {
       body: { affiliate_id: a.id, company_id },
     });
