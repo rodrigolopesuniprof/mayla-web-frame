@@ -214,15 +214,7 @@ export function AdminBillingAffiliates({ companyId }: Props) {
               <div className="border-t pt-3">
                 <Label className="text-xs">Link de venda do afiliado</Label>
                 <div className="flex gap-2 mt-1">
-                  <select
-                    className="border border-input bg-background rounded-md h-9 px-2 text-sm"
-                    value={linkCompany[a.id] || a.company_id || ""}
-                    onChange={(e) => setLinkCompany({ ...linkCompany, [a.id]: e.target.value })}
-                  >
-                    <option value="">— Selecione empresa —</option>
-                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <Input value={link ?? ""} readOnly className="font-mono text-xs flex-1" placeholder="Selecione uma empresa para gerar o link" />
+                  <Input value={link ?? ""} readOnly className="font-mono text-xs flex-1" placeholder="Empresa sem slug" />
                   <Button size="sm" variant="outline" onClick={() => copyLink(a)} disabled={!link}>Copiar</Button>
                 </div>
               </div>
