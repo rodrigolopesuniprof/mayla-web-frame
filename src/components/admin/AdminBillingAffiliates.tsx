@@ -14,23 +14,41 @@ interface Affiliate {
   active: boolean; kyc_status: "pending" | "approved" | "rejected";
   pagarme_recipient_id: string | null;
   bank_account: any; company_id: string | null;
+  register_info: any;
 }
-interface Company { id: string; name: string; }
+interface Company { id: string; name: string; slug: string; }
+
+const SITE_BASE = "https://saude.saudecomvc.com.br";
 
 export function AdminBillingAffiliates() {
   const [list, setList] = useState<Affiliate[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [editing, setEditing] = useState<Partial<Affiliate> | null>(null);
-  const [bankBank, setBankBank] = useState(""); // codigo banco
+  const [bankBank, setBankBank] = useState("");
   const [bankAgency, setBankAgency] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [bankAccountDigit, setBankAccountDigit] = useState("");
   const [bankType, setBankType] = useState<"checking" | "savings">("checking");
 
+  // Dados extras Pagar.me
+  const [birthdate, setBirthdate] = useState(""); // YYYY-MM-DD
+  const [phoneArea, setPhoneArea] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [zip, setZip] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [stateUf, setStateUf] = useState("");
+  const [complement, setComplement] = useState("");
+
+  // Para gerar link de venda
+  const [linkCompany, setLinkCompany] = useState<Record<string, string>>({});
+
   useEffect(() => { load(); }, []);
   async function load() {
     const { data: a } = await supabase.from("affiliates").select("*").order("created_at", { ascending: false });
-    const { data: c } = await supabase.from("companies").select("id, name").order("name");
+    const { data: c } = await supabase.from("companies").select("id, name, slug").order("name");
     setList((a as Affiliate[]) ?? []);
     setCompanies((c as Company[]) ?? []);
   }
@@ -42,9 +60,19 @@ export function AdminBillingAffiliates() {
       setBankBank(ba.bank ?? ""); setBankAgency(ba.branch_number ?? "");
       setBankAccount(ba.account_number ?? ""); setBankAccountDigit(ba.account_check_digit ?? "");
       setBankType(ba.type ?? "checking");
+      const ri = a.register_info || {};
+      setBirthdate(ri.birthdate ?? "");
+      setPhoneArea(ri.phone?.area_code ?? "");
+      setPhoneNumber(ri.phone?.number ?? "");
+      const ad = ri.address || {};
+      setZip(ad.zip_code ?? ""); setStreet(ad.street ?? ""); setNumber(ad.street_number ?? "");
+      setNeighborhood(ad.neighborhood ?? ""); setCity(ad.city ?? ""); setStateUf(ad.state ?? "");
+      setComplement(ad.complement ?? "");
     } else {
       setEditing({ active: true, commission_percent: 10, kyc_status: "pending" });
       setBankBank(""); setBankAgency(""); setBankAccount(""); setBankAccountDigit(""); setBankType("checking");
+      setBirthdate(""); setPhoneArea(""); setPhoneNumber("");
+      setZip(""); setStreet(""); setNumber(""); setNeighborhood(""); setCity(""); setStateUf(""); setComplement("");
     }
   }
 
@@ -62,11 +90,21 @@ export function AdminBillingAffiliates() {
       account_check_digit: bankAccountDigit,
       type: bankType,
     } : null;
+    const register_info = {
+      birthdate: birthdate || null,
+      phone: phoneArea && phoneNumber ? { country_code: "55", area_code: phoneArea, number: phoneNumber } : null,
+      address: zip ? {
+        zip_code: zip.replace(/\D/g, ""),
+        street, street_number: number, neighborhood, city, state: stateUf, complement,
+        country: "BR",
+      } : null,
+    };
     const payload: any = {
-      name: editing.name, email: editing.email, phone: editing.phone ?? null,
+      name: editing.name, email: editing.email,
+      phone: phoneArea && phoneNumber ? `(${phoneArea}) ${phoneNumber}` : (editing.phone ?? null),
       cpf_cnpj: editing.cpf_cnpj, commission_percent: Number(editing.commission_percent ?? 10),
       active: editing.active ?? true, company_id: editing.company_id ?? null,
-      bank_account,
+      bank_account, register_info,
     };
     if (!editing.id) {
       const { data: code } = await supabase.rpc("generate_referral_code");
@@ -82,14 +120,34 @@ export function AdminBillingAffiliates() {
 
   async function createRecipient(a: Affiliate) {
     if (!a.bank_account) { toast({ title: "Configure dados bancários antes", variant: "destructive" }); return; }
+    if (!a.register_info?.address || !a.register_info?.phone || (a.cpf_cnpj.replace(/\D/g, "").length !== 14 && !a.register_info?.birthdate)) {
+      toast({ title: "Faltam dados", description: "Preencha endereço, telefone e data de nascimento (PF) antes de criar o recipient.", variant: "destructive" }); return;
+    }
     const company_id = a.company_id ?? companies[0]?.id;
     if (!company_id) { toast({ title: "Vincule a uma empresa com Pagar.me", variant: "destructive" }); return; }
-    const { error } = await supabase.functions.invoke("pagarme-create-affiliate-recipient", {
+    const { data, error } = await supabase.functions.invoke("pagarme-create-affiliate-recipient", {
       body: { affiliate_id: a.id, company_id },
     });
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    if (error || (data as any)?.error) {
+      const detail = (data as any)?.details?.message || (data as any)?.details?.errors || (data as any)?.error || error?.message;
+      toast({ title: "Erro Pagar.me", description: typeof detail === "string" ? detail : JSON.stringify(detail), variant: "destructive" });
+      return;
+    }
     toast({ title: "Recipient criado no Pagar.me" });
     load();
+  }
+
+  function getLink(a: Affiliate) {
+    const slug = companies.find((c) => c.id === (linkCompany[a.id] || a.company_id))?.slug;
+    if (!slug) return null;
+    return `${SITE_BASE}/assinar/${slug}?ref=${a.referral_code}`;
+  }
+
+  async function copyLink(a: Affiliate) {
+    const link = getLink(a);
+    if (!link) { toast({ title: "Selecione uma empresa", variant: "destructive" }); return; }
+    await navigator.clipboard.writeText(link);
+    toast({ title: "Link copiado!", description: link });
   }
 
   return (
@@ -98,25 +156,44 @@ export function AdminBillingAffiliates() {
         <h3 className="font-display text-lg">Afiliados / Revendedores</h3>
         <Button onClick={() => open()}>+ Novo afiliado</Button>
       </div>
-      {list.map((a) => (
-        <Card key={a.id}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-medium text-foreground">{a.name} <span className="text-xs text-muted-foreground">{a.commission_percent}%</span></div>
-                <div className="text-xs text-muted-foreground">
-                  {a.email} · código <code className="bg-muted px-1 rounded">{a.referral_code}</code>
-                  {a.pagarme_recipient_id ? " · 🟢 KYC " + a.kyc_status : " · ⚠️ sem recipient"}
+      {list.map((a) => {
+        const link = getLink(a);
+        return (
+          <Card key={a.id}>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium text-foreground">{a.name} <span className="text-xs text-muted-foreground">{a.commission_percent}%</span></div>
+                  <div className="text-xs text-muted-foreground">
+                    {a.email} · código <code className="bg-muted px-1 rounded">{a.referral_code}</code>
+                    {a.pagarme_recipient_id ? " · 🟢 KYC " + a.kyc_status : " · ⚠️ sem recipient"}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {!a.pagarme_recipient_id && <Button size="sm" onClick={() => createRecipient(a)}>Criar Recipient</Button>}
+                  <Button size="sm" variant="outline" onClick={() => open(a)}>Editar</Button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                {!a.pagarme_recipient_id && <Button size="sm" onClick={() => createRecipient(a)}>Criar Recipient</Button>}
-                <Button size="sm" variant="outline" onClick={() => open(a)}>Editar</Button>
+
+              <div className="border-t pt-3">
+                <Label className="text-xs">Link de venda do afiliado</Label>
+                <div className="flex gap-2 mt-1">
+                  <select
+                    className="border border-input bg-background rounded-md h-9 px-2 text-sm"
+                    value={linkCompany[a.id] || a.company_id || ""}
+                    onChange={(e) => setLinkCompany({ ...linkCompany, [a.id]: e.target.value })}
+                  >
+                    <option value="">— Selecione empresa —</option>
+                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <Input value={link ?? ""} readOnly className="font-mono text-xs flex-1" placeholder="Selecione uma empresa para gerar o link" />
+                  <Button size="sm" variant="outline" onClick={() => copyLink(a)} disabled={!link}>Copiar</Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-lg">
@@ -126,7 +203,9 @@ export function AdminBillingAffiliates() {
               <div><Label>Nome</Label><Input value={editing?.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
               <div><Label>Email</Label><Input value={editing?.email ?? ""} onChange={(e) => setEditing({ ...editing, email: e.target.value })} /></div>
               <div><Label>CPF/CNPJ</Label><Input value={editing?.cpf_cnpj ?? ""} onChange={(e) => setEditing({ ...editing, cpf_cnpj: e.target.value })} /></div>
-              <div><Label>Telefone</Label><Input value={editing?.phone ?? ""} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} /></div>
+              <div><Label>Data de nascimento</Label><Input type="date" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} /></div>
+              <div><Label>DDD</Label><Input value={phoneArea} onChange={(e) => setPhoneArea(e.target.value.replace(/\D/g, "").slice(0, 2))} placeholder="11" /></div>
+              <div><Label>Telefone</Label><Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 9))} placeholder="912345678" /></div>
               <div><Label>Comissão (%)</Label><Input type="number" step="0.5" value={editing?.commission_percent ?? 10} onChange={(e) => setEditing({ ...editing, commission_percent: Number(e.target.value) })} /></div>
               <div>
                 <Label>Empresa vinculada</Label>
@@ -136,11 +215,25 @@ export function AdminBillingAffiliates() {
                 </select>
               </div>
             </div>
+
+            <div className="border-t pt-3">
+              <div className="font-medium text-sm mb-2">Endereço (obrigatório no Pagar.me)</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div><Label className="text-xs">CEP</Label><Input value={zip} onChange={(e) => setZip(e.target.value)} /></div>
+                <div className="col-span-2"><Label className="text-xs">Rua</Label><Input value={street} onChange={(e) => setStreet(e.target.value)} /></div>
+                <div><Label className="text-xs">Número</Label><Input value={number} onChange={(e) => setNumber(e.target.value)} /></div>
+                <div className="col-span-2"><Label className="text-xs">Bairro</Label><Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} /></div>
+                <div className="col-span-2"><Label className="text-xs">Cidade</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
+                <div><Label className="text-xs">UF</Label><Input maxLength={2} value={stateUf} onChange={(e) => setStateUf(e.target.value.toUpperCase().slice(0, 2))} /></div>
+                <div className="col-span-3"><Label className="text-xs">Complemento</Label><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></div>
+              </div>
+            </div>
+
             <div className="border-t pt-3">
               <div className="font-medium text-sm mb-2">Dados bancários (para split)</div>
               <div className="grid grid-cols-3 gap-2">
                 <div><Label className="text-xs">Banco</Label><Input value={bankBank} onChange={(e) => setBankBank(e.target.value)} placeholder="237" /></div>
-                <div><Label className="text-xs">Agência</Label><Input value={bankAgency} onChange={(e) => setBankAgency(e.target.value)} /></div>
+                <div><Label className="text-xs">Agência (até 4)</Label><Input value={bankAgency} onChange={(e) => setBankAgency(e.target.value)} /></div>
                 <div>
                   <Label className="text-xs">Tipo</Label>
                   <select className="w-full border border-input bg-background rounded-md h-10 px-3 text-sm" value={bankType} onChange={(e) => setBankType(e.target.value as any)}>

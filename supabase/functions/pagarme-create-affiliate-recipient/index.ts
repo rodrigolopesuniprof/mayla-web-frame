@@ -1,5 +1,4 @@
-// Cria Recipient no Pagar.me global (super admin). A chave usada é a primeira empresa com integração ativa.
-// Para arquitetura multi-conta, cada split pode usar recipient_id criado em qualquer conta-mãe Pagar.me.
+// Cria Recipient no Pagar.me usando a chave da empresa indicada.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCompanyCredentials, pagarmeFetch } from "../_shared/pagarme.ts";
 
@@ -30,28 +29,81 @@ Deno.serve(async (req) => {
     if (!aff) return j({ error: "Affiliate not found" }, 404);
     if (!aff.bank_account) return j({ error: "Bank account required" }, 400);
 
+    const ri = aff.register_info || {};
+    if (!ri.address) return j({ error: "Endereço obrigatório (preencha em editar)" }, 400);
+    if (!ri.phone) return j({ error: "Telefone com DDD obrigatório" }, 400);
+
     const creds = await getCompanyCredentials(admin, company_id);
 
-    const isCnpj = aff.cpf_cnpj.replace(/\D/g, "").length === 14;
-    const body = {
-      name: aff.name,
+    const docDigits = aff.cpf_cnpj.replace(/\D/g, "");
+    const isCnpj = docDigits.length === 14;
+
+    const address = {
+      street: ri.address.street, complementary: ri.address.complement || "N/A",
+      street_number: ri.address.street_number, neighborhood: ri.address.neighborhood,
+      city: ri.address.city, state: ri.address.state,
+      zip_code: (ri.address.zip_code || "").replace(/\D/g, ""),
+      reference_point: "N/A",
+    };
+    const phones = {
+      mobile_phone: {
+        country_code: ri.phone.country_code || "55",
+        area_code: ri.phone.area_code, number: ri.phone.number,
+      },
+    };
+
+    const register_information = isCnpj ? {
       email: aff.email,
-      description: `Afiliado ${aff.name}`,
-      document: aff.cpf_cnpj.replace(/\D/g, ""),
-      type: isCnpj ? "corporation" : "individual",
+      document: docDigits,
+      type: "corporation",
+      company_name: aff.name,
+      trading_name: aff.name,
+      annual_revenue: 120000,
+      corporation_type: "ltda",
+      founding_date: ri.birthdate || "2020-01-01",
+      main_address: address,
+      phone_numbers: [phones.mobile_phone],
+      managing_partners: [{
+        email: aff.email, name: aff.name, mother_name: "N/I",
+        birthdate: ri.birthdate || "1990-01-01",
+        monthly_income: 10000, professional_occupation: "Empresário",
+        self_declared_legal_representative: true,
+        document: docDigits.slice(0, 11), // fallback
+        address, phone_numbers: [phones.mobile_phone],
+      }],
+    } : {
+      email: aff.email,
+      document: docDigits,
+      type: "individual",
+      name: aff.name,
+      mother_name: ri.mother_name || "Não informado",
+      birthdate: ri.birthdate,
+      monthly_income: 10000,
+      professional_occupation: "Autônomo",
+      main_address: address,
+      phone_numbers: [phones.mobile_phone],
+    };
+
+    const body = {
+      register_information,
       default_bank_account: aff.bank_account,
       transfer_settings: { transfer_enabled: true, transfer_interval: "weekly", transfer_day: 5 },
+      automatic_anticipation_settings: { enabled: false },
     };
+
     const res = await pagarmeFetch(creds.apiKey, "/recipients", { method: "POST", body: JSON.stringify(body) });
     const out = await res.json();
-    if (!res.ok) return j({ error: "pagarme recipient", details: out }, 502);
+    if (!res.ok) {
+      console.error("pagarme recipient error", JSON.stringify(out));
+      return j({ error: "pagarme recipient", details: out }, 502);
+    }
 
     await admin.from("affiliates").update({
       pagarme_recipient_id: out.id,
       kyc_status: out.status === "active" ? "approved" : "pending",
     }).eq("id", affiliate_id);
 
-    return j({ ok: true, recipient_id: out.id });
+    return j({ ok: true, recipient_id: out.id, status: out.status });
   } catch (e) { return j({ error: (e as Error).message }, 500); }
 });
 
