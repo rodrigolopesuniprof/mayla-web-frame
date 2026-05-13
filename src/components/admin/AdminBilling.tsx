@@ -84,22 +84,78 @@ function CompanyPlanAssignments() {
 
 function SubscriptionsView() {
   const [subs, setSubs] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
   useEffect(() => {
-    supabase.from("subscriptions").select("*, plan:subscription_plans(name)").order("created_at", { ascending: false }).limit(100)
-      .then(({ data }) => setSubs(data ?? []));
+    (async () => {
+      const { data: rows } = await supabase
+        .from("subscriptions")
+        .select("*, plan:subscription_plans(name)")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const list = (rows as any[]) ?? [];
+      const userIds = Array.from(new Set(list.map((r: any) => r.user_id).filter(Boolean)));
+      const compIds = Array.from(new Set(list.map((r: any) => r.company_id).filter(Boolean)));
+      const affIds = Array.from(new Set(list.map((r: any) => r.affiliate_id).filter(Boolean)));
+      const [{ data: profs }, { data: comps }, { data: affs }] = await Promise.all([
+        userIds.length ? supabase.from("profiles").select("user_id, full_name").in("user_id", userIds) : Promise.resolve({ data: [] as any }),
+        compIds.length ? supabase.from("companies").select("id, name").in("id", compIds) : Promise.resolve({ data: [] as any }),
+        affIds.length ? supabase.from("affiliates").select("id, name, referral_code").in("id", affIds) : Promise.resolve({ data: [] as any }),
+      ]);
+      const profileMap: Record<string, string | null> = {};
+      (profs ?? []).forEach((p: any) => { profileMap[p.user_id] = p.full_name; });
+      const compMap: Record<string, string> = {};
+      (comps ?? []).forEach((c: any) => { compMap[c.id] = c.name; });
+      const affMap: Record<string, { name: string; referral_code: string }> = {};
+      (affs ?? []).forEach((a: any) => { affMap[a.id] = { name: a.name, referral_code: a.referral_code }; });
+      setSubs(list.map((r: any) => ({
+        ...r,
+        _buyer: profileMap[r.user_id] ?? null,
+        company: r.company_id ? { name: compMap[r.company_id] ?? "—" } : null,
+        affiliate: r.affiliate_id ? affMap[r.affiliate_id] ?? null : null,
+      })));
+    })();
   }, []);
+
+  const filtered = statusFilter === "all" ? subs : subs.filter((s) => s.status === statusFilter);
+  const labelStatus = (s: string) => ({ active: "🟢 Ativa", pending: "🟡 Pendente", canceled: "⚪ Cancelada", past_due: "🔴 Inadimplente" } as any)[s] ?? s;
+  const labelMethod = (s: any) =>
+    s.payment_method === "credit_card"
+      ? `💳 Cartão${s.card_brand ? ` ${s.card_brand}` : ""}${s.card_last4 ? ` ····${s.card_last4}` : ""}`
+      : s.payment_method === "pix" ? "🔶 PIX" : s.payment_method;
+
   return (
-    <div className="space-y-2">
-      {subs.map((s) => (
-        <Card key={s.id}><CardContent className="p-3 flex justify-between items-center text-sm">
-          <div>
-            <div className="font-medium">{s.plan?.name}</div>
-            <div className="text-xs text-muted-foreground">{s.payment_method} · {s.status} · até {s.current_period_end ? new Date(s.current_period_end).toLocaleDateString("pt-BR") : "—"}</div>
+    <div className="space-y-3">
+      <div className="flex gap-2 items-center text-sm">
+        <span className="text-muted-foreground">Filtrar:</span>
+        <select className="border border-input bg-background rounded-md h-9 px-2"
+          value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="all">Todas ({subs.length})</option>
+          <option value="active">Ativas</option>
+          <option value="pending">Pendentes</option>
+          <option value="canceled">Canceladas</option>
+          <option value="past_due">Inadimplentes</option>
+        </select>
+      </div>
+      {filtered.map((s) => (
+        <Card key={s.id}><CardContent className="p-4 text-sm space-y-1">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-foreground">{s._buyer ?? "—"}</div>
+              <div className="text-xs text-muted-foreground">{s.plan?.name} · {s.company?.name ?? "—"}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs">{labelStatus(s.status)}</div>
+              <div className="text-xs text-muted-foreground">{labelMethod(s)}</div>
+            </div>
           </div>
-          <code className="text-xs">{s.id.slice(0, 8)}</code>
+          <div className="text-xs text-muted-foreground flex justify-between pt-1 border-t border-border">
+            <span>{new Date(s.created_at).toLocaleDateString("pt-BR")} → até {s.current_period_end ? new Date(s.current_period_end).toLocaleDateString("pt-BR") : "—"}</span>
+            <span>{s.affiliate ? `🤝 ${s.affiliate.name} (${s.affiliate.referral_code})` : "sem afiliado"}</span>
+          </div>
         </CardContent></Card>
       ))}
-      {subs.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma assinatura ainda.</p>}
+      {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma assinatura.</p>}
     </div>
   );
 }

@@ -1,36 +1,39 @@
-## Diagnóstico
+# Ajustes no Billing
 
-O link `https://saude.saudecomvc.com.br/assinar/mayla?ref=7C2A1621` está caindo no 404 da própria aplicação, não em erro HTTP do servidor.
+## 1. Painel Admin → aba "Assinaturas"
+Hoje a lista mostra apenas plano, método e datas. Vamos enriquecer:
 
-O código atual já possui a rota correta no preview:
+- Buscar nome e e-mail do comprador via join com `profiles` (por `user_id`).
+- Mostrar forma de pagamento de forma clara: 💳 Cartão (com bandeira + final 4 dígitos quando houver) ou 🔶 PIX.
+- Adicionar coluna "Empresa" (join com `companies`) e "Afiliado" (join com `affiliates.name` quando houver).
+- Filtros simples no topo: por status (active/pending/canceled) e por empresa.
 
-```text
-/assinar/:slug -> Subscribe
-```
+Arquivo: `src/components/admin/AdminBilling.tsx` (componente `SubscriptionsView`).
 
-Mas o JavaScript carregado no domínio de produção `saude.saudecomvc.com.br` ainda não contém a rota `assinar`, indicando que o domínio publicado está com uma versão antiga do frontend.
+## 2. Portal do Afiliado (novo)
 
-## Plano de correção
+Rota pública autenticada `/afiliado` onde o afiliado vê suas vendas (somente leitura).
 
-1. **Garantir compatibilidade da rota de assinatura**
-   - Manter `/assinar/:slug` como rota principal da página de assinatura.
-   - Adicionar uma rota alternativa segura, se necessário, para evitar quebra de links já gerados.
+**Acesso**: login normal (Supabase Auth). Liga-se a `affiliates` por e-mail. Adicionar coluna `user_id` em `affiliates` (nullable) e popular automaticamente no primeiro login se o e-mail bater.
 
-2. **Ajustar a geração do link de afiliado**
-   - Confirmar que o botão “Copiar” gera sempre links no domínio de produção configurado.
-   - Manter o formato:
+**Tela** (`src/pages/AffiliatePortal.tsx`):
+- Header: nome, código de indicação, link pronto para copiar (`https://saude.saudecomvc.com.br/assinar/{slug}?ref={code}`), comissão %.
+- Cards de resumo: total de assinantes ativos, MRR estimado, comissão acumulada (paga + pendente).
+- Tabela de assinaturas indicadas: nome do comprador, empresa/plano, método de pagamento, status, data, valor da comissão.
+- Tabela de comissões (`affiliate_commissions`): status (pending/paid), valor, data.
 
-```text
-https://saude.saudecomvc.com.br/assinar/{slug-da-empresa}?ref={codigo-afiliado}
-```
+**Segurança (RLS)**: novas policies somente-leitura no `affiliates`, `subscriptions` e `affiliate_commissions` filtrando por `affiliate_id IN (SELECT id FROM affiliates WHERE user_id = auth.uid())`. Nada de UPDATE/DELETE pelo afiliado.
 
-3. **Melhorar o comportamento quando a empresa não é encontrada**
-   - Em vez de ficar em “Carregando...” indefinidamente, exibir uma mensagem clara quando o slug da empresa não existir ou não tiver planos ativos.
+**Login**: reaproveitar `/login` existente; após autenticar, se o usuário tem registro em `affiliates` (via user_id ou email) e clicou no link do portal, redireciona para `/afiliado`. Adicionar link "Sou afiliado" em algum ponto discreto (ex: rodapé do `/login`).
 
-4. **Validação final**
-   - Testar no preview a rota `/assinar/mayla?ref=7C2A1621`.
-   - Após implementação, será necessário publicar/atualizar o frontend para que o domínio `saude.saudecomvc.com.br` receba a rota nova.
+## Detalhes técnicos
 
-## Observação importante
+- Migration: `ALTER TABLE affiliates ADD COLUMN user_id uuid REFERENCES auth.users(id)`; trigger ou função `link_affiliate_to_user()` que roda no signin/edge para casar email→user_id.
+- Novas RLS policies em `subscriptions` e `affiliate_commissions`: "Affiliate reads own referrals".
+- Frontend: criar `src/pages/AffiliatePortal.tsx`, adicionar rota em `src/App.tsx`, proteger com `ProtectedRoute`.
+- O afiliado **não** vê CPF nem dados sensíveis — apenas nome (do profile) e e-mail.
 
-A causa principal aparente é publicação desatualizada: o domínio de produção está servindo um bundle antigo que não tem a rota `/assinar`. Depois da correção, clique em **Publish / Update** para atualizar o frontend publicado.
+## Validação
+1. Admin → Billing → Assinaturas: verificar nome do comprador e método visíveis.
+2. Logar com Rodrigo (afiliado `7C2A1621`) em `/afiliado`: ver a assinatura de teste recém-criada, valor de comissão e link para copiar.
+3. Tentar editar/deletar via console do navegador: deve falhar (RLS).
