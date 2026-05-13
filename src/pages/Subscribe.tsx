@@ -24,6 +24,7 @@ export default function Subscribe() {
   const referralCode = params.get("ref") ?? undefined;
 
   const [company, setCompany] = useState<any>(null);
+  const [notFound, setNotFound] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<Plan | null>(null);
   const [method, setMethod] = useState<"credit_card" | "pix">("credit_card");
@@ -44,7 +45,7 @@ export default function Subscribe() {
   useEffect(() => {
     (async () => {
       const { data: c } = await supabase.from("companies").select("*").eq("slug", slug!).maybeSingle();
-      if (!c) return;
+      if (!c) { setNotFound(true); return; }
       setCompany(c);
       const { data: assigns } = await supabase
         .from("company_plan_assignments")
@@ -122,6 +123,16 @@ export default function Subscribe() {
     } finally { setLoading(false); }
   }
 
+  if (notFound) return (
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="text-center max-w-sm">
+        <h1 className="font-display text-2xl mb-2">Empresa não encontrada</h1>
+        <p className="text-sm text-muted-foreground">
+          Verifique o link recebido. O slug <code className="bg-muted px-1 rounded">{slug}</code> não corresponde a nenhuma empresa cadastrada.
+        </p>
+      </div>
+    </div>
+  );
   if (!company) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
 
   return (
