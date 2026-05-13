@@ -72,7 +72,7 @@ export function AdminBillingCredentials({ companyId }: Props) {
     setLoading(false);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Credenciais salvas" });
-    setEditing(null);
+    setOpen(false);
     load();
   }
 
@@ -83,29 +83,24 @@ export function AdminBillingCredentials({ companyId }: Props) {
           {`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pagarme-webhook`}
         </code>
       </div>
-      {companies.map((c) => {
-        const cr = creds[c.id];
-        return (
-          <Card key={c.id}>
-            <CardContent className="flex items-center justify-between p-4">
-              <div>
-                <div className="font-medium text-foreground">{c.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {cr ? `${cr.enabled ? "🟢 Ativo" : "⚪ Inativo"} · ${cr.environment} · ${cr.require_paid_subscription ? "Exige assinatura" : "Acesso livre"}` : "Sem integração"}
-                </div>
-              </div>
-              <Button size="sm" onClick={() => open(c)}>Configurar</Button>
-            </CardContent>
-          </Card>
-        );
-      })}
+      <Card>
+        <CardContent className="flex items-center justify-between p-4">
+          <div>
+            <div className="font-medium text-foreground">{company?.name ?? "—"}</div>
+            <div className="text-xs text-muted-foreground">
+              {cred ? `${cred.enabled ? "🟢 Ativo" : "⚪ Inativo"} · ${cred.environment} · ${cred.require_paid_subscription ? "Exige assinatura" : "Acesso livre"}` : "Sem integração"}
+            </div>
+          </div>
+          <Button size="sm" onClick={openDialog}>Configurar</Button>
+        </CardContent>
+      </Card>
 
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Pagar.me — {editing?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Pagar.me — {company?.name}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>API Secret Key {creds[editing?.id ?? ""]?.pagarme_recipient_id ? "(deixe vazio para manter)" : ""}</Label>
+              <Label>API Secret Key {cred?.pagarme_recipient_id ? "(deixe vazio para manter)" : ""}</Label>
               <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk_test_..." />
             </div>
             <div>
@@ -142,3 +137,4 @@ export function AdminBillingCredentials({ companyId }: Props) {
     </div>
   );
 }
+
