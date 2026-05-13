@@ -1,39 +1,25 @@
-# Ajustes no Billing
+# Link de cobrança direto por produto (sem afiliado)
 
-## 1. Painel Admin → aba "Assinaturas"
-Hoje a lista mostra apenas plano, método e datas. Vamos enriquecer:
+## Comportamento
+A página `/assinar/:slug` já aceita `?ref=` para afiliado. Vamos adicionar suporte a `?plan=<plan_id>`:
 
-- Buscar nome e e-mail do comprador via join com `profiles` (por `user_id`).
-- Mostrar forma de pagamento de forma clara: 💳 Cartão (com bandeira + final 4 dígitos quando houver) ou 🔶 PIX.
-- Adicionar coluna "Empresa" (join com `companies`) e "Afiliado" (join com `affiliates.name` quando houver).
-- Filtros simples no topo: por status (active/pending/canceled) e por empresa.
+- Quando `plan` está presente e válido (atribuído e ativo na empresa), o checkout pré-seleciona aquele plano e **oculta** os outros — fluxo direto produto → pagamento.
+- Quando `plan` é inválido ou não atribuído à empresa, fallback: mostra a lista normal de planos com um aviso discreto ("plano indisponível").
+- Sem `ref`, nenhuma comissão é registrada (já é o comportamento atual).
 
-Arquivo: `src/components/admin/AdminBilling.tsx` (componente `SubscriptionsView`).
+URL final: `https://saude.saudecomvc.com.br/assinar/{slug-empresa}?plan={plan_id}`
 
-## 2. Portal do Afiliado (novo)
+## Onde gerar o link no admin
+Aba **Billing → Planos por empresa** (`CompanyPlanAssignments`): em cada plano ativado para uma empresa, adicionar um botão "🔗 Copiar link" que monta a URL acima e copia para a área de transferência. Sem campo extra, sem modal.
 
-Rota pública autenticada `/afiliado` onde o afiliado vê suas vendas (somente leitura).
+Opcional (incluso): pequeno botão "Pré-visualizar" abrindo a URL em nova aba.
 
-**Acesso**: login normal (Supabase Auth). Liga-se a `affiliates` por e-mail. Adicionar coluna `user_id` em `affiliates` (nullable) e popular automaticamente no primeiro login se o e-mail bater.
-
-**Tela** (`src/pages/AffiliatePortal.tsx`):
-- Header: nome, código de indicação, link pronto para copiar (`https://saude.saudecomvc.com.br/assinar/{slug}?ref={code}`), comissão %.
-- Cards de resumo: total de assinantes ativos, MRR estimado, comissão acumulada (paga + pendente).
-- Tabela de assinaturas indicadas: nome do comprador, empresa/plano, método de pagamento, status, data, valor da comissão.
-- Tabela de comissões (`affiliate_commissions`): status (pending/paid), valor, data.
-
-**Segurança (RLS)**: novas policies somente-leitura no `affiliates`, `subscriptions` e `affiliate_commissions` filtrando por `affiliate_id IN (SELECT id FROM affiliates WHERE user_id = auth.uid())`. Nada de UPDATE/DELETE pelo afiliado.
-
-**Login**: reaproveitar `/login` existente; após autenticar, se o usuário tem registro em `affiliates` (via user_id ou email) e clicou no link do portal, redireciona para `/afiliado`. Adicionar link "Sou afiliado" em algum ponto discreto (ex: rodapé do `/login`).
-
-## Detalhes técnicos
-
-- Migration: `ALTER TABLE affiliates ADD COLUMN user_id uuid REFERENCES auth.users(id)`; trigger ou função `link_affiliate_to_user()` que roda no signin/edge para casar email→user_id.
-- Novas RLS policies em `subscriptions` e `affiliate_commissions`: "Affiliate reads own referrals".
-- Frontend: criar `src/pages/AffiliatePortal.tsx`, adicionar rota em `src/App.tsx`, proteger com `ProtectedRoute`.
-- O afiliado **não** vê CPF nem dados sensíveis — apenas nome (do profile) e e-mail.
+## Arquivos
+- `src/pages/Subscribe.tsx` — ler `params.get("plan")`, filtrar/forçar a seleção, esconder a grade quando travado, mostrar badge "Plano: X" no topo.
+- `src/components/admin/AdminBilling.tsx` — em `CompanyPlanAssignments`, adicionar o botão de copiar link ao lado do checkbox de cada plano ativo.
 
 ## Validação
-1. Admin → Billing → Assinaturas: verificar nome do comprador e método visíveis.
-2. Logar com Rodrigo (afiliado `7C2A1621`) em `/afiliado`: ver a assinatura de teste recém-criada, valor de comissão e link para copiar.
-3. Tentar editar/deletar via console do navegador: deve falhar (RLS).
+1. No admin, ativar um plano para a Mayla, copiar o link.
+2. Abrir a URL em janela anônima → deve mostrar apenas aquele plano e ir direto ao formulário de pagamento.
+3. Fluxo PIX/cartão funciona normalmente; assinatura criada **sem `affiliate_id`** (sem split).
+4. URL com `plan` inválido → cai no fluxo padrão com aviso.
