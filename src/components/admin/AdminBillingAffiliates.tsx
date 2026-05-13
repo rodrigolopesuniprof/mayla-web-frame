@@ -44,9 +44,11 @@ function normalizeBankInput(value: string) {
   return bankNameHints[key] ?? value.trim();
 }
 
-export function AdminBillingAffiliates() {
+interface Props { companyId: string }
+
+export function AdminBillingAffiliates({ companyId }: Props) {
   const [list, setList] = useState<Affiliate[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [company, setCompany] = useState<Company | null>(null);
   const [editing, setEditing] = useState<Partial<Affiliate> | null>(null);
   const [bankBank, setBankBank] = useState("");
   const [bankAgency, setBankAgency] = useState("");
@@ -66,15 +68,14 @@ export function AdminBillingAffiliates() {
   const [stateUf, setStateUf] = useState("");
   const [complement, setComplement] = useState("");
 
-  // Para gerar link de venda
-  const [linkCompany, setLinkCompany] = useState<Record<string, string>>({});
-
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [companyId]);
   async function load() {
-    const { data: a } = await supabase.from("affiliates").select("*").order("created_at", { ascending: false });
-    const { data: c } = await supabase.from("companies").select("id, name, slug").order("name");
+    const [{ data: a }, { data: c }] = await Promise.all([
+      supabase.from("affiliates").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
+      supabase.from("companies").select("id, name, slug").eq("id", companyId).maybeSingle(),
+    ]);
     setList((a as Affiliate[]) ?? []);
-    setCompanies((c as Company[]) ?? []);
+    setCompany((c as Company) ?? null);
   }
 
   function open(a?: Affiliate) {
@@ -131,7 +132,7 @@ export function AdminBillingAffiliates() {
       name: editing.name, email: editing.email,
       phone: phoneArea && phoneNumber ? `(${phoneArea}) ${phoneNumber}` : (editing.phone ?? null),
       cpf_cnpj: editing.cpf_cnpj, commission_percent: Number(editing.commission_percent ?? 10),
-      active: editing.active ?? true, company_id: editing.company_id ?? null,
+      active: editing.active ?? true, company_id: companyId,
       bank_account, register_info,
     };
     if (!editing.id) {
@@ -159,8 +160,8 @@ export function AdminBillingAffiliates() {
     if (!a.register_info?.address || !a.register_info?.phone || (a.cpf_cnpj.replace(/\D/g, "").length !== 14 && !a.register_info?.birthdate)) {
       toast({ title: "Faltam dados", description: "Preencha endereço, telefone e data de nascimento (PF) antes de criar o recipient.", variant: "destructive" }); return;
     }
-    const company_id = a.company_id ?? companies[0]?.id;
-    if (!company_id) { toast({ title: "Vincule a uma empresa com Pagar.me", variant: "destructive" }); return; }
+    const company_id = companyId;
+    if (!company_id) { toast({ title: "Empresa sem Pagar.me configurado", variant: "destructive" }); return; }
     const { data, error } = await supabase.functions.invoke("pagarme-create-affiliate-recipient", {
       body: { affiliate_id: a.id, company_id },
     });
@@ -174,9 +175,8 @@ export function AdminBillingAffiliates() {
   }
 
   function getLink(a: Affiliate) {
-    const slug = companies.find((c) => c.id === (linkCompany[a.id] || a.company_id))?.slug;
-    if (!slug) return null;
-    return `${SITE_BASE}/assinar/${slug}?ref=${a.referral_code}`;
+    if (!company?.slug) return null;
+    return `${SITE_BASE}/assinar/${company.slug}?ref=${a.referral_code}`;
   }
 
   async function copyLink(a: Affiliate) {
@@ -214,15 +214,7 @@ export function AdminBillingAffiliates() {
               <div className="border-t pt-3">
                 <Label className="text-xs">Link de venda do afiliado</Label>
                 <div className="flex gap-2 mt-1">
-                  <select
-                    className="border border-input bg-background rounded-md h-9 px-2 text-sm"
-                    value={linkCompany[a.id] || a.company_id || ""}
-                    onChange={(e) => setLinkCompany({ ...linkCompany, [a.id]: e.target.value })}
-                  >
-                    <option value="">— Selecione empresa —</option>
-                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <Input value={link ?? ""} readOnly className="font-mono text-xs flex-1" placeholder="Selecione uma empresa para gerar o link" />
+                  <Input value={link ?? ""} readOnly className="font-mono text-xs flex-1" placeholder="Empresa sem slug" />
                   <Button size="sm" variant="outline" onClick={() => copyLink(a)} disabled={!link}>Copiar</Button>
                 </div>
               </div>
@@ -245,10 +237,7 @@ export function AdminBillingAffiliates() {
               <div><Label>Comissão (%)</Label><Input type="number" step="0.5" value={editing?.commission_percent ?? 10} onChange={(e) => setEditing({ ...editing, commission_percent: Number(e.target.value) })} /></div>
               <div>
                 <Label>Empresa vinculada</Label>
-                <select className="w-full border border-input bg-background rounded-md h-10 px-3 text-sm" value={editing?.company_id ?? ""} onChange={(e) => setEditing({ ...editing, company_id: e.target.value || null })}>
-                  <option value="">— Global —</option>
-                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <Input value={company?.name ?? "—"} readOnly disabled />
               </div>
             </div>
 

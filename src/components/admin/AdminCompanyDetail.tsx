@@ -10,6 +10,7 @@ import { AdminSurveys } from "./AdminSurveys";
 import { AdminSupportTeams } from "./AdminSupportTeams";
 import { AdminIntegrations } from "./AdminIntegrations";
 import { AdminMagazine } from "./AdminMagazine";
+import { AdminBilling } from "./AdminBilling";
 import { ArrowLeft } from "lucide-react";
 
 interface Company {
@@ -30,7 +31,7 @@ interface Company {
   secondary_color: string;
 }
 
-type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "integracoes" | "notificacoes" | "magazine";
+type Section = "dados" | "usuarios" | "pesquisas" | "programas" | "servicos-medicos" | "servicos-gerais" | "integracoes" | "notificacoes" | "magazine" | "billing";
 
 const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "dados", label: "Dados da Conta", emoji: "🏢" },
@@ -42,6 +43,7 @@ const SECTIONS: { id: Section; label: string; emoji: string }[] = [
   { id: "integracoes", label: "Integrações", emoji: "🔌" },
   { id: "notificacoes", label: "Notificações", emoji: "📢" },
   { id: "magazine", label: "Magazine", emoji: "📰" },
+  { id: "billing", label: "Billing", emoji: "💳" },
 ];
 
 interface Props {
@@ -160,6 +162,10 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
 
         {activeSection === "magazine" && (
           <AdminMagazine companyId={company.id} />
+        )}
+
+        {activeSection === "billing" && (
+          <AdminBilling companyId={company.id} />
         )}
       </div>
     </div>
