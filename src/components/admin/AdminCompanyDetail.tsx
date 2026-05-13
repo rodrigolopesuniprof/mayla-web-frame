@@ -10,7 +10,7 @@ import { AdminSurveys } from "./AdminSurveys";
 import { AdminSupportTeams } from "./AdminSupportTeams";
 import { AdminIntegrations } from "./AdminIntegrations";
 import { AdminMagazine } from "./AdminMagazine";
-import { ArrowLeft } from "lucide-react";
+import { AdminBilling } from "./AdminBilling";
 
 interface Company {
   id: string;
