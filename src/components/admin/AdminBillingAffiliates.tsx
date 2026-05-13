@@ -44,9 +44,11 @@ function normalizeBankInput(value: string) {
   return bankNameHints[key] ?? value.trim();
 }
 
-export function AdminBillingAffiliates() {
+interface Props { companyId: string }
+
+export function AdminBillingAffiliates({ companyId }: Props) {
   const [list, setList] = useState<Affiliate[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [company, setCompany] = useState<Company | null>(null);
   const [editing, setEditing] = useState<Partial<Affiliate> | null>(null);
   const [bankBank, setBankBank] = useState("");
   const [bankAgency, setBankAgency] = useState("");
@@ -66,15 +68,14 @@ export function AdminBillingAffiliates() {
   const [stateUf, setStateUf] = useState("");
   const [complement, setComplement] = useState("");
 
-  // Para gerar link de venda
-  const [linkCompany, setLinkCompany] = useState<Record<string, string>>({});
-
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [companyId]);
   async function load() {
-    const { data: a } = await supabase.from("affiliates").select("*").order("created_at", { ascending: false });
-    const { data: c } = await supabase.from("companies").select("id, name, slug").order("name");
+    const [{ data: a }, { data: c }] = await Promise.all([
+      supabase.from("affiliates").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
+      supabase.from("companies").select("id, name, slug").eq("id", companyId).maybeSingle(),
+    ]);
     setList((a as Affiliate[]) ?? []);
-    setCompanies((c as Company[]) ?? []);
+    setCompany((c as Company) ?? null);
   }
 
   function open(a?: Affiliate) {
