@@ -237,10 +237,7 @@ export function AdminBillingAffiliates({ companyId }: Props) {
               <div><Label>Comissão (%)</Label><Input type="number" step="0.5" value={editing?.commission_percent ?? 10} onChange={(e) => setEditing({ ...editing, commission_percent: Number(e.target.value) })} /></div>
               <div>
                 <Label>Empresa vinculada</Label>
-                <select className="w-full border border-input bg-background rounded-md h-10 px-3 text-sm" value={editing?.company_id ?? ""} onChange={(e) => setEditing({ ...editing, company_id: e.target.value || null })}>
-                  <option value="">— Global —</option>
-                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <Input value={company?.name ?? "—"} readOnly disabled />
               </div>
             </div>
 
