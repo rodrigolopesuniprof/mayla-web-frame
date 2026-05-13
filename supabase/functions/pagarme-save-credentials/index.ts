@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     if (!roleRow) return json({ error: "Forbidden" }, 403);
 
     const body = await req.json();
-    const { company_id, api_key, recipient_id, webhook_secret, environment, enabled, require_paid_subscription } = body;
+    const { company_id, api_key, public_key, recipient_id, webhook_secret, environment, enabled, require_paid_subscription } = body;
     if (!company_id) return json({ error: "company_id required" }, 400);
 
     const admin = createClient(
