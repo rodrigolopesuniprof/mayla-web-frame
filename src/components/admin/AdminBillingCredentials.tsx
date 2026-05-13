@@ -27,6 +27,7 @@ export function AdminBillingCredentials() {
 
   // form
   const [apiKey, setApiKey] = useState("");
+  const [publicKey, setPublicKey] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [environment, setEnvironment] = useState<"test" | "live">("test");
