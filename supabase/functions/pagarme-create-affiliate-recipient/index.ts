@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       birthdate: ri.birthdate,
       monthly_income: 10000,
       professional_occupation: "Autônomo",
-      main_address: address,
+      address: address,
       phone_numbers: [phoneNumber],
     };
 
