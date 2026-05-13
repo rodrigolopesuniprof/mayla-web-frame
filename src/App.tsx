@@ -20,6 +20,7 @@ import PartnerRegistration from "./pages/PartnerRegistration.tsx";
 import CompanySignup from "./pages/CompanySignup.tsx";
 import Subscribe from "./pages/Subscribe.tsx";
 import MySubscription from "./pages/MySubscription.tsx";
+import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import { AccessGate } from "./components/AccessGate";
 import { lazy, Suspense } from "react";
 
@@ -69,6 +70,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <MySubscription />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/afiliado"
+                element={
+                  <ProtectedRoute>
+                    <AffiliatePortal />
                   </ProtectedRoute>
                 }
               />

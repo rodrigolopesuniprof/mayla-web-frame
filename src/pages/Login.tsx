@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ type Mode = "login" | "forgot";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = searchParams.get("next") || "/";
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +29,7 @@ export default function Login() {
       localStorage.removeItem("selected_company_name");
       localStorage.removeItem("selected_municipality_id");
       localStorage.removeItem("selected_municipality_name");
-      navigate("/");
+      navigate(nextPath);
     }
   };
 
@@ -111,6 +113,11 @@ export default function Login() {
               ← Voltar ao login
             </button>
           )}
+        </div>
+        <div className="text-center mt-8 pt-4 border-t border-border">
+          <Link to="/afiliado" className="text-xs text-muted-foreground hover:text-foreground">
+            Sou afiliado →
+          </Link>
         </div>
       </div>
     </div>
