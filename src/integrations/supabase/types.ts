@@ -91,6 +91,7 @@ export type Database = {
           pagarme_recipient_id: string | null
           phone: string | null
           referral_code: string
+          register_info: Json | null
           updated_at: string
         }
         Insert: {
@@ -108,6 +109,7 @@ export type Database = {
           pagarme_recipient_id?: string | null
           phone?: string | null
           referral_code: string
+          register_info?: Json | null
           updated_at?: string
         }
         Update: {
@@ -125,6 +127,7 @@ export type Database = {
           pagarme_recipient_id?: string | null
           phone?: string | null
           referral_code?: string
+          register_info?: Json | null
           updated_at?: string
         }
         Relationships: []

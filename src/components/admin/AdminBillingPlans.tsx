@@ -29,10 +29,14 @@ export function AdminBillingPlans() {
     if (!editing?.name || !editing.price_cents) {
       toast({ title: "Preencha nome e preço", variant: "destructive" }); return;
     }
+    const cents = Number(editing.price_cents);
+    if (!Number.isFinite(cents) || cents < 1) {
+      toast({ title: "Preço inválido", description: "Informe um valor em reais (ex: 29,90)", variant: "destructive" }); return;
+    }
     const payload = {
       name: editing.name,
       description: editing.description ?? null,
-      price_cents: Number(editing.price_cents),
+      price_cents: Math.round(cents),
       billing_interval: editing.billing_interval ?? "monthly",
       payment_methods: (editing.payment_methods ?? ["credit_card", "pix"]) as ("credit_card" | "pix")[],
       trial_days: Number(editing.trial_days ?? 0),
@@ -88,7 +92,21 @@ export function AdminBillingPlans() {
             <div><Label>Nome</Label><Input value={editing?.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
             <div><Label>Descrição</Label><Textarea value={editing?.description ?? ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Preço (centavos)</Label><Input type="number" value={editing?.price_cents ?? ""} onChange={(e) => setEditing({ ...editing, price_cents: Number(e.target.value) })} /></div>
+              <div>
+                <Label>Preço (R$)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="29,90"
+                  value={editing?.price_cents ? (editing.price_cents / 100).toFixed(2).replace(".", ",") : ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^\d,.]/g, "").replace(",", ".");
+                    const reais = parseFloat(raw);
+                    setEditing({ ...editing, price_cents: Number.isFinite(reais) ? Math.round(reais * 100) : 0 });
+                  }}
+                />
+                {editing?.price_cents ? <p className="text-xs text-muted-foreground mt-1">= {editing.price_cents} centavos</p> : null}
+              </div>
               <div>
                 <Label>Recorrência</Label>
                 <select className="w-full border border-input bg-background rounded-md h-10 px-3 text-sm" value={editing?.billing_interval ?? "monthly"} onChange={(e) => setEditing({ ...editing, billing_interval: e.target.value as any })}>
