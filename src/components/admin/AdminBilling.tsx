@@ -4,6 +4,10 @@ import { AdminBillingCredentials } from "./AdminBillingCredentials";
 import { AdminBillingPlans } from "./AdminBillingPlans";
 import { AdminBillingAffiliates } from "./AdminBillingAffiliates";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+
+const CHECKOUT_BASE = "https://saude.saudecomvc.com.br";
 
 type Sub = "credentials" | "plans" | "assignments" | "affiliates" | "subscriptions";
 
@@ -42,7 +46,7 @@ function CompanyPlanAssignments() {
   useEffect(() => {
     (async () => {
       const [c, p, a] = await Promise.all([
-        supabase.from("companies").select("id, name").order("name"),
+        supabase.from("companies").select("id, name, slug").order("name"),
         supabase.from("subscription_plans").select("id, name, price_cents, billing_interval").eq("active", true),
         supabase.from("company_plan_assignments").select("*"),
       ]);
@@ -59,6 +63,12 @@ function CompanyPlanAssignments() {
     const { data } = await supabase.from("company_plan_assignments").select("*");
     setAssignments(data ?? []);
   }
+  function copyLink(slug: string, planId: string) {
+    if (!slug) { toast({ title: "Empresa sem slug", variant: "destructive" }); return; }
+    const url = `${CHECKOUT_BASE}/assinar/${slug}?plan=${planId}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: "Link copiado", description: url });
+  }
   return (
     <div className="space-y-3">
       {companies.map((c) => (
@@ -69,10 +79,18 @@ function CompanyPlanAssignments() {
               const a = assignments.find((x) => x.company_id === c.id && x.plan_id === p.id);
               const active = a?.active ?? false;
               return (
-                <label key={p.id} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={active} onChange={(e) => toggle(c.id, p.id, e.target.checked)} />
-                  {p.name} — R$ {(p.price_cents / 100).toFixed(2)} / {p.billing_interval === "monthly" ? "mês" : "ano"}
-                </label>
+                <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                  <label className="flex items-center gap-2 flex-1">
+                    <input type="checkbox" checked={active} onChange={(e) => toggle(c.id, p.id, e.target.checked)} />
+                    {p.name} — R$ {(p.price_cents / 100).toFixed(2)} / {p.billing_interval === "monthly" ? "mês" : "ano"}
+                  </label>
+                  {active && (
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" onClick={() => copyLink(c.slug, p.id)}>🔗 Copiar link</Button>
+                      <Button size="sm" variant="ghost" onClick={() => window.open(`${CHECKOUT_BASE}/assinar/${c.slug}?plan=${p.id}`, "_blank")}>↗</Button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
