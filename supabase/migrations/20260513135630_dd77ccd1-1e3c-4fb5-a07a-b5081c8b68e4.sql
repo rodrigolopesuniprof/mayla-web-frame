@@ -1,0 +1,1 @@
+ALTER TABLE public.company_payment_credentials ADD COLUMN IF NOT EXISTS pagarme_public_key text;

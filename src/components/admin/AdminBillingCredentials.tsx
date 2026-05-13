@@ -12,6 +12,7 @@ interface Company { id: string; name: string; slug: string; }
 interface Cred {
   company_id: string;
   pagarme_recipient_id: string | null;
+  pagarme_public_key: string | null;
   webhook_secret: string | null;
   environment: "test" | "live";
   enabled: boolean;
@@ -26,6 +27,7 @@ export function AdminBillingCredentials() {
 
   // form
   const [apiKey, setApiKey] = useState("");
+  const [publicKey, setPublicKey] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [environment, setEnvironment] = useState<"test" | "live">("test");
@@ -47,6 +49,7 @@ export function AdminBillingCredentials() {
     const existing = creds[c.id];
     setEditing(c);
     setApiKey("");
+    setPublicKey(existing?.pagarme_public_key ?? "");
     setRecipientId(existing?.pagarme_recipient_id ?? "");
     setWebhookSecret(existing?.webhook_secret ?? "");
     setEnvironment(existing?.environment ?? "test");
@@ -61,6 +64,7 @@ export function AdminBillingCredentials() {
       body: {
         company_id: editing.id,
         api_key: apiKey || undefined,
+        public_key: publicKey,
         recipient_id: recipientId,
         webhook_secret: webhookSecret,
         environment, enabled, require_paid_subscription: requirePaid,
@@ -104,6 +108,10 @@ export function AdminBillingCredentials() {
             <div>
               <Label>API Secret Key {creds[editing?.id ?? ""]?.pagarme_recipient_id ? "(deixe vazio para manter)" : ""}</Label>
               <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk_test_..." />
+            </div>
+            <div>
+              <Label>Public Key (pk_test_... ou pk_live_...)</Label>
+              <Input value={publicKey} onChange={(e) => setPublicKey(e.target.value)} placeholder="pk_test_..." />
             </div>
             <div>
               <Label>Recipient ID (conta da empresa)</Label>

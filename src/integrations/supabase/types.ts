@@ -958,6 +958,7 @@ export type Database = {
           environment: Database["public"]["Enums"]["pagarme_environment"]
           id: string
           pagarme_api_key_encrypted: string | null
+          pagarme_public_key: string | null
           pagarme_recipient_id: string | null
           require_paid_subscription: boolean
           updated_at: string
@@ -970,6 +971,7 @@ export type Database = {
           environment?: Database["public"]["Enums"]["pagarme_environment"]
           id?: string
           pagarme_api_key_encrypted?: string | null
+          pagarme_public_key?: string | null
           pagarme_recipient_id?: string | null
           require_paid_subscription?: boolean
           updated_at?: string
@@ -982,6 +984,7 @@ export type Database = {
           environment?: Database["public"]["Enums"]["pagarme_environment"]
           id?: string
           pagarme_api_key_encrypted?: string | null
+          pagarme_public_key?: string | null
           pagarme_recipient_id?: string | null
           require_paid_subscription?: boolean
           updated_at?: string

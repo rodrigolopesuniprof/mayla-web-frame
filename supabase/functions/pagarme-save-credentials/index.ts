@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     if (!roleRow) return json({ error: "Forbidden" }, 403);
 
     const body = await req.json();
-    const { company_id, api_key, recipient_id, webhook_secret, environment, enabled, require_paid_subscription } = body;
+    const { company_id, api_key, public_key, recipient_id, webhook_secret, environment, enabled, require_paid_subscription } = body;
     if (!company_id) return json({ error: "company_id required" }, 400);
 
     const admin = createClient(
@@ -44,6 +44,7 @@ Deno.serve(async (req) => {
     };
     if (typeof recipient_id === "string") update.pagarme_recipient_id = recipient_id || null;
     if (typeof webhook_secret === "string") update.webhook_secret = webhook_secret || null;
+    if (typeof public_key === "string") update.pagarme_public_key = public_key || null;
     if (typeof api_key === "string" && api_key.trim().length > 0) {
       update.pagarme_api_key_encrypted = await encryptSecret(api_key.trim());
     }
