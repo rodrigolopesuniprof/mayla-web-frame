@@ -175,9 +175,8 @@ export function AdminBillingAffiliates({ companyId }: Props) {
   }
 
   function getLink(a: Affiliate) {
-    const slug = companies.find((c) => c.id === (linkCompany[a.id] || a.company_id))?.slug;
-    if (!slug) return null;
-    return `${SITE_BASE}/assinar/${slug}?ref=${a.referral_code}`;
+    if (!company?.slug) return null;
+    return `${SITE_BASE}/assinar/${company.slug}?ref=${a.referral_code}`;
   }
 
   async function copyLink(a: Affiliate) {
