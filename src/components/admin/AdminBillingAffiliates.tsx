@@ -86,7 +86,7 @@ export function AdminBillingAffiliates() {
       setBankType(ba.type ?? "checking");
       const ri = a.register_info || {};
       setBirthdate(ri.birthdate ?? "");
-      setPhoneArea(ri.phone?.area_code ?? "");
+      setPhoneArea(ri.phone?.ddd ?? ri.phone?.area_code ?? "");
       setPhoneNumber(ri.phone?.number ?? "");
       const ad = ri.address || {};
       setZip(ad.zip_code ?? ""); setStreet(ad.street ?? ""); setNumber(ad.street_number ?? "");
@@ -148,6 +148,14 @@ export function AdminBillingAffiliates() {
 
   async function createRecipient(a: Affiliate) {
     if (!a.bank_account) { toast({ title: "Configure dados bancários antes", variant: "destructive" }); return; }
+    const bankCode = normalizeBankInput(String(a.bank_account.bank ?? ""));
+    if (!/^\d{3}$/.test(bankCode)) {
+      toast({ title: "Código do banco inválido", description: "Edite o afiliado e informe o código de 3 dígitos do banco. Ex.: Itaú 341.", variant: "destructive" }); return;
+    }
+    const savedPhoneArea = a.register_info?.phone?.ddd ?? a.register_info?.phone?.area_code;
+    if (!savedPhoneArea || !a.register_info?.phone?.number) {
+      toast({ title: "Telefone incompleto", description: "Edite o afiliado e salve o DDD e o celular novamente.", variant: "destructive" }); return;
+    }
     if (!a.register_info?.address || !a.register_info?.phone || (a.cpf_cnpj.replace(/\D/g, "").length !== 14 && !a.register_info?.birthdate)) {
       toast({ title: "Faltam dados", description: "Preencha endereço, telefone e data de nascimento (PF) antes de criar o recipient.", variant: "destructive" }); return;
     }
@@ -260,7 +268,7 @@ export function AdminBillingAffiliates() {
             <div className="border-t pt-3">
               <div className="font-medium text-sm mb-2">Dados bancários (para split)</div>
               <div className="grid grid-cols-3 gap-2">
-                <div><Label className="text-xs">Banco</Label><Input value={bankBank} onChange={(e) => setBankBank(e.target.value)} placeholder="237" /></div>
+                <div><Label className="text-xs">Banco</Label><Input value={bankBank} onChange={(e) => setBankBank(e.target.value)} placeholder="341" /></div>
                 <div><Label className="text-xs">Agência (até 4)</Label><Input value={bankAgency} onChange={(e) => setBankAgency(e.target.value)} /></div>
                 <div>
                   <Label className="text-xs">Tipo</Label>
