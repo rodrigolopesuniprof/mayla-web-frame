@@ -15,13 +15,19 @@ interface Plan {
   payment_methods: string[]; trial_days: number; active: boolean;
 }
 
-export function AdminBillingPlans() {
+interface Props { companyId: string }
+
+export function AdminBillingPlans({ companyId }: Props) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [editing, setEditing] = useState<Partial<Plan> | null>(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [companyId]);
   async function load() {
-    const { data } = await supabase.from("subscription_plans").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false });
     setPlans((data as Plan[]) ?? []);
   }
 
@@ -41,11 +47,24 @@ export function AdminBillingPlans() {
       payment_methods: (editing.payment_methods ?? ["credit_card", "pix"]) as ("credit_card" | "pix")[],
       trial_days: Number(editing.trial_days ?? 0),
       active: editing.active ?? true,
+      company_id: companyId,
     };
-    const { error } = editing.id
-      ? await supabase.from("subscription_plans").update(payload).eq("id", editing.id)
-      : await supabase.from("subscription_plans").insert(payload);
+    const { data: saved, error } = editing.id
+      ? await supabase.from("subscription_plans").update(payload).eq("id", editing.id).select("id").maybeSingle()
+      : await supabase.from("subscription_plans").insert(payload).select("id").maybeSingle();
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    // Mantém company_plan_assignments em sincronia para compat com Subscribe.tsx
+    const planId = saved?.id ?? editing.id;
+    if (planId) {
+      const { data: existing } = await supabase
+        .from("company_plan_assignments")
+        .select("id").eq("company_id", companyId).eq("plan_id", planId).maybeSingle();
+      if (existing) {
+        await supabase.from("company_plan_assignments").update({ active: payload.active }).eq("id", existing.id);
+      } else {
+        await supabase.from("company_plan_assignments").insert({ company_id: companyId, plan_id: planId, active: payload.active });
+      }
+    }
     toast({ title: "Plano salvo" });
     setEditing(null); load();
   }
