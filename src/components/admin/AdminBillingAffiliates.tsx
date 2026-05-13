@@ -174,6 +174,19 @@ export function AdminBillingAffiliates({ companyId }: Props) {
     load();
   }
 
+  async function refreshRecipient(a: Affiliate) {
+    const { data, error } = await supabase.functions.invoke("pagarme-refresh-affiliate-recipient", {
+      body: { affiliate_id: a.id, company_id: companyId },
+    });
+    if (error || (data as any)?.error) {
+      const detail = (data as any)?.details?.message || (data as any)?.error || error?.message;
+      toast({ title: "Erro ao atualizar", description: typeof detail === "string" ? detail : JSON.stringify(detail), variant: "destructive" });
+      return;
+    }
+    toast({ title: "Status atualizado", description: `Pagar.me: ${(data as any)?.status} → ${(data as any)?.kyc_status}` });
+    load();
+  }
+
   function getLink(a: Affiliate) {
     if (!company?.slug) return null;
     return `${SITE_BASE}/assinar/${company.slug}?ref=${a.referral_code}`;
@@ -207,6 +220,9 @@ export function AdminBillingAffiliates({ companyId }: Props) {
                 </div>
                 <div className="flex gap-2">
                   {!a.pagarme_recipient_id && <Button size="sm" onClick={() => createRecipient(a)}>Criar Recipient</Button>}
+                  {a.pagarme_recipient_id && a.kyc_status !== "approved" && (
+                    <Button size="sm" variant="secondary" onClick={() => refreshRecipient(a)}>Atualizar status</Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => open(a)}>Editar</Button>
                 </div>
               </div>

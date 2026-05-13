@@ -133,6 +133,19 @@ async function handleEvent(admin: any, type: string, obj: any) {
       .eq("pagarme_subscription_id", obj.id);
     return;
   }
+
+  if (type === "recipient.updated" || type === "recipient.kyc_updated" || type === "recipient.created") {
+    const recipientId = obj.id;
+    if (!recipientId) return;
+    const status = String(obj.status || "").toLowerCase();
+    let kyc: "approved" | "rejected" | "pending" = "pending";
+    if (status === "active" || status === "approved") kyc = "approved";
+    else if (status === "refused" || status === "blocked" || status === "rejected") kyc = "rejected";
+    await admin.from("affiliates")
+      .update({ kyc_status: kyc })
+      .eq("pagarme_recipient_id", recipientId);
+    return;
+  }
 }
 
 async function verifyHmac(secret: string, body: string, signature: string): Promise<boolean> {
