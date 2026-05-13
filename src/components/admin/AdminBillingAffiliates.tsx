@@ -220,6 +220,9 @@ export function AdminBillingAffiliates({ companyId }: Props) {
                 </div>
                 <div className="flex gap-2">
                   {!a.pagarme_recipient_id && <Button size="sm" onClick={() => createRecipient(a)}>Criar Recipient</Button>}
+                  {a.pagarme_recipient_id && a.kyc_status !== "approved" && (
+                    <Button size="sm" variant="secondary" onClick={() => refreshRecipient(a)}>Atualizar status</Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => open(a)}>Editar</Button>
                 </div>
               </div>
