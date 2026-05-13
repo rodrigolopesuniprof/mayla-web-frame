@@ -90,18 +90,30 @@ function SubscriptionsView() {
     (async () => {
       const { data: rows } = await supabase
         .from("subscriptions")
-        .select("*, plan:subscription_plans(name), company:companies(name), affiliate:affiliates(name, referral_code)")
+        .select("*, plan:subscription_plans(name)")
         .order("created_at", { ascending: false })
         .limit(200);
-      const list = rows ?? [];
+      const list = (rows as any[]) ?? [];
       const userIds = Array.from(new Set(list.map((r: any) => r.user_id).filter(Boolean)));
-      let profileMap: Record<string, { full_name: string | null }> = {};
-      if (userIds.length) {
-        const { data: profs } = await supabase
-          .from("profiles").select("user_id, full_name").in("user_id", userIds);
-        (profs ?? []).forEach((p: any) => { profileMap[p.user_id] = { full_name: p.full_name }; });
-      }
-      setSubs(list.map((r: any) => ({ ...r, _buyer: profileMap[r.user_id]?.full_name ?? null })));
+      const compIds = Array.from(new Set(list.map((r: any) => r.company_id).filter(Boolean)));
+      const affIds = Array.from(new Set(list.map((r: any) => r.affiliate_id).filter(Boolean)));
+      const [{ data: profs }, { data: comps }, { data: affs }] = await Promise.all([
+        userIds.length ? supabase.from("profiles").select("user_id, full_name").in("user_id", userIds) : Promise.resolve({ data: [] as any }),
+        compIds.length ? supabase.from("companies").select("id, name").in("id", compIds) : Promise.resolve({ data: [] as any }),
+        affIds.length ? supabase.from("affiliates").select("id, name, referral_code").in("id", affIds) : Promise.resolve({ data: [] as any }),
+      ]);
+      const profileMap: Record<string, string | null> = {};
+      (profs ?? []).forEach((p: any) => { profileMap[p.user_id] = p.full_name; });
+      const compMap: Record<string, string> = {};
+      (comps ?? []).forEach((c: any) => { compMap[c.id] = c.name; });
+      const affMap: Record<string, { name: string; referral_code: string }> = {};
+      (affs ?? []).forEach((a: any) => { affMap[a.id] = { name: a.name, referral_code: a.referral_code }; });
+      setSubs(list.map((r: any) => ({
+        ...r,
+        _buyer: profileMap[r.user_id] ?? null,
+        company: r.company_id ? { name: compMap[r.company_id] ?? "—" } : null,
+        affiliate: r.affiliate_id ? affMap[r.affiliate_id] ?? null : null,
+      })));
     })();
   }, []);
 
