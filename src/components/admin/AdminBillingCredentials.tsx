@@ -49,6 +49,7 @@ export function AdminBillingCredentials() {
     const existing = creds[c.id];
     setEditing(c);
     setApiKey("");
+    setPublicKey(existing?.pagarme_public_key ?? "");
     setRecipientId(existing?.pagarme_recipient_id ?? "");
     setWebhookSecret(existing?.webhook_secret ?? "");
     setEnvironment(existing?.environment ?? "test");
@@ -63,6 +64,7 @@ export function AdminBillingCredentials() {
       body: {
         company_id: editing.id,
         api_key: apiKey || undefined,
+        public_key: publicKey,
         recipient_id: recipientId,
         webhook_secret: webhookSecret,
         environment, enabled, require_paid_subscription: requirePaid,
