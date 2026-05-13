@@ -151,7 +151,6 @@ export default function Admin() {
         {activeTab === "dashboard" && <AdminCorporateDashboard />}
         {activeTab === "assistente" && <AdminAssistantInsights />}
         {activeTab === "magazine-global" && <AdminMagazine />}
-        {activeTab === "billing" && <AdminBilling />}
         {activeTab === "empresas" && (
           <div>
             <div className="flex items-center justify-between mb-6">
