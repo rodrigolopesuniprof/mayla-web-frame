@@ -48,21 +48,27 @@ export default function AffiliatePortal() {
       const ids = list.map((a) => a.id);
       const [{ data: s }, { data: c }, { data: comp }] = await Promise.all([
         supabase.from("subscriptions")
-          .select("id, user_id, status, payment_method, card_brand, card_last4, created_at, current_period_end, plan:subscription_plans(name, price_cents), company:companies(name, slug)")
+          .select("id, user_id, company_id, status, payment_method, card_brand, card_last4, created_at, current_period_end, plan:subscription_plans(name, price_cents)")
           .in("affiliate_id", ids).order("created_at", { ascending: false }),
         supabase.from("affiliate_commissions")
           .select("id, amount_cents, status, created_at, paid_at, commission_percent")
           .in("affiliate_id", ids).order("created_at", { ascending: false }),
         supabase.from("companies").select("id, name, slug").order("name"),
       ]);
-      const subRows = (s as Sub[]) ?? [];
+      const subRows = ((s as any[]) ?? []);
       const userIds = Array.from(new Set(subRows.map((r) => r.user_id).filter(Boolean)));
       const buyerMap: Record<string, string | null> = {};
       if (userIds.length) {
         const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
         (profs ?? []).forEach((p: any) => { buyerMap[p.user_id] = p.full_name; });
       }
-      setSubs(subRows.map((r) => ({ ...r, _buyer: buyerMap[r.user_id] ?? null })));
+      const compMap: Record<string, { name: string; slug: string }> = {};
+      ((comp as any[]) ?? []).forEach((co: any) => { compMap[co.id] = { name: co.name, slug: co.slug }; });
+      setSubs(subRows.map((r: any) => ({
+        ...r,
+        company: r.company_id ? compMap[r.company_id] ?? null : null,
+        _buyer: buyerMap[r.user_id] ?? null,
+      })) as Sub[]);
       setCommissions((c as Commission[]) ?? []);
       setCompanies((comp as any) ?? []);
       setLoading(false);
