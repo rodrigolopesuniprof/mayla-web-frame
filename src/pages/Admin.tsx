@@ -21,7 +21,7 @@ interface Company {
   primary_color: string;
 }
 
-type Tab = "dashboard" | "empresas" | "assistente" | "magazine-global" | "billing";
+type Tab = "dashboard" | "empresas" | "assistente" | "magazine-global";
 
 export default function Admin() {
   const { user, signOut } = useAuth();
