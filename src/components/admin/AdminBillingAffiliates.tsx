@@ -20,6 +20,30 @@ interface Company { id: string; name: string; slug: string; }
 
 const SITE_BASE = "https://saude.saudecomvc.com.br";
 
+const bankNameHints: Record<string, string> = {
+  itau: "341",
+  bradesco: "237",
+  santander: "033",
+  bancodobrasil: "001",
+  bb: "001",
+  caixa: "104",
+  nubank: "260",
+  inter: "077",
+  sicoob: "756",
+  sicredi: "748",
+};
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function normalizeBankInput(value: string) {
+  const digits = onlyDigits(value);
+  if (digits) return digits.slice(0, 3).padStart(3, "0");
+  const key = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return bankNameHints[key] ?? value.trim();
+}
+
 export function AdminBillingAffiliates() {
   const [list, setList] = useState<Affiliate[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -62,7 +86,7 @@ export function AdminBillingAffiliates() {
       setBankType(ba.type ?? "checking");
       const ri = a.register_info || {};
       setBirthdate(ri.birthdate ?? "");
-      setPhoneArea(ri.phone?.area_code ?? "");
+      setPhoneArea(ri.phone?.ddd ?? ri.phone?.area_code ?? "");
       setPhoneNumber(ri.phone?.number ?? "");
       const ad = ri.address || {};
       setZip(ad.zip_code ?? ""); setStreet(ad.street ?? ""); setNumber(ad.street_number ?? "");
@@ -80,21 +104,25 @@ export function AdminBillingAffiliates() {
     if (!editing?.name || !editing.email || !editing.cpf_cnpj) {
       toast({ title: "Preencha nome, email e CPF/CNPJ", variant: "destructive" }); return;
     }
+    const bankCode = normalizeBankInput(bankBank);
+    if (bankBank && !/^\d{3}$/.test(bankCode)) {
+      toast({ title: "Código do banco inválido", description: "Use o código de 3 dígitos do banco. Ex.: Itaú 341, Bradesco 237.", variant: "destructive" }); return;
+    }
     const bank_account = bankBank ? {
       holder_name: editing.name,
-      holder_type: editing.cpf_cnpj.replace(/\D/g, "").length === 14 ? "company" : "individual",
-      holder_document: editing.cpf_cnpj.replace(/\D/g, ""),
-      bank: bankBank,
-      branch_number: bankAgency,
-      account_number: bankAccount,
-      account_check_digit: bankAccountDigit,
+      holder_type: onlyDigits(editing.cpf_cnpj).length === 14 ? "company" : "individual",
+      holder_document: onlyDigits(editing.cpf_cnpj),
+      bank: bankCode,
+      branch_number: onlyDigits(bankAgency).slice(0, 4),
+      account_number: onlyDigits(bankAccount),
+      account_check_digit: onlyDigits(bankAccountDigit).slice(0, 1),
       type: bankType,
     } : null;
     const register_info = {
       birthdate: birthdate || null,
-      phone: phoneArea && phoneNumber ? { country_code: "55", area_code: phoneArea, number: phoneNumber } : null,
+      phone: phoneArea && phoneNumber ? { country_code: "55", ddd: phoneArea, number: phoneNumber, type: "mobile" } : null,
       address: zip ? {
-        zip_code: zip.replace(/\D/g, ""),
+        zip_code: onlyDigits(zip),
         street, street_number: number, neighborhood, city, state: stateUf, complement,
         country: "BR",
       } : null,
@@ -120,6 +148,14 @@ export function AdminBillingAffiliates() {
 
   async function createRecipient(a: Affiliate) {
     if (!a.bank_account) { toast({ title: "Configure dados bancários antes", variant: "destructive" }); return; }
+    const bankCode = normalizeBankInput(String(a.bank_account.bank ?? ""));
+    if (!/^\d{3}$/.test(bankCode)) {
+      toast({ title: "Código do banco inválido", description: "Edite o afiliado e informe o código de 3 dígitos do banco. Ex.: Itaú 341.", variant: "destructive" }); return;
+    }
+    const savedPhoneArea = a.register_info?.phone?.ddd ?? a.register_info?.phone?.area_code;
+    if (!savedPhoneArea || !a.register_info?.phone?.number) {
+      toast({ title: "Telefone incompleto", description: "Edite o afiliado e salve o DDD e o celular novamente.", variant: "destructive" }); return;
+    }
     if (!a.register_info?.address || !a.register_info?.phone || (a.cpf_cnpj.replace(/\D/g, "").length !== 14 && !a.register_info?.birthdate)) {
       toast({ title: "Faltam dados", description: "Preencha endereço, telefone e data de nascimento (PF) antes de criar o recipient.", variant: "destructive" }); return;
     }
@@ -232,7 +268,7 @@ export function AdminBillingAffiliates() {
             <div className="border-t pt-3">
               <div className="font-medium text-sm mb-2">Dados bancários (para split)</div>
               <div className="grid grid-cols-3 gap-2">
-                <div><Label className="text-xs">Banco</Label><Input value={bankBank} onChange={(e) => setBankBank(e.target.value)} placeholder="237" /></div>
+                <div><Label className="text-xs">Banco</Label><Input value={bankBank} onChange={(e) => setBankBank(e.target.value)} placeholder="341" /></div>
                 <div><Label className="text-xs">Agência (até 4)</Label><Input value={bankAgency} onChange={(e) => setBankAgency(e.target.value)} /></div>
                 <div>
                   <Label className="text-xs">Tipo</Label>
