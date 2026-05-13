@@ -11,6 +11,7 @@ import { AdminSupportTeams } from "./AdminSupportTeams";
 import { AdminIntegrations } from "./AdminIntegrations";
 import { AdminMagazine } from "./AdminMagazine";
 import { AdminBilling } from "./AdminBilling";
+import { ArrowLeft } from "lucide-react";
 
 interface Company {
   id: string;
