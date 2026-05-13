@@ -12,6 +12,7 @@ interface Company { id: string; name: string; slug: string; }
 interface Cred {
   company_id: string;
   pagarme_recipient_id: string | null;
+  pagarme_public_key: string | null;
   webhook_secret: string | null;
   environment: "test" | "live";
   enabled: boolean;
