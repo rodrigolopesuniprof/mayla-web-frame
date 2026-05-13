@@ -9,14 +9,16 @@ import { toast } from "@/hooks/use-toast";
 
 const CHECKOUT_BASE = "https://saude.saudecomvc.com.br";
 
-type Sub = "credentials" | "plans" | "assignments" | "affiliates" | "subscriptions";
+type Sub = "credentials" | "plans" | "links" | "affiliates" | "subscriptions";
 
-export function AdminBilling() {
+interface Props { companyId: string }
+
+export function AdminBilling({ companyId }: Props) {
   const [tab, setTab] = useState<Sub>("credentials");
   const tabs: { id: Sub; label: string }[] = [
-    { id: "credentials", label: "🔑 Credenciais" },
+    { id: "credentials", label: "🔑 Credenciais Pagar.me" },
     { id: "plans", label: "📦 Planos" },
-    { id: "assignments", label: "🏢 Planos por empresa" },
+    { id: "links", label: "🔗 Links de cobrança" },
     { id: "affiliates", label: "🤝 Afiliados" },
     { id: "subscriptions", label: "📋 Assinaturas" },
   ];
@@ -30,77 +32,68 @@ export function AdminBilling() {
           </button>
         ))}
       </nav>
-      {tab === "credentials" && <AdminBillingCredentials />}
-      {tab === "plans" && <AdminBillingPlans />}
-      {tab === "assignments" && <CompanyPlanAssignments />}
-      {tab === "affiliates" && <AdminBillingAffiliates />}
-      {tab === "subscriptions" && <SubscriptionsView />}
+      {tab === "credentials" && <AdminBillingCredentials companyId={companyId} />}
+      {tab === "plans" && <AdminBillingPlans companyId={companyId} />}
+      {tab === "links" && <CheckoutLinks companyId={companyId} />}
+      {tab === "affiliates" && <AdminBillingAffiliates companyId={companyId} />}
+      {tab === "subscriptions" && <SubscriptionsView companyId={companyId} />}
     </div>
   );
 }
 
-function CompanyPlanAssignments() {
-  const [companies, setCompanies] = useState<any[]>([]);
+function CheckoutLinks({ companyId }: { companyId: string }) {
+  const [company, setCompany] = useState<{ slug: string } | null>(null);
   const [plans, setPlans] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
   useEffect(() => {
     (async () => {
-      const [c, p, a] = await Promise.all([
-        supabase.from("companies").select("id, name, slug").order("name"),
-        supabase.from("subscription_plans").select("id, name, price_cents, billing_interval").eq("active", true),
-        supabase.from("company_plan_assignments").select("*"),
+      const [c, p] = await Promise.all([
+        supabase.from("companies").select("slug").eq("id", companyId).maybeSingle(),
+        supabase.from("subscription_plans")
+          .select("id, name, price_cents, billing_interval, active")
+          .eq("company_id", companyId)
+          .eq("active", true)
+          .order("created_at", { ascending: false }),
       ]);
-      setCompanies(c.data ?? []); setPlans(p.data ?? []); setAssignments(a.data ?? []);
+      setCompany(c.data ?? null);
+      setPlans(p.data ?? []);
     })();
-  }, []);
-  async function toggle(companyId: string, planId: string, active: boolean) {
-    const exists = assignments.find((a) => a.company_id === companyId && a.plan_id === planId);
-    if (exists) {
-      await supabase.from("company_plan_assignments").update({ active }).eq("id", exists.id);
-    } else {
-      await supabase.from("company_plan_assignments").insert({ company_id: companyId, plan_id: planId, active });
-    }
-    const { data } = await supabase.from("company_plan_assignments").select("*");
-    setAssignments(data ?? []);
-  }
-  function copyLink(slug: string, planId: string) {
-    if (!slug) { toast({ title: "Empresa sem slug", variant: "destructive" }); return; }
-    const url = `${CHECKOUT_BASE}/assinar/${slug}?plan=${planId}`;
+  }, [companyId]);
+
+  function copyLink(planId: string) {
+    if (!company?.slug) { toast({ title: "Empresa sem slug", variant: "destructive" }); return; }
+    const url = `${CHECKOUT_BASE}/assinar/${company.slug}?plan=${planId}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link copiado", description: url });
   }
+
+  if (!plans.length) {
+    return <p className="text-sm text-muted-foreground py-6 text-center">Nenhum plano ativo. Crie um plano na aba "📦 Planos" primeiro.</p>;
+  }
+
   return (
-    <div className="space-y-3">
-      {companies.map((c) => (
-        <Card key={c.id}><CardContent className="p-4">
-          <div className="font-medium mb-2 text-foreground">{c.name}</div>
-          <div className="space-y-1">
-            {plans.map((p) => {
-              const a = assignments.find((x) => x.company_id === c.id && x.plan_id === p.id);
-              const active = a?.active ?? false;
-              return (
-                <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
-                  <label className="flex items-center gap-2 flex-1">
-                    <input type="checkbox" checked={active} onChange={(e) => toggle(c.id, p.id, e.target.checked)} />
-                    {p.name} — R$ {(p.price_cents / 100).toFixed(2)} / {p.billing_interval === "monthly" ? "mês" : "ano"}
-                  </label>
-                  {active && (
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => copyLink(c.slug, p.id)}>🔗 Copiar link</Button>
-                      <Button size="sm" variant="ghost" onClick={() => window.open(`${CHECKOUT_BASE}/assinar/${c.slug}?plan=${p.id}`, "_blank")}>↗</Button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent></Card>
-      ))}
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">Links diretos de cobrança — sem afiliado, sem split.</p>
+      {plans.map((p) => {
+        const url = company?.slug ? `${CHECKOUT_BASE}/assinar/${company.slug}?plan=${p.id}` : "";
+        return (
+          <Card key={p.id}><CardContent className="p-4 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-foreground">{p.name}</div>
+              <div className="text-xs text-muted-foreground">R$ {(p.price_cents / 100).toFixed(2)} / {p.billing_interval === "monthly" ? "mês" : "ano"}</div>
+              <div className="text-xs font-mono text-muted-foreground truncate mt-1">{url}</div>
+            </div>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" onClick={() => copyLink(p.id)}>🔗 Copiar</Button>
+              <Button size="sm" variant="ghost" onClick={() => window.open(url, "_blank")}>↗</Button>
+            </div>
+          </CardContent></Card>
+        );
+      })}
     </div>
   );
 }
 
-function SubscriptionsView() {
+function SubscriptionsView({ companyId }: { companyId: string }) {
   const [subs, setSubs] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -109,31 +102,27 @@ function SubscriptionsView() {
       const { data: rows } = await supabase
         .from("subscriptions")
         .select("*, plan:subscription_plans(name)")
+        .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(200);
       const list = (rows as any[]) ?? [];
       const userIds = Array.from(new Set(list.map((r: any) => r.user_id).filter(Boolean)));
-      const compIds = Array.from(new Set(list.map((r: any) => r.company_id).filter(Boolean)));
       const affIds = Array.from(new Set(list.map((r: any) => r.affiliate_id).filter(Boolean)));
-      const [{ data: profs }, { data: comps }, { data: affs }] = await Promise.all([
+      const [{ data: profs }, { data: affs }] = await Promise.all([
         userIds.length ? supabase.from("profiles").select("user_id, full_name").in("user_id", userIds) : Promise.resolve({ data: [] as any }),
-        compIds.length ? supabase.from("companies").select("id, name").in("id", compIds) : Promise.resolve({ data: [] as any }),
         affIds.length ? supabase.from("affiliates").select("id, name, referral_code").in("id", affIds) : Promise.resolve({ data: [] as any }),
       ]);
       const profileMap: Record<string, string | null> = {};
       (profs ?? []).forEach((p: any) => { profileMap[p.user_id] = p.full_name; });
-      const compMap: Record<string, string> = {};
-      (comps ?? []).forEach((c: any) => { compMap[c.id] = c.name; });
       const affMap: Record<string, { name: string; referral_code: string }> = {};
       (affs ?? []).forEach((a: any) => { affMap[a.id] = { name: a.name, referral_code: a.referral_code }; });
       setSubs(list.map((r: any) => ({
         ...r,
         _buyer: profileMap[r.user_id] ?? null,
-        company: r.company_id ? { name: compMap[r.company_id] ?? "—" } : null,
         affiliate: r.affiliate_id ? affMap[r.affiliate_id] ?? null : null,
       })));
     })();
-  }, []);
+  }, [companyId]);
 
   const filtered = statusFilter === "all" ? subs : subs.filter((s) => s.status === statusFilter);
   const labelStatus = (s: string) => ({ active: "🟢 Ativa", pending: "🟡 Pendente", canceled: "⚪ Cancelada", past_due: "🔴 Inadimplente" } as any)[s] ?? s;
@@ -160,7 +149,7 @@ function SubscriptionsView() {
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0 flex-1">
               <div className="font-medium text-foreground">{s._buyer ?? "—"}</div>
-              <div className="text-xs text-muted-foreground">{s.plan?.name} · {s.company?.name ?? "—"}</div>
+              <div className="text-xs text-muted-foreground">{s.plan?.name}</div>
             </div>
             <div className="text-right">
               <div className="text-xs">{labelStatus(s.status)}</div>
