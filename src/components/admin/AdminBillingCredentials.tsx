@@ -8,7 +8,6 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 
-interface Company { id: string; name: string; slug: string; }
 interface Cred {
   company_id: string;
   pagarme_recipient_id: string | null;
@@ -19,10 +18,12 @@ interface Cred {
   require_paid_subscription: boolean;
 }
 
-export function AdminBillingCredentials() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [creds, setCreds] = useState<Record<string, Cred>>({});
-  const [editing, setEditing] = useState<Company | null>(null);
+interface Props { companyId: string }
+
+export function AdminBillingCredentials({ companyId }: Props) {
+  const [company, setCompany] = useState<{ id: string; name: string } | null>(null);
+  const [cred, setCred] = useState<Cred | null>(null);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // form
@@ -34,35 +35,33 @@ export function AdminBillingCredentials() {
   const [enabled, setEnabled] = useState(false);
   const [requirePaid, setRequirePaid] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [companyId]);
 
   async function load() {
-    const { data: cs } = await supabase.from("companies").select("id, name, slug").order("name");
-    const { data: cr } = await supabase.from("company_payment_credentials").select("*");
-    setCompanies(cs ?? []);
-    const map: Record<string, Cred> = {};
-    (cr ?? []).forEach((r: any) => { map[r.company_id] = r; });
-    setCreds(map);
+    const [{ data: c }, { data: cr }] = await Promise.all([
+      supabase.from("companies").select("id, name").eq("id", companyId).maybeSingle(),
+      supabase.from("company_payment_credentials").select("*").eq("company_id", companyId).maybeSingle(),
+    ]);
+    setCompany(c ?? null);
+    setCred((cr as Cred) ?? null);
   }
 
-  function open(c: Company) {
-    const existing = creds[c.id];
-    setEditing(c);
+  function openDialog() {
     setApiKey("");
-    setPublicKey(existing?.pagarme_public_key ?? "");
-    setRecipientId(existing?.pagarme_recipient_id ?? "");
-    setWebhookSecret(existing?.webhook_secret ?? "");
-    setEnvironment(existing?.environment ?? "test");
-    setEnabled(existing?.enabled ?? false);
-    setRequirePaid(existing?.require_paid_subscription ?? false);
+    setPublicKey(cred?.pagarme_public_key ?? "");
+    setRecipientId(cred?.pagarme_recipient_id ?? "");
+    setWebhookSecret(cred?.webhook_secret ?? "");
+    setEnvironment(cred?.environment ?? "test");
+    setEnabled(cred?.enabled ?? false);
+    setRequirePaid(cred?.require_paid_subscription ?? false);
+    setOpen(true);
   }
 
   async function save() {
-    if (!editing) return;
     setLoading(true);
     const { error } = await supabase.functions.invoke("pagarme-save-credentials", {
       body: {
-        company_id: editing.id,
+        company_id: companyId,
         api_key: apiKey || undefined,
         public_key: publicKey,
         recipient_id: recipientId,
