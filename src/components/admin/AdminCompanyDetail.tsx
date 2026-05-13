@@ -163,6 +163,10 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
         {activeSection === "magazine" && (
           <AdminMagazine companyId={company.id} />
         )}
+
+        {activeSection === "billing" && (
+          <AdminBilling companyId={company.id} />
+        )}
       </div>
     </div>
   );
