@@ -93,6 +93,7 @@ export type Database = {
           referral_code: string
           register_info: Json | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           active?: boolean
@@ -111,6 +112,7 @@ export type Database = {
           referral_code: string
           register_info?: Json | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           active?: boolean
@@ -129,6 +131,7 @@ export type Database = {
           referral_code?: string
           register_info?: Json | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -3378,6 +3381,7 @@ export type Database = {
         Args: { _points: number; _user_id: string }
         Returns: undefined
       }
+      current_user_affiliate_ids: { Args: never; Returns: string[] }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
