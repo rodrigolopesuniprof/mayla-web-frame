@@ -4,6 +4,10 @@ import { AdminBillingCredentials } from "./AdminBillingCredentials";
 import { AdminBillingPlans } from "./AdminBillingPlans";
 import { AdminBillingAffiliates } from "./AdminBillingAffiliates";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+
+const CHECKOUT_BASE = "https://saude.saudecomvc.com.br";
 
 type Sub = "credentials" | "plans" | "assignments" | "affiliates" | "subscriptions";
 
