@@ -2830,6 +2830,7 @@ export type Database = {
         Row: {
           active: boolean
           billing_interval: Database["public"]["Enums"]["billing_interval"]
+          company_id: string | null
           created_at: string
           currency: string
           description: string | null
@@ -2843,6 +2844,7 @@ export type Database = {
         Insert: {
           active?: boolean
           billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          company_id?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -2856,6 +2858,7 @@ export type Database = {
         Update: {
           active?: boolean
           billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          company_id?: string | null
           created_at?: string
           currency?: string
           description?: string | null
