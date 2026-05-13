@@ -39,6 +39,16 @@ function normalizeBankCode(value: unknown): string {
   return BANK_CODE_BY_NAME[normalizeText(value)] ?? String(value ?? "").trim();
 }
 
+function toBrDate(value: unknown): string | null {
+  if (!value) return null;
+  const s = String(value).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return s;
+  return null;
+}
+
 function normalizePhone(registerInfo: any, fallbackPhone: unknown) {
   const phone = registerInfo?.phone ?? {};
   let ddd = digits(phone.ddd ?? phone.area_code ?? phone.areaCode).slice(0, 2);
@@ -106,6 +116,12 @@ Deno.serve(async (req) => {
       zip_code: (ri.address.zip_code || "").replace(/\D/g, ""),
       reference_point: "N/A",
     };
+    const birthdateBr = toBrDate(ri.birthdate);
+    if (!isCnpj && !birthdateBr) {
+      return j({ error: "Data de nascimento inválida ou ausente. Edite o afiliado e informe a data." }, 400);
+    }
+    const foundingBr = toBrDate(ri.birthdate) || "01/01/2020";
+
     const register_information = isCnpj ? {
       email: aff.email,
       document: docDigits,
@@ -114,13 +130,13 @@ Deno.serve(async (req) => {
       trading_name: aff.name,
       annual_revenue: 120000,
       corporation_type: "ltda",
-      founding_date: ri.birthdate || "2020-01-01",
+      founding_date: foundingBr,
       main_address: address,
       phone_numbers: [phoneNumber],
       managing_partners: [{
         email: aff.email, name: aff.name, mother_name: "N/I",
         type: "individual",
-        birthdate: ri.birthdate || "1990-01-01",
+        birthdate: birthdateBr || "01/01/1990",
         monthly_income: 10000, professional_occupation: "Empresário",
         self_declared_legal_representative: true,
         document: docDigits.slice(0, 11), // fallback
@@ -132,7 +148,7 @@ Deno.serve(async (req) => {
       type: "individual",
       name: aff.name,
       mother_name: ri.mother_name || "Não informado",
-      birthdate: ri.birthdate,
+      birthdate: birthdateBr,
       monthly_income: 10000,
       professional_occupation: "Autônomo",
       address: address,
