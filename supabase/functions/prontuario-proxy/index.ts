@@ -181,9 +181,17 @@ Deno.serve(async (req) => {
 
       const { data: regProf } = await adminClient
         .from("profiles")
-        .select("company_id")
+        .select("company_id, birth_date, biological_sex")
         .eq("user_id", userId)
         .maybeSingle();
+
+      // Bloqueia agendamento se faltarem dados obrigatórios para Meddit
+      if (!regProf?.birth_date || !regProf?.biological_sex) {
+        return json({
+          error: "Complete seu cadastro (data de nascimento e sexo) antes de agendar.",
+          code: "PROFILE_INCOMPLETE",
+        }, 400);
+      }
 
       let medditBase = "";
       let medditApiKey = globalMedditApiKey;
@@ -205,13 +213,17 @@ Deno.serve(async (req) => {
 
       const regBody = await req.json();
 
+      // Anexa birthdate (YYYY-MM-DD) e sex (M/F) ao payload Meddit
+      regBody.birthdate = regProf.birth_date;
+      regBody.sex = regProf.biological_sex === "male" ? "M" : "F";
+
       // Validate required fields
       const { professionalId, officeId, patientId, startAt, interval } = regBody;
       if (!professionalId || !officeId || !patientId || !startAt) {
         return json({ error: "Campos obrigatórios: professionalId, officeId, patientId, startAt" }, 400);
       }
 
-      console.log("register payload:", JSON.stringify({ professionalId, officeId, patientId, startAt, interval, mode: regBody.mode }));
+      console.log("register payload:", JSON.stringify({ professionalId, officeId, patientId, startAt, interval, mode: regBody.mode, sex: regBody.sex }));
 
       const t0 = Date.now();
       const controller = new AbortController();
