@@ -22,6 +22,7 @@ export default function Subscribe() {
   const { slug } = useParams();
   const [params] = useSearchParams();
   const referralCode = params.get("ref") ?? undefined;
+  const lockedPlanId = params.get("plan") ?? undefined;
 
   const [company, setCompany] = useState<any>(null);
   const [notFound, setNotFound] = useState(false);
