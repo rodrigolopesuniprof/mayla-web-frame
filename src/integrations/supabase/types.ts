@@ -2232,7 +2232,6 @@ export type Database = {
           bairro: string | null
           biological_sex: string | null
           birth_date: string | null
-          birthdate: string | null
           cep: string | null
           cidade: string | null
           company_id: string | null
@@ -2272,7 +2271,6 @@ export type Database = {
           points: number
           prenatal_dental_done: boolean | null
           prenatal_started: boolean | null
-          sex: string | null
           support_team_id: string | null
           updated_at: string
           user_id: string
@@ -2283,7 +2281,6 @@ export type Database = {
           bairro?: string | null
           biological_sex?: string | null
           birth_date?: string | null
-          birthdate?: string | null
           cep?: string | null
           cidade?: string | null
           company_id?: string | null
@@ -2323,7 +2320,6 @@ export type Database = {
           points?: number
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
-          sex?: string | null
           support_team_id?: string | null
           updated_at?: string
           user_id: string
@@ -2334,7 +2330,6 @@ export type Database = {
           bairro?: string | null
           biological_sex?: string | null
           birth_date?: string | null
-          birthdate?: string | null
           cep?: string | null
           cidade?: string | null
           company_id?: string | null
@@ -2374,7 +2369,6 @@ export type Database = {
           points?: number
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
-          sex?: string | null
           support_team_id?: string | null
           updated_at?: string
           user_id?: string
