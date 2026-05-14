@@ -52,7 +52,7 @@ export function AdminCompanies() {
   const load = useCallback(async () => {
     const [companiesRes, tokensRes] = await Promise.all([
       supabase.from("companies").select("*").order("name"),
-      supabase.from("company_invite_tokens").select("company_id, token"),
+      supabase.from("company_invite_tokens").select("company_id, token").eq("active", true),
     ]);
     if (companiesRes.data) setCompanies(companiesRes.data as unknown as Company[]);
     if (tokensRes.data) {
