@@ -156,10 +156,9 @@ export function AdminCompanies() {
   };
 
   const regenerateToken = async (companyId: string) => {
-    if (!confirm("Gerar um novo link? O link anterior será invalidado.")) return;
-    // Delete old, insert new
-    await supabase.from("company_invite_tokens").delete().eq("company_id", companyId);
-    const { error } = await supabase.from("company_invite_tokens").insert({ company_id: companyId });
+    if (!confirm("Gerar um novo link? O link anterior será desativado.")) return;
+    await supabase.from("company_invite_tokens").update({ active: false }).eq("company_id", companyId).eq("active", true);
+    const { error } = await supabase.from("company_invite_tokens").insert({ company_id: companyId, active: true });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Novo link gerado!" });
     load();
