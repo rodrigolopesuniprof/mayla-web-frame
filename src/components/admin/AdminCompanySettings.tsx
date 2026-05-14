@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { CompanyAdminManager } from "./CompanyAdminManager";
+import { InviteLinkPanel } from "./InviteLinkPanel";
 
 interface Company {
   id: string;
@@ -87,35 +88,6 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
 
   const PUBLISHED_DOMAIN = "https://saude.saudecomvc.com.br";
 
-  const copyInviteLink = async () => {
-    let currentToken = token;
-    if (!currentToken) {
-      const { data, error } = await supabase
-        .from("company_invite_tokens")
-        .insert({ company_id: company.id })
-        .select("token")
-        .single();
-      if (error || !data) {
-        toast({ title: "Erro ao gerar token", variant: "destructive" });
-        return;
-      }
-      currentToken = data.token;
-      onCompanyUpdated();
-    }
-    const url = `${PUBLISHED_DOMAIN}/cadastro/${currentToken}`;
-    navigator.clipboard.writeText(url);
-    toast({ title: "Link de cadastro copiado!", description: url });
-  };
-
-  const regenerateToken = async () => {
-    if (!confirm("Gerar um novo link? O link anterior será invalidado.")) return;
-    await supabase.from("company_invite_tokens").delete().eq("company_id", company.id);
-    const { error } = await supabase.from("company_invite_tokens").insert({ company_id: company.id });
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Novo link gerado!" });
-    onCompanyUpdated();
-  };
-
   const copyDashboardLink = () => {
     const url = `${PUBLISHED_DOMAIN}/painel/${company.slug}`;
     navigator.clipboard.writeText(url);
@@ -143,22 +115,16 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
       {/* Admin da empresa */}
       <CompanyAdminManager companyId={company.id} />
 
-      {/* Links rápidos */}
+      {/* Link de cadastro com QR + limites */}
+      <InviteLinkPanel companyId={company.id} companySlug={company.slug} onTokenChanged={onCompanyUpdated} />
+
+      {/* Painel da empresa */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">🔗 Links e Acessos</CardTitle>
+          <CardTitle className="text-base">📊 Painel da empresa</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button variant="outline" size="sm" onClick={copyInviteLink}>📋 Copiar link de cadastro</Button>
-            <Button variant="ghost" size="sm" onClick={regenerateToken}>🔄 Regenerar link</Button>
-            <Button variant="outline" size="sm" onClick={copyDashboardLink}>📊 Copiar link do painel</Button>
-          </div>
-          {token && (
-            <p className="text-xs text-muted-foreground font-mono bg-secondary rounded-lg px-3 py-2">
-              {PUBLISHED_DOMAIN}/cadastro/{token}
-            </p>
-          )}
+        <CardContent>
+          <Button variant="outline" size="sm" onClick={copyDashboardLink}>Copiar link do painel</Button>
         </CardContent>
       </Card>
 

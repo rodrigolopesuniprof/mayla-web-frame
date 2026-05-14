@@ -33,13 +33,16 @@ export default function CompanySignup() {
     const validate = async () => {
       const { data: tokenData } = await supabase
         .from("company_invite_tokens")
-        .select("company_id, expires_at")
+        .select("company_id, expires_at, active, max_uses, uses_count")
         .eq("token", token)
         .maybeSingle();
 
       if (!tokenData) { setInvalid(true); setLoading(false); return; }
-
+      if (!tokenData.active) { setInvalid(true); setLoading(false); return; }
       if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+        setInvalid(true); setLoading(false); return;
+      }
+      if (tokenData.max_uses != null && tokenData.uses_count >= tokenData.max_uses) {
         setInvalid(true); setLoading(false); return;
       }
 
@@ -76,7 +79,7 @@ export default function CompanySignup() {
     }
 
     setSaving(true);
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -84,14 +87,37 @@ export default function CompanySignup() {
         emailRedirectTo: window.location.origin,
       },
     });
-    setSaving(false);
 
     if (error) {
+      setSaving(false);
       toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
-      navigate("/login");
+      return;
     }
+
+    // Conta o uso do link (valida prazo/limite no servidor)
+    const newUserId = signUpData.user?.id;
+    if (newUserId && token) {
+      const { data: rpcData } = await supabase.rpc("register_via_invite_token", {
+        _token: token,
+        _user_id: newUserId,
+      });
+      const result = rpcData as { ok: boolean; reason?: string } | null;
+      if (result && !result.ok) {
+        const map: Record<string, string> = {
+          expired: "Este link expirou.",
+          limit_reached: "Este link atingiu o limite de cadastros.",
+          inactive: "Este link foi desativado.",
+          not_found: "Link inválido.",
+        };
+        setSaving(false);
+        toast({ title: "Cadastro inválido", description: map[result.reason || ""] || "Link inválido.", variant: "destructive" });
+        return;
+      }
+    }
+
+    setSaving(false);
+    toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
+    navigate("/login");
   };
 
   if (loading) {

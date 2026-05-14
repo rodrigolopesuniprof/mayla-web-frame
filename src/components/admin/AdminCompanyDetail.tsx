@@ -60,7 +60,7 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
   const loadCompany = useCallback(async () => {
     const [compRes, tokenRes] = await Promise.all([
       supabase.from("companies").select("*").eq("id", companyId).single(),
-      supabase.from("company_invite_tokens").select("token").eq("company_id", companyId).maybeSingle(),
+      supabase.from("company_invite_tokens").select("token").eq("company_id", companyId).eq("active", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (compRes.data) setCompany(compRes.data as unknown as Company);
     if (tokenRes.data) setToken(tokenRes.data.token);
