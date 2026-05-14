@@ -870,28 +870,37 @@ export type Database = {
       }
       company_invite_tokens: {
         Row: {
+          active: boolean
           company_id: string
           created_at: string
           created_by: string | null
           expires_at: string | null
           id: string
+          max_uses: number | null
           token: string
+          uses_count: number
         }
         Insert: {
+          active?: boolean
           company_id: string
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
           id?: string
+          max_uses?: number | null
           token?: string
+          uses_count?: number
         }
         Update: {
+          active?: boolean
           company_id?: string
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
           id?: string
+          max_uses?: number | null
           token?: string
+          uses_count?: number
         }
         Relationships: [
           {
@@ -2271,6 +2280,7 @@ export type Database = {
           points: number
           prenatal_dental_done: boolean | null
           prenatal_started: boolean | null
+          signed_up_via_token: string | null
           support_team_id: string | null
           updated_at: string
           user_id: string
@@ -2320,6 +2330,7 @@ export type Database = {
           points?: number
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
+          signed_up_via_token?: string | null
           support_team_id?: string | null
           updated_at?: string
           user_id: string
@@ -2369,6 +2380,7 @@ export type Database = {
           points?: number
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
+          signed_up_via_token?: string | null
           support_team_id?: string | null
           updated_at?: string
           user_id?: string
@@ -2393,6 +2405,13 @@ export type Database = {
             columns: ["municipality_id"]
             isOneToOne: false
             referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_signed_up_via_token_fkey"
+            columns: ["signed_up_via_token"]
+            isOneToOne: false
+            referencedRelation: "company_invite_tokens"
             referencedColumns: ["id"]
           },
           {
@@ -3436,6 +3455,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      register_via_invite_token: {
+        Args: { _token: string; _user_id: string }
+        Returns: Json
       }
     }
     Enums: {

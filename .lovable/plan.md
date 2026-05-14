@@ -1,64 +1,73 @@
-# Coleta de data de nascimento e sexo
+## Diagnóstico
 
-Objetivo: garantir que todo usuário que vá agendar uma consulta (interna ou via Meddit) tenha `birthdate` e `sex` preenchidos, sem aumentar o atrito do checkout.
+Hoje, `company_invite_tokens` tem `expires_at` nullable e **não tem contador de uso**. Em produção todos os tokens estão com `expires_at = NULL` (não expiram por tempo) e nada no código os apaga após signup. O motivo aparente do problema:
 
-## Decisões aprovadas
-- **Quando**: lazy, no momento do 1º agendamento.
-- **Obrigatoriedade**: sempre obrigatórios (bloqueia o agendamento até preencher).
-- **Sexo**: binário `M` / `F` (compatível com Meddit).
-- **Usuários existentes**: one-time modal no próximo login até preencherem.
+- `AdminCompanyDetail.tsx` usa `.maybeSingle()` numa query que pode retornar **várias linhas** (algumas empresas já têm 4–6 tokens duplicados na base). Quando isso acontece, o Supabase retorna erro/`null`, a UI exibe "sem link" e o admin clica em "regenerar" — que **apaga todos** os tokens da empresa e cria um novo. Resultado prático: links antigos param de funcionar e parece que "expirou após 1 uso".
 
-## Mudanças
+Além disso, não há QR code nem controle de limite/prazo configurável.
 
-### 1. Banco (`profiles`)
-- Adicionar colunas `birthdate date` e `sex text` (nullable, sem default).
-- Constraint: `sex in ('M','F')` quando não-nulo.
-- Sem migração de dados — campos ficam vazios até o usuário preencher.
+## Objetivo
 
-### 2. Componente `ProfileCompletionGate`
-Novo componente bloqueante (modal não-fechável) que:
-- Renderiza se `profile.birthdate is null OR profile.sex is null`.
-- Form com 2 campos: input `date` (com validação de idade ≥ 0 e ≤ 120) + radio `Masculino/Feminino`.
-- Botão "Salvar e continuar" → `update profiles` → fecha modal.
-- Sem botão "Pular".
+1. Link de convite com **uso ilimitado por padrão**, opcionalmente com:
+   - `expires_at` (prazo de validade)
+   - `max_uses` (limite total de cadastros concluídos)
+2. Contar cada cadastro concluído via link (auditoria + enforcement do `max_uses`).
+3. Botão para exibir/baixar **QR code** do link.
+4. Eliminar a duplicação de tokens e a falsa sensação de expiração.
 
-### 3. Pontos de injeção do gate
-- **`MaylaApp.tsx`** (one-time no próximo login): renderiza o gate no boot, após carregar o profile. Cobre o backfill dos usuários existentes.
-- **Como `MaylaApp` já é a porta de entrada do app**, o gate no agendamento vira redundante — qualquer fluxo de consulta já passou pelo gate. Mantém código simples.
+## Mudanças no banco
 
-### 4. Envio para Meddit
-- `prontuario-proxy` (e/ou local de criação de paciente Meddit) passa a ler `birthdate` e `sex` do `profiles` e enviar no payload.
-- Se por algum motivo vierem nulos (defesa em profundidade), retorna erro claro em vez de chamar Meddit com dado inválido.
+Migration:
 
-### 5. Checkout (`Subscribe.tsx`)
-- **Sem mudança.** Conforme decidido, checkout fica enxuto.
+- `company_invite_tokens`:
+  - adicionar `max_uses int null` (null = ilimitado)
+  - adicionar `uses_count int not null default 0`
+  - adicionar `active boolean not null default true`
+  - índice único parcial: 1 token ativo por empresa (`unique (company_id) where active`)
+  - back-fill: marcar como `active = true` apenas o mais recente de cada empresa; demais ficam `active = false` (links antigos continuam válidos para validação histórica, mas só o ativo aparece na UI)
+- `profiles`: adicionar `signed_up_via_token uuid null references company_invite_tokens(id)` para auditoria
+- Função `register_via_invite_token(_token text)`: SECURITY DEFINER, chamada pelo client logo após o `auth.signUp` confirmado. Ela:
+  - valida `active`, `expires_at > now()`, `max_uses is null or uses_count < max_uses`
+  - incrementa `uses_count`
+  - grava `profiles.signed_up_via_token`
+  - retorna `{ ok, reason }`
 
-## Detalhes técnicos
+## Mudanças no backend / fluxo
 
-**Migration:**
-```sql
-alter table public.profiles
-  add column birthdate date,
-  add column sex text check (sex in ('M','F'));
-```
+- `CompanySignup.tsx`:
+  - validação inicial passa a checar `active`, `expires_at`, `uses_count < max_uses`
+  - após `auth.signUp` bem sucedido, chama `register_via_invite_token(token)` via RPC
+  - mensagens de erro distintas para "expirado", "limite atingido", "desativado"
 
-**Fluxo do gate:**
-```text
-Login → MaylaApp monta → carrega profile
-  ├─ birthdate & sex preenchidos? → app normal
-  └─ algum nulo? → modal bloqueante → salva → app normal
-```
+## UI Admin (`AdminCompanySettings.tsx`)
 
-**Payload Meddit:** `birthdate` formatado como `YYYY-MM-DD` (naive, conforme padrão Meddit já documentado em memória).
+Adicionar painel "Link de cadastro":
 
-## Não incluso (fora de escopo)
-- Edição posterior dos campos no perfil (pode entrar como follow-up no `ProfileTab`).
-- Telefone, endereço ou outros campos Meddit (só os 2 pedidos).
-- Validação de idade mínima legal para agendamento.
+- Mostra a URL atual + botão **Copiar**
+- Botão **Mostrar QR code** → abre dialog com QR (lib `qrcode.react`) e botão "Baixar PNG"
+- Campos editáveis:
+  - **Validade** (date picker, opcional — vazio = sem prazo)
+  - **Limite de cadastros** (input number, opcional — vazio = ilimitado)
+- Indicadores: `uses_count / max_uses` e status (Ativo / Expirado / Limite atingido)
+- Botão **Gerar novo link** (desativa o atual, cria um novo) — com confirmação clara: "links anteriores deixarão de aceitar novos cadastros"
+
+Ajustes em `AdminCompanies.tsx` e `AdminCompanyDetail.tsx`: trocar `.maybeSingle()` por `.eq("active", true).maybeSingle()` para nunca mais quebrar com múltiplos tokens.
+
+## Dependências
+
+- `qrcode.react` (leve, ~3 KB) para renderizar e exportar PNG do QR.
 
 ## Arquivos afetados
-- `supabase/migrations/...` (nova)
-- `src/components/mayla/ProfileCompletionGate.tsx` (novo)
-- `src/components/mayla/MaylaApp.tsx` (montar gate)
-- `supabase/functions/prontuario-proxy/index.ts` (incluir birthdate/sex no payload Meddit)
-- `mem://integracoes/meddit-payload-registro` (atualizar nota)
+
+- `supabase/migrations/...` (novo)
+- `src/pages/CompanySignup.tsx`
+- `src/components/admin/AdminCompanySettings.tsx`
+- `src/components/admin/AdminCompanies.tsx`
+- `src/components/admin/AdminCompanyDetail.tsx`
+- `package.json` (qrcode.react)
+- `mem://auth/cadastro-por-token-empresa` (atualizar regra)
+
+## O que **não** muda
+
+- Trigger automática que cria token na criação da empresa (continua igual, agora com `active=true` por padrão).
+- Rota `/cadastro/:token` e UX do formulário público.
