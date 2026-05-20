@@ -1,7 +1,7 @@
 import L from "leaflet";
 
 /* ─── Types ─── */
-export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy";
+export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy" | "other";
 export type SortMode = "nearest" | "price" | "name";
 export type ConsultModeFilter = "all" | "online" | "presencial";
 
