@@ -2,3 +2,6 @@ project_id = "ymexlslqsdflgkcvwjoz"
 
 [functions.pagarme-webhook]
 verify_jwt = false
+
+[functions.resolve-maps-url]
+verify_jwt = false
