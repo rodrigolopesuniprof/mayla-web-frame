@@ -166,7 +166,7 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
       <div className="mb-6">
         <h2 className="font-display text-2xl text-foreground">Parceiros</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Marketplace de saúde e bem-estar
+          {unified ? "Cadastre qualquer tipo de parceria — escolha o tipo no formulário." : "Marketplace de saúde e bem-estar"}
         </p>
       </div>
 
