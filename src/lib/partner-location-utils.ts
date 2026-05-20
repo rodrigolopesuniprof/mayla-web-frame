@@ -100,3 +100,16 @@ export function buildPrimaryPartnerLocation(partnerId: string, data: PartnerLoca
     is_main: true,
   };
 }
+
+/** Async variant: resolves short Google Maps URLs server-side before building the row. */
+export async function buildPrimaryPartnerLocationAsync(partnerId: string, data: PartnerLocationSeed) {
+  const base = buildPrimaryPartnerLocation(partnerId, data);
+  if (base.latitude != null && base.longitude != null) return base;
+  if (data._google_maps_url) {
+    const resolved = await resolveGoogleMapsUrl(data._google_maps_url);
+    if (resolved) {
+      return { ...base, latitude: resolved.latitude, longitude: resolved.longitude };
+    }
+  }
+  return base;
+}
