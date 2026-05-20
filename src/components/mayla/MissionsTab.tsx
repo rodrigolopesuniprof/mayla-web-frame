@@ -71,7 +71,7 @@ export function MissionsTab({ onBack }: { onBack?: () => void } = {}) {
       const [missionsRes, profileRes, measurementsRes, checkinsRes] = await Promise.all([
         supabase
           .from("user_missions")
-          .select("id, status, created_at, mission_id, mission:missions(title, description, emoji, points, tag, priority, validation_type, frequency)")
+          .select("id, status, created_at, mission_id, mission:missions(title, description, emoji, points, tag, priority, validation_type, frequency, success_message, success_link_url, success_link_label)")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
         supabase
