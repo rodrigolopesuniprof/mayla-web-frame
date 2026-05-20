@@ -115,18 +115,24 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
       if (error) {
         toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
       } else if (createdPartner?.id) {
-        await supabase.from("partner_locations").insert(
-          buildPrimaryPartnerLocation(createdPartner.id, {
-            name: formData.name,
-            full_address: formData.full_address,
-            city: formData.city,
-            state: formData.state,
-            zip_code: formData.zip_code,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            _google_maps_url: google_maps_url,
-          }) as any
-        );
+        const newLocation = await buildPrimaryPartnerLocationAsync(createdPartner.id, {
+          name: formData.name,
+          full_address: formData.full_address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zip_code,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          _google_maps_url: google_maps_url,
+        });
+        await supabase.from("partner_locations").insert(newLocation as any);
+        // Sync coords back to partners table
+        if (newLocation.latitude != null && newLocation.longitude != null) {
+          await supabase.from("partners").update({
+            latitude: newLocation.latitude,
+            longitude: newLocation.longitude,
+          }).eq("id", createdPartner.id);
+        }
         toast({ title: "Parceiro criado" });
       }
     }
