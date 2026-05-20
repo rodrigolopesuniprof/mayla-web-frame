@@ -76,6 +76,7 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
       zip_code: loc.zip_code,
       latitude: mapsCoordinates?.latitude ?? loc.latitude,
       longitude: mapsCoordinates?.longitude ?? loc.longitude,
+      google_maps_url: loc._google_maps_url || null,
       is_main: loc.is_main,
     };
 
