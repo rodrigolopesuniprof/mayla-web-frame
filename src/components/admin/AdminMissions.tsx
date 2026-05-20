@@ -50,6 +50,7 @@ export function AdminMissions() {
   const [form, setForm] = useState({
     title: "", description: "", tag: "saude", emoji: "🎯",
     points: "50", frequency: "monthly", validation_type: "self_report", priority: "0",
+    success_message: "", success_link_url: "", success_link_label: "",
   });
 
   useEffect(() => { load(); }, []);
@@ -61,7 +62,7 @@ export function AdminMissions() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0" });
+    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0", success_message: "", success_link_url: "", success_link_label: "" });
     setShowForm(true);
   };
 
@@ -71,6 +72,9 @@ export function AdminMissions() {
       title: m.title, description: m.description || "", tag: m.tag, emoji: m.emoji,
       points: String(m.points), frequency: m.frequency, validation_type: m.validation_type,
       priority: String(m.priority),
+      success_message: m.success_message || "",
+      success_link_url: m.success_link_url || "",
+      success_link_label: m.success_link_label || "",
     });
     setShowForm(true);
   };
@@ -81,6 +85,9 @@ export function AdminMissions() {
       title: form.title, description: form.description || null, tag: form.tag, emoji: form.emoji,
       points: parseInt(form.points) || 0, frequency: form.frequency,
       validation_type: form.validation_type, priority: parseInt(form.priority) || 0,
+      success_message: form.success_message.trim() || null,
+      success_link_url: form.success_link_url.trim() || null,
+      success_link_label: form.success_link_label.trim() || null,
     };
     if (editing) {
       const { error } = await supabase.from("missions").update(payload).eq("id", editing.id);
