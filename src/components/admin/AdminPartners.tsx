@@ -36,9 +36,11 @@ const APPROVAL_LABELS: Record<string, string> = {
 
 interface AdminPartnersProps {
   filterTypes?: PartnerType[];
+  /** When true: don't show per-type tabs. List all filterTypes together and let admin pick the type inside the form. */
+  unified?: boolean;
 }
 
-export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
+export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {}) {
   const visibleTabs = filterTypes ? TABS.filter(t => filterTypes.includes(t.id)) : TABS;
   const [activeType, setActiveType] = useState<PartnerType>(visibleTabs[0]?.id || "doctor");
   const [partners, setPartners] = useState<any[]>([]);
@@ -49,18 +51,22 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
   const [csvOpen, setCsvOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  // In unified mode, "Novo" needs a default type for the form
+  const [createType, setCreateType] = useState<PartnerType>(visibleTabs[0]?.id || "gym");
 
   useEffect(() => {
     loadPartners();
-  }, [activeType]);
+  }, [activeType, unified, JSON.stringify(filterTypes)]);
 
   const loadPartners = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("partners")
-      .select("*")
-      .eq("partner_type", activeType)
-      .order("created_at", { ascending: false });
+    let query = supabase.from("partners").select("*").order("created_at", { ascending: false });
+    if (unified && filterTypes && filterTypes.length > 0) {
+      query = query.in("partner_type", filterTypes);
+    } else {
+      query = query.eq("partner_type", activeType);
+    }
+    const { data } = await query;
     setPartners(data || []);
     setLoading(false);
   };
