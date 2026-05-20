@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { extractCoordinatesFromGoogleMapsUrl } from "@/lib/partner-location-utils";
+import { extractCoordinatesFromGoogleMapsUrl, resolveGoogleMapsUrl } from "@/lib/partner-location-utils";
 
 interface Location {
   id?: string;
