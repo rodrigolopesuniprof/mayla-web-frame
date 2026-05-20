@@ -119,7 +119,19 @@ interface Props {
   onCancel: () => void;
   loading?: boolean;
   hideStatusFields?: boolean;
+  /** If provided, render a Type selector at the top with these options. */
+  selectableTypes?: PartnerType[];
+  onTypeChange?: (t: PartnerType) => void;
 }
+
+const TYPE_OPTIONS: { id: PartnerType; label: string; emoji: string }[] = [
+  { id: "doctor", label: "Médico", emoji: "🩺" },
+  { id: "clinic", label: "Clínica", emoji: "🏥" },
+  { id: "gym", label: "Academia", emoji: "🏋️" },
+  { id: "laboratory", label: "Laboratório", emoji: "🔬" },
+  { id: "pharmacy", label: "Farmácia", emoji: "💊" },
+  { id: "other", label: "Outro tipo de parceria", emoji: "🤝" },
+];
 
 const BR_STATES = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
