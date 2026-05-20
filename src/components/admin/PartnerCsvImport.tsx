@@ -17,6 +17,7 @@ const REQUIRED_COLS: Record<PartnerType, string[]> = {
   gym: ["name"],
   laboratory: ["name"],
   pharmacy: ["name"],
+  other: ["name"],
 };
 
 interface Row {
