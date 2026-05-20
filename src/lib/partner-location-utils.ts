@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface MapsCoordinates {
   latitude: number;
   longitude: number;
@@ -44,6 +46,33 @@ export function extractCoordinatesFromGoogleMapsUrl(input?: string | null): Maps
   return null;
 }
 
+/** Detects shortened Google Maps URLs (maps.app.goo.gl, goo.gl/maps) that need server-side resolution. */
+export function isShortGoogleMapsUrl(input?: string | null): boolean {
+  if (!input) return false;
+  return /https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(input.trim());
+}
+
+/** Resolves a (possibly shortened) Google Maps URL via edge function and returns coords if found. */
+export async function resolveGoogleMapsUrl(input?: string | null): Promise<MapsCoordinates | null> {
+  if (!input) return null;
+  // Already extractable locally
+  const local = extractCoordinatesFromGoogleMapsUrl(input);
+  if (local) return local;
+  try {
+    const { data, error } = await supabase.functions.invoke("resolve-maps-url", {
+      body: { url: input.trim() },
+    });
+    if (error) return null;
+    const coords = (data as { coordinates?: MapsCoordinates | null })?.coordinates;
+    if (coords && Number.isFinite(coords.latitude) && Number.isFinite(coords.longitude) && isValidCoordinatePair(coords.latitude, coords.longitude)) {
+      return coords;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function resolvePartnerCoordinates(data: Pick<PartnerLocationSeed, "latitude" | "longitude" | "_google_maps_url">): MapsCoordinates | null {
   const fromLink = extractCoordinatesFromGoogleMapsUrl(data._google_maps_url);
   if (fromLink) return fromLink;
@@ -70,4 +99,17 @@ export function buildPrimaryPartnerLocation(partnerId: string, data: PartnerLoca
     google_maps_url: data._google_maps_url || null,
     is_main: true,
   };
+}
+
+/** Async variant: resolves short Google Maps URLs server-side before building the row. */
+export async function buildPrimaryPartnerLocationAsync(partnerId: string, data: PartnerLocationSeed) {
+  const base = buildPrimaryPartnerLocation(partnerId, data);
+  if (base.latitude != null && base.longitude != null) return base;
+  if (data._google_maps_url) {
+    const resolved = await resolveGoogleMapsUrl(data._google_maps_url);
+    if (resolved) {
+      return { ...base, latitude: resolved.latitude, longitude: resolved.longitude };
+    }
+  }
+  return base;
 }

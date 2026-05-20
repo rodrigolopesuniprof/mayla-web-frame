@@ -10,7 +10,7 @@ import { PartnerForm, type PartnerData, type PartnerType } from "./PartnerForm";
 import { PartnerLocationsEditor } from "./PartnerLocationsEditor";
 import { DoctorAvailabilityEditor } from "./DoctorAvailabilityEditor";
 import { PartnerCsvImport } from "./PartnerCsvImport";
-import { buildPrimaryPartnerLocation } from "@/lib/partner-location-utils";
+import { buildPrimaryPartnerLocationAsync } from "@/lib/partner-location-utils";
 import { TeleconsultaSettings } from "./TeleconsultaSettings";
 
 const TABS: { id: PartnerType; label: string; emoji: string }[] = [
@@ -86,7 +86,7 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
       if (error) {
         toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
       } else {
-        const mainLocation = buildPrimaryPartnerLocation(editPartner.id, {
+        const mainLocation = await buildPrimaryPartnerLocationAsync(editPartner.id, {
           name: formData.name,
           full_address: formData.full_address,
           city: formData.city,
@@ -108,6 +108,13 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
         } else {
           await supabase.from("partner_locations").insert(mainLocation as any);
         }
+        // Keep partners.latitude/longitude in sync with the main location for map rendering
+        if (mainLocation.latitude != null && mainLocation.longitude != null) {
+          await supabase.from("partners").update({
+            latitude: mainLocation.latitude,
+            longitude: mainLocation.longitude,
+          }).eq("id", editPartner.id);
+        }
         toast({ title: "Parceiro atualizado" });
       }
     } else {
@@ -115,18 +122,24 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
       if (error) {
         toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
       } else if (createdPartner?.id) {
-        await supabase.from("partner_locations").insert(
-          buildPrimaryPartnerLocation(createdPartner.id, {
-            name: formData.name,
-            full_address: formData.full_address,
-            city: formData.city,
-            state: formData.state,
-            zip_code: formData.zip_code,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            _google_maps_url: google_maps_url,
-          }) as any
-        );
+        const newLocation = await buildPrimaryPartnerLocationAsync(createdPartner.id, {
+          name: formData.name,
+          full_address: formData.full_address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zip_code,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          _google_maps_url: google_maps_url,
+        });
+        await supabase.from("partner_locations").insert(newLocation as any);
+        // Sync coords back to partners table
+        if (newLocation.latitude != null && newLocation.longitude != null) {
+          await supabase.from("partners").update({
+            latitude: newLocation.latitude,
+            longitude: newLocation.longitude,
+          }).eq("id", createdPartner.id);
+        }
         toast({ title: "Parceiro criado" });
       }
     }
