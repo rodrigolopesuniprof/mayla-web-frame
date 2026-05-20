@@ -39,7 +39,7 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
       .select("*")
       .eq("partner_id", partnerId)
       .order("is_main", { ascending: false });
-    setLocations((data as Location[]) || []);
+    setLocations(((data as any[]) || []).map(l => ({ ...l, _google_maps_url: l.google_maps_url || "" })) as Location[]);
     setLoading(false);
   };
 
