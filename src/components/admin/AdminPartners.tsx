@@ -108,6 +108,13 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
         } else {
           await supabase.from("partner_locations").insert(mainLocation as any);
         }
+        // Keep partners.latitude/longitude in sync with the main location for map rendering
+        if (mainLocation.latitude != null && mainLocation.longitude != null) {
+          await supabase.from("partners").update({
+            latitude: mainLocation.latitude,
+            longitude: mainLocation.longitude,
+          }).eq("id", editPartner.id);
+        }
         toast({ title: "Parceiro atualizado" });
       }
     } else {
