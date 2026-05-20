@@ -63,10 +63,14 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
 
   const saveRow = async (idx: number) => {
     const loc = locations[idx];
-    // Try to extract coords from dedicated Google Maps URL field first, then from address
-    const mapsCoordinates =
+    // 1) Try local extraction (long URLs / address). 2) Fall back to server-side resolver for short URLs.
+    let mapsCoordinates =
       extractCoordinatesFromGoogleMapsUrl(loc._google_maps_url) ??
       extractCoordinatesFromGoogleMapsUrl(loc.full_address);
+
+    if (!mapsCoordinates && loc._google_maps_url) {
+      mapsCoordinates = await resolveGoogleMapsUrl(loc._google_maps_url);
+    }
     const payload = {
       partner_id: loc.partner_id,
       location_name: loc.location_name,
