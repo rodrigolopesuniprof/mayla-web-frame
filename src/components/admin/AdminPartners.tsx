@@ -19,6 +19,7 @@ const TABS: { id: PartnerType; label: string; emoji: string }[] = [
   { id: "gym", label: "Academias", emoji: "🏋️" },
   { id: "laboratory", label: "Laboratórios", emoji: "🔬" },
   { id: "pharmacy", label: "Farmácias", emoji: "💊" },
+  { id: "other", label: "Outros", emoji: "🤝" },
 ];
 
 const APPROVAL_COLORS: Record<string, string> = {
