@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy";
+export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy" | "other";
 export type ApprovalStatus = "pending" | "approved" | "blocked";
 
 export const MEDICAL_SPECIALTIES = [
@@ -119,12 +119,24 @@ interface Props {
   onCancel: () => void;
   loading?: boolean;
   hideStatusFields?: boolean;
+  /** If provided, render a Type selector at the top with these options. */
+  selectableTypes?: PartnerType[];
+  onTypeChange?: (t: PartnerType) => void;
 }
+
+const TYPE_OPTIONS: { id: PartnerType; label: string; emoji: string }[] = [
+  { id: "doctor", label: "Médico", emoji: "🩺" },
+  { id: "clinic", label: "Clínica", emoji: "🏥" },
+  { id: "gym", label: "Academia", emoji: "🏋️" },
+  { id: "laboratory", label: "Laboratório", emoji: "🔬" },
+  { id: "pharmacy", label: "Farmácia", emoji: "💊" },
+  { id: "other", label: "Outro tipo de parceria", emoji: "🤝" },
+];
 
 const BR_STATES = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, loading, hideStatusFields }: Props) {
+export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, loading, hideStatusFields, selectableTypes, onTypeChange }: Props) {
   const [data, setData] = useState<PartnerData>(() => ({ ...emptyPartner(partnerType), ...initialData }));
 
   // Raw text state for comma-separated fields (fixes comma input bug)
@@ -210,6 +222,23 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+      {selectableTypes && selectableTypes.length > 0 && (
+        <fieldset className="space-y-2 bg-primary/5 border border-primary/15 rounded-xl p-4">
+          <Label className="text-sm font-semibold">Tipo de parceria *</Label>
+          <Select
+            value={data.partner_type}
+            onValueChange={v => { set("partner_type", v as PartnerType); onTypeChange?.(v as PartnerType); }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {TYPE_OPTIONS.filter(t => selectableTypes.includes(t.id)).map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.emoji} {t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </fieldset>
+      )}
+
       {/* Common fields */}
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-foreground mb-2">Dados gerais</legend>

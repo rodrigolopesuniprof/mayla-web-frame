@@ -149,7 +149,7 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
         )}
 
         {activeSection === "servicos-gerais" && (
-          <AdminPartners filterTypes={["gym", "laboratory", "pharmacy"]} />
+          <AdminPartners filterTypes={["gym", "laboratory", "pharmacy", "other"]} unified />
         )}
 
         {activeSection === "integracoes" && (

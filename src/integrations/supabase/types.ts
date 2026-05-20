@@ -1753,6 +1753,9 @@ export type Database = {
           points: number | null
           priority: number | null
           questionnaire_id: string | null
+          success_link_label: string | null
+          success_link_url: string | null
+          success_message: string | null
           tag: string
           title: string
           validation_type: string | null
@@ -1767,6 +1770,9 @@ export type Database = {
           points?: number | null
           priority?: number | null
           questionnaire_id?: string | null
+          success_link_label?: string | null
+          success_link_url?: string | null
+          success_message?: string | null
           tag: string
           title: string
           validation_type?: string | null
@@ -1781,6 +1787,9 @@ export type Database = {
           points?: number | null
           priority?: number | null
           questionnaire_id?: string | null
+          success_link_label?: string | null
+          success_link_url?: string | null
+          success_message?: string | null
           tag?: string
           title?: string
           validation_type?: string | null
@@ -2003,6 +2012,7 @@ export type Database = {
           city: string | null
           created_at: string | null
           full_address: string | null
+          google_maps_url: string | null
           id: string
           is_main: boolean | null
           latitude: number | null
@@ -2016,6 +2026,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           full_address?: string | null
+          google_maps_url?: string | null
           id?: string
           is_main?: boolean | null
           latitude?: number | null
@@ -2029,6 +2040,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           full_address?: string | null
+          google_maps_url?: string | null
           id?: string
           is_main?: boolean | null
           latitude?: number | null
@@ -2068,6 +2080,7 @@ export type Database = {
           email: string | null
           exam_types: Json | null
           full_address: string | null
+          google_maps_url: string | null
           id: string
           is_partner_gym: boolean | null
           latitude: number | null
@@ -2114,6 +2127,7 @@ export type Database = {
           email?: string | null
           exam_types?: Json | null
           full_address?: string | null
+          google_maps_url?: string | null
           id?: string
           is_partner_gym?: boolean | null
           latitude?: number | null
@@ -2160,6 +2174,7 @@ export type Database = {
           email?: string | null
           exam_types?: Json | null
           full_address?: string | null
+          google_maps_url?: string | null
           id?: string
           is_partner_gym?: boolean | null
           latitude?: number | null
@@ -3488,7 +3503,13 @@ export type Database = {
       invoice_status: "pending" | "paid" | "failed" | "canceled" | "refunded"
       kyc_status: "pending" | "approved" | "rejected"
       pagarme_environment: "test" | "live"
-      partner_type: "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy"
+      partner_type:
+        | "doctor"
+        | "clinic"
+        | "gym"
+        | "laboratory"
+        | "pharmacy"
+        | "other"
       payment_method: "credit_card" | "pix"
       subscription_status:
         | "trialing"
@@ -3651,7 +3672,14 @@ export const Constants = {
       invoice_status: ["pending", "paid", "failed", "canceled", "refunded"],
       kyc_status: ["pending", "approved", "rejected"],
       pagarme_environment: ["test", "live"],
-      partner_type: ["doctor", "clinic", "gym", "laboratory", "pharmacy"],
+      partner_type: [
+        "doctor",
+        "clinic",
+        "gym",
+        "laboratory",
+        "pharmacy",
+        "other",
+      ],
       payment_method: ["credit_card", "pix"],
       subscription_status: [
         "trialing",

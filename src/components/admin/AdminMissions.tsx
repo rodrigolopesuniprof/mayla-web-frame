@@ -23,6 +23,9 @@ interface Mission {
   validation_type: string;
   active: boolean;
   priority: number;
+  success_message: string | null;
+  success_link_url: string | null;
+  success_link_label: string | null;
 }
 
 const FREQUENCIES = [
@@ -47,6 +50,7 @@ export function AdminMissions() {
   const [form, setForm] = useState({
     title: "", description: "", tag: "saude", emoji: "🎯",
     points: "50", frequency: "monthly", validation_type: "self_report", priority: "0",
+    success_message: "", success_link_url: "", success_link_label: "",
   });
 
   useEffect(() => { load(); }, []);
@@ -58,7 +62,7 @@ export function AdminMissions() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0" });
+    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0", success_message: "", success_link_url: "", success_link_label: "" });
     setShowForm(true);
   };
 
@@ -68,6 +72,9 @@ export function AdminMissions() {
       title: m.title, description: m.description || "", tag: m.tag, emoji: m.emoji,
       points: String(m.points), frequency: m.frequency, validation_type: m.validation_type,
       priority: String(m.priority),
+      success_message: m.success_message || "",
+      success_link_url: m.success_link_url || "",
+      success_link_label: m.success_link_label || "",
     });
     setShowForm(true);
   };
@@ -78,6 +85,9 @@ export function AdminMissions() {
       title: form.title, description: form.description || null, tag: form.tag, emoji: form.emoji,
       points: parseInt(form.points) || 0, frequency: form.frequency,
       validation_type: form.validation_type, priority: parseInt(form.priority) || 0,
+      success_message: form.success_message.trim() || null,
+      success_link_url: form.success_link_url.trim() || null,
+      success_link_label: form.success_link_label.trim() || null,
     };
     if (editing) {
       const { error } = await supabase.from("missions").update(payload).eq("id", editing.id);
@@ -139,7 +149,7 @@ export function AdminMissions() {
       )}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? "Editar Missão" : "Nova Missão"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-[60px_1fr] gap-3">
@@ -149,12 +159,17 @@ export function AdminMissions() {
               </div>
               <div className="space-y-1">
                 <Label>Título</Label>
-                <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+                <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Tomar vitamina D diariamente" />
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Descrição</Label>
-              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+              <Label>Descrição (explique o que o usuário precisa fazer)</Label>
+              <Textarea
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                rows={4}
+                placeholder="Ex: Tome 1 cápsula de vitamina D após o almoço, conforme orientação médica."
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -186,6 +201,43 @@ export function AdminMissions() {
               <Label>Prioridade (maior = aparece primeiro)</Label>
               <Input type="number" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} />
             </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">🎉 Ação pós-sucesso (opcional)</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mensagem e link mostrados ao usuário quando ele concluir a missão. Use para enviá-lo a um cupom, parceiro, conteúdo, etc.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <Label>Mensagem de sucesso</Label>
+                <Textarea
+                  value={form.success_message}
+                  onChange={e => setForm(f => ({ ...f, success_message: e.target.value }))}
+                  rows={2}
+                  placeholder="Ex: Parabéns! Você tomou sua vitamina D. Quer recomprar com desconto?"
+                />
+              </div>
+              <div className="grid grid-cols-[1fr_1fr] gap-3">
+                <div className="space-y-1">
+                  <Label>Texto do botão</Label>
+                  <Input
+                    value={form.success_link_label}
+                    onChange={e => setForm(f => ({ ...f, success_link_label: e.target.value }))}
+                    placeholder="Ex: Usar cupom VITAMINA10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Link de destino</Label>
+                  <Input
+                    value={form.success_link_url}
+                    onChange={e => setForm(f => ({ ...f, success_link_url: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+            </div>
+
             <Button onClick={save} className="w-full">{editing ? "Salvar" : "Criar Missão"}</Button>
           </div>
         </DialogContent>

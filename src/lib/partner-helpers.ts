@@ -1,7 +1,7 @@
 import L from "leaflet";
 
 /* ─── Types ─── */
-export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy";
+export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy" | "other";
 export type SortMode = "nearest" | "price" | "name";
 export type ConsultModeFilter = "all" | "online" | "presencial";
 
@@ -69,6 +69,7 @@ export const CATEGORIES: { id: PartnerType | "all"; label: string; emoji: string
   { id: "gym", label: "Academias", emoji: "🏋️" },
   { id: "laboratory", label: "Labs", emoji: "🔬" },
   { id: "pharmacy", label: "Farmácias", emoji: "💊" },
+  { id: "other", label: "Outros", emoji: "🤝" },
 ];
 
 export const MARKER_COLORS: Record<PartnerType, string> = {
@@ -77,6 +78,7 @@ export const MARKER_COLORS: Record<PartnerType, string> = {
   gym: "#f59e0b",
   laboratory: "#8b5cf6",
   pharmacy: "#ef4444",
+  other: "#64748b",
 };
 
 export const MARKER_EMOJIS: Record<PartnerType, string> = {
@@ -85,6 +87,7 @@ export const MARKER_EMOJIS: Record<PartnerType, string> = {
   gym: "🏋️",
   laboratory: "🔬",
   pharmacy: "💊",
+  other: "🤝",
 };
 
 export const TYPE_LABELS: Record<PartnerType, string> = {
@@ -93,6 +96,7 @@ export const TYPE_LABELS: Record<PartnerType, string> = {
   gym: "Academia",
   laboratory: "Laboratório",
   pharmacy: "Farmácia",
+  other: "Outro",
 };
 
 export const DEFAULT_RADIUS_KM = 10;

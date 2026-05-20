@@ -19,6 +19,7 @@ const TABS: { id: PartnerType; label: string; emoji: string }[] = [
   { id: "gym", label: "Academias", emoji: "🏋️" },
   { id: "laboratory", label: "Laboratórios", emoji: "🔬" },
   { id: "pharmacy", label: "Farmácias", emoji: "💊" },
+  { id: "other", label: "Outros", emoji: "🤝" },
 ];
 
 const APPROVAL_COLORS: Record<string, string> = {
@@ -35,9 +36,11 @@ const APPROVAL_LABELS: Record<string, string> = {
 
 interface AdminPartnersProps {
   filterTypes?: PartnerType[];
+  /** When true: don't show per-type tabs. List all filterTypes together and let admin pick the type inside the form. */
+  unified?: boolean;
 }
 
-export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
+export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {}) {
   const visibleTabs = filterTypes ? TABS.filter(t => filterTypes.includes(t.id)) : TABS;
   const [activeType, setActiveType] = useState<PartnerType>(visibleTabs[0]?.id || "doctor");
   const [partners, setPartners] = useState<any[]>([]);
@@ -48,18 +51,22 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
   const [csvOpen, setCsvOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  // In unified mode, "Novo" needs a default type for the form
+  const [createType, setCreateType] = useState<PartnerType>(visibleTabs[0]?.id || "gym");
 
   useEffect(() => {
     loadPartners();
-  }, [activeType]);
+  }, [activeType, unified, JSON.stringify(filterTypes)]);
 
   const loadPartners = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("partners")
-      .select("*")
-      .eq("partner_type", activeType)
-      .order("created_at", { ascending: false });
+    let query = supabase.from("partners").select("*").order("created_at", { ascending: false });
+    if (unified && filterTypes && filterTypes.length > 0) {
+      query = query.in("partner_type", filterTypes);
+    } else {
+      query = query.eq("partner_type", activeType);
+    }
+    const { data } = await query;
     setPartners(data || []);
     setLoading(false);
   };
@@ -69,6 +76,7 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
     const { id, google_maps_url, _availability, _clinic_doctors, _clinic_pricing_mode, ...rest } = formData;
     const payload = {
       ...rest,
+      google_maps_url: google_maps_url || null,
       services_offered: rest.services_offered?.length ? rest.services_offered : [],
       accepted_payments: rest.accepted_payments?.length ? rest.accepted_payments : [],
     } as any;
@@ -158,33 +166,37 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
       <div className="mb-6">
         <h2 className="font-display text-2xl text-foreground">Parceiros</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Marketplace de saúde e bem-estar
+          {unified ? "Cadastre qualquer tipo de parceria — escolha o tipo no formulário." : "Marketplace de saúde e bem-estar"}
         </p>
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
-        {visibleTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveType(tab.id)}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border-none cursor-pointer whitespace-nowrap ${
-              activeType === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary"
-            }`}
-          >
-            {tab.emoji} {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Sub-tabs (hidden in unified mode) */}
+      {!unified && (
+        <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
+          {visibleTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveType(tab.id)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border-none cursor-pointer whitespace-nowrap ${
+                activeType === tab.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary"
+              }`}
+            >
+              {tab.emoji} {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">{partners.length} {TABS.find(t => t.id === activeType)?.label?.toLowerCase()}</p>
+        <p className="text-sm text-muted-foreground">
+          {partners.length} {unified ? "parceiros" : TABS.find(t => t.id === activeType)?.label?.toLowerCase()}
+        </p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>📥 Importar CSV</Button>
-          <Button size="sm" onClick={openCreate}>+ Novo</Button>
+          {!unified && <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>📥 Importar CSV</Button>}
+          <Button size="sm" onClick={() => { setEditPartner(null); setCreateType(visibleTabs[0]?.id || "gym"); setFormOpen(true); }}>+ Novo parceiro</Button>
         </div>
       </div>
 
@@ -193,9 +205,9 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
         <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
       ) : partners.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-10 text-center">
-          <div className="text-5xl mb-3">{TABS.find(t => t.id === activeType)?.emoji}</div>
-          <p className="text-sm text-muted-foreground">Nenhum parceiro cadastrado nesta categoria.</p>
-          <Button className="mt-4" size="sm" onClick={openCreate}>Cadastrar primeiro</Button>
+          <div className="text-5xl mb-3">{unified ? "🤝" : TABS.find(t => t.id === activeType)?.emoji}</div>
+          <p className="text-sm text-muted-foreground">Nenhum parceiro cadastrado.</p>
+          <Button className="mt-4" size="sm" onClick={() => { setEditPartner(null); setCreateType(visibleTabs[0]?.id || "gym"); setFormOpen(true); }}>Cadastrar primeiro</Button>
         </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden">
@@ -203,8 +215,9 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                {activeType === "doctor" && <TableHead>CRM</TableHead>}
-                {activeType === "doctor" && <TableHead>Especialidade</TableHead>}
+                {unified && <TableHead>Tipo</TableHead>}
+                {!unified && activeType === "doctor" && <TableHead>CRM</TableHead>}
+                {!unified && activeType === "doctor" && <TableHead>Especialidade</TableHead>}
                 <TableHead>Cidade</TableHead>
                 <TableHead>Aprovação</TableHead>
                 <TableHead>Ativo</TableHead>
@@ -212,11 +225,16 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {partners.map(p => (
+              {partners.map(p => {
+                const typeTab = TABS.find(t => t.id === p.partner_type);
+                return (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  {activeType === "doctor" && <TableCell className="text-xs">{p.crm} {p.crm_state && `/ ${p.crm_state}`}</TableCell>}
-                  {activeType === "doctor" && <TableCell className="text-xs">{p.specialty || "—"}</TableCell>}
+                  {unified && (
+                    <TableCell className="text-xs">{typeTab?.emoji} {typeTab?.label || p.partner_type}</TableCell>
+                  )}
+                  {!unified && activeType === "doctor" && <TableCell className="text-xs">{p.crm} {p.crm_state && `/ ${p.crm_state}`}</TableCell>}
+                  {!unified && activeType === "doctor" && <TableCell className="text-xs">{p.specialty || "—"}</TableCell>}
                   <TableCell className="text-xs">{p.city || "—"}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${APPROVAL_COLORS[p.approval_status]}`}>
@@ -238,18 +256,14 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
                       {p.approval_status !== "blocked" && (
                         <Button variant="ghost" size="sm" onClick={() => quickAction(p.id, "approval_status", "blocked")}>🚫</Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => quickAction(p.id, "active", !p.active)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => quickAction(p.id, "active", !p.active)}>
                         {p.active ? "⏸" : "▶️"}
                       </Button>
                       <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(p)}>🗑️</Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );})}
             </TableBody>
           </Table>
         </div>
@@ -262,11 +276,13 @@ export function AdminPartners({ filterTypes }: AdminPartnersProps = {}) {
             <DialogTitle>{editPartner ? "Editar parceiro" : "Novo parceiro"}</DialogTitle>
           </DialogHeader>
           <PartnerForm
-            partnerType={activeType}
+            partnerType={editPartner?.partner_type || (unified ? createType : activeType)}
             initialData={editPartner || undefined}
             onSubmit={handleSave}
             onCancel={() => { setFormOpen(false); setEditPartner(null); }}
             loading={saving}
+            selectableTypes={unified && !editPartner ? (filterTypes || ["gym","laboratory","pharmacy","other"]) : undefined}
+            onTypeChange={t => setCreateType(t)}
           />
         </DialogContent>
       </Dialog>
