@@ -10,7 +10,7 @@ import { PartnerForm, type PartnerData, type PartnerType } from "./PartnerForm";
 import { PartnerLocationsEditor } from "./PartnerLocationsEditor";
 import { DoctorAvailabilityEditor } from "./DoctorAvailabilityEditor";
 import { PartnerCsvImport } from "./PartnerCsvImport";
-import { buildPrimaryPartnerLocation } from "@/lib/partner-location-utils";
+import { buildPrimaryPartnerLocationAsync } from "@/lib/partner-location-utils";
 import { TeleconsultaSettings } from "./TeleconsultaSettings";
 
 const TABS: { id: PartnerType; label: string; emoji: string }[] = [
