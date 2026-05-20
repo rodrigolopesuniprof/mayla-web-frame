@@ -67,6 +67,7 @@ export function buildPrimaryPartnerLocation(partnerId: string, data: PartnerLoca
     zip_code: data.zip_code || "",
     latitude: coordinates?.latitude ?? data.latitude ?? null,
     longitude: coordinates?.longitude ?? data.longitude ?? null,
+    google_maps_url: data._google_maps_url || null,
     is_main: true,
   };
 }
