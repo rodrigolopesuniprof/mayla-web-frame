@@ -191,10 +191,12 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
 
       {/* Actions */}
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">{partners.length} {TABS.find(t => t.id === activeType)?.label?.toLowerCase()}</p>
+        <p className="text-sm text-muted-foreground">
+          {partners.length} {unified ? "parceiros" : TABS.find(t => t.id === activeType)?.label?.toLowerCase()}
+        </p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>📥 Importar CSV</Button>
-          <Button size="sm" onClick={openCreate}>+ Novo</Button>
+          {!unified && <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>📥 Importar CSV</Button>}
+          <Button size="sm" onClick={() => { setEditPartner(null); setCreateType(visibleTabs[0]?.id || "gym"); setFormOpen(true); }}>+ Novo parceiro</Button>
         </div>
       </div>
 
@@ -203,9 +205,9 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
         <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
       ) : partners.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-10 text-center">
-          <div className="text-5xl mb-3">{TABS.find(t => t.id === activeType)?.emoji}</div>
-          <p className="text-sm text-muted-foreground">Nenhum parceiro cadastrado nesta categoria.</p>
-          <Button className="mt-4" size="sm" onClick={openCreate}>Cadastrar primeiro</Button>
+          <div className="text-5xl mb-3">{unified ? "🤝" : TABS.find(t => t.id === activeType)?.emoji}</div>
+          <p className="text-sm text-muted-foreground">Nenhum parceiro cadastrado.</p>
+          <Button className="mt-4" size="sm" onClick={() => { setEditPartner(null); setCreateType(visibleTabs[0]?.id || "gym"); setFormOpen(true); }}>Cadastrar primeiro</Button>
         </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden">
@@ -213,8 +215,9 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                {activeType === "doctor" && <TableHead>CRM</TableHead>}
-                {activeType === "doctor" && <TableHead>Especialidade</TableHead>}
+                {unified && <TableHead>Tipo</TableHead>}
+                {!unified && activeType === "doctor" && <TableHead>CRM</TableHead>}
+                {!unified && activeType === "doctor" && <TableHead>Especialidade</TableHead>}
                 <TableHead>Cidade</TableHead>
                 <TableHead>Aprovação</TableHead>
                 <TableHead>Ativo</TableHead>
@@ -222,11 +225,16 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
               </TableRow>
             </TableHeader>
             <TableBody>
-              {partners.map(p => (
+              {partners.map(p => {
+                const typeTab = TABS.find(t => t.id === p.partner_type);
+                return (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  {activeType === "doctor" && <TableCell className="text-xs">{p.crm} {p.crm_state && `/ ${p.crm_state}`}</TableCell>}
-                  {activeType === "doctor" && <TableCell className="text-xs">{p.specialty || "—"}</TableCell>}
+                  {unified && (
+                    <TableCell className="text-xs">{typeTab?.emoji} {typeTab?.label || p.partner_type}</TableCell>
+                  )}
+                  {!unified && activeType === "doctor" && <TableCell className="text-xs">{p.crm} {p.crm_state && `/ ${p.crm_state}`}</TableCell>}
+                  {!unified && activeType === "doctor" && <TableCell className="text-xs">{p.specialty || "—"}</TableCell>}
                   <TableCell className="text-xs">{p.city || "—"}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${APPROVAL_COLORS[p.approval_status]}`}>
@@ -248,18 +256,14 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
                       {p.approval_status !== "blocked" && (
                         <Button variant="ghost" size="sm" onClick={() => quickAction(p.id, "approval_status", "blocked")}>🚫</Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => quickAction(p.id, "active", !p.active)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => quickAction(p.id, "active", !p.active)}>
                         {p.active ? "⏸" : "▶️"}
                       </Button>
                       <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(p)}>🗑️</Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );})}
             </TableBody>
           </Table>
         </div>
@@ -272,11 +276,13 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
             <DialogTitle>{editPartner ? "Editar parceiro" : "Novo parceiro"}</DialogTitle>
           </DialogHeader>
           <PartnerForm
-            partnerType={activeType}
+            partnerType={editPartner?.partner_type || (unified ? createType : activeType)}
             initialData={editPartner || undefined}
             onSubmit={handleSave}
             onCancel={() => { setFormOpen(false); setEditPartner(null); }}
             loading={saving}
+            selectableTypes={unified && !editPartner ? (filterTypes || ["gym","laboratory","pharmacy","other"]) : undefined}
+            onTypeChange={t => setCreateType(t)}
           />
         </DialogContent>
       </Dialog>
