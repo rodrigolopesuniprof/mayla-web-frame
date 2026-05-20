@@ -222,6 +222,23 @@ export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, load
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+      {selectableTypes && selectableTypes.length > 0 && (
+        <fieldset className="space-y-2 bg-primary/5 border border-primary/15 rounded-xl p-4">
+          <Label className="text-sm font-semibold">Tipo de parceria *</Label>
+          <Select
+            value={data.partner_type}
+            onValueChange={v => { set("partner_type", v as PartnerType); onTypeChange?.(v as PartnerType); }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {TYPE_OPTIONS.filter(t => selectableTypes.includes(t.id)).map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.emoji} {t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </fieldset>
+      )}
+
       {/* Common fields */}
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-foreground mb-2">Dados gerais</legend>
