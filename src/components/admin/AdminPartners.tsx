@@ -86,7 +86,7 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
       if (error) {
         toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
       } else {
-        const mainLocation = buildPrimaryPartnerLocation(editPartner.id, {
+        const mainLocation = await buildPrimaryPartnerLocationAsync(editPartner.id, {
           name: formData.name,
           full_address: formData.full_address,
           city: formData.city,
