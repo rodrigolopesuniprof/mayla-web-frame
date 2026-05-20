@@ -20,6 +20,9 @@ interface UserMission {
     priority: number;
     validation_type: string;
     frequency: string;
+    success_message: string | null;
+    success_link_url: string | null;
+    success_link_label: string | null;
   };
 }
 
