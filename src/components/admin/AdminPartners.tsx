@@ -170,22 +170,24 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
         </p>
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
-        {visibleTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveType(tab.id)}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border-none cursor-pointer whitespace-nowrap ${
-              activeType === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary"
-            }`}
-          >
-            {tab.emoji} {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Sub-tabs (hidden in unified mode) */}
+      {!unified && (
+        <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
+          {visibleTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveType(tab.id)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border-none cursor-pointer whitespace-nowrap ${
+                activeType === tab.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary"
+              }`}
+            >
+              {tab.emoji} {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between mb-4">
