@@ -76,6 +76,7 @@ export function AdminPartners({ filterTypes, unified }: AdminPartnersProps = {})
     const { id, google_maps_url, _availability, _clinic_doctors, _clinic_pricing_mode, ...rest } = formData;
     const payload = {
       ...rest,
+      google_maps_url: google_maps_url || null,
       services_offered: rest.services_offered?.length ? rest.services_offered : [],
       accepted_payments: rest.accepted_payments?.length ? rest.accepted_payments : [],
     } as any;
