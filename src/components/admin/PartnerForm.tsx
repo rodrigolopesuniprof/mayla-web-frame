@@ -136,7 +136,7 @@ const TYPE_OPTIONS: { id: PartnerType; label: string; emoji: string }[] = [
 const BR_STATES = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, loading, hideStatusFields }: Props) {
+export function PartnerForm({ partnerType, initialData, onSubmit, onCancel, loading, hideStatusFields, selectableTypes, onTypeChange }: Props) {
   const [data, setData] = useState<PartnerData>(() => ({ ...emptyPartner(partnerType), ...initialData }));
 
   // Raw text state for comma-separated fields (fixes comma input bug)
