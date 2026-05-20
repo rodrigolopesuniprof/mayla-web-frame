@@ -23,6 +23,9 @@ interface Mission {
   validation_type: string;
   active: boolean;
   priority: number;
+  success_message: string | null;
+  success_link_url: string | null;
+  success_link_label: string | null;
 }
 
 const FREQUENCIES = [
