@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy";
+export type PartnerType = "doctor" | "clinic" | "gym" | "laboratory" | "pharmacy" | "other";
 export type ApprovalStatus = "pending" | "approved" | "blocked";
 
 export const MEDICAL_SPECIALTIES = [
