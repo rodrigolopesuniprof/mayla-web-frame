@@ -335,9 +335,9 @@ export function MissionsTab({ onBack }: { onBack?: () => void } = {}) {
                 Concluídas
               </p>
               {completedMissions.map((m) => (
-                <div key={m.id} className="bg-card rounded-2xl p-5 border border-border opacity-60">
+                <div key={m.id} className="bg-card rounded-2xl p-5 border border-border">
                   <div className="flex items-start gap-3.5">
-                    <span className="text-3xl">{m.mission.emoji}</span>
+                    <span className="text-3xl opacity-70">{m.mission.emoji}</span>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[15px] font-semibold text-foreground">✅ {m.mission.title}</span>
@@ -345,6 +345,23 @@ export function MissionsTab({ onBack }: { onBack?: () => void } = {}) {
                       </div>
                       {m.mission.description && (
                         <div className="text-sm text-muted-foreground">{m.mission.description}</div>
+                      )}
+                      {(m.mission.success_message || m.mission.success_link_url) && (
+                        <div className="mt-3 rounded-xl bg-primary/5 border border-primary/15 p-3">
+                          {m.mission.success_message && (
+                            <p className="text-sm text-foreground">🎉 {m.mission.success_message}</p>
+                          )}
+                          {m.mission.success_link_url && (
+                            <a
+                              href={m.mission.success_link_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 mt-2 text-sm font-semibold text-primary hover:underline"
+                            >
+                              {m.mission.success_link_label || "Acessar"} →
+                            </a>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
