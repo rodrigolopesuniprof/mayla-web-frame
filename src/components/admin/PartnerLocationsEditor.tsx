@@ -151,11 +151,40 @@ export function PartnerLocationsEditor({ partnerId }: Props) {
           {/* Google Maps URL field */}
           <div className="space-y-1">
             <Label className="text-xs">🔗 Link do Google Maps (para extrair coordenadas)</Label>
-            <Input
-              value={loc._google_maps_url || ""}
-              onChange={e => updateRow(idx, "_google_maps_url", e.target.value)}
-              placeholder="Cole aqui o link do Google Maps"
-            />
+            <div className="flex gap-2">
+              <Input
+                value={loc._google_maps_url || ""}
+                onChange={e => updateRow(idx, "_google_maps_url", e.target.value)}
+                onBlur={async () => {
+                  const url = loc._google_maps_url;
+                  if (!url) return;
+                  const coords = await resolveGoogleMapsUrl(url);
+                  if (coords) {
+                    updateRow(idx, "latitude", coords.latitude);
+                    updateRow(idx, "longitude", coords.longitude);
+                    toast({ title: "📍 Coordenadas extraídas — clique em Salvar para confirmar" });
+                  }
+                }}
+                placeholder="Cole aqui o link do Google Maps"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const coords = await resolveGoogleMapsUrl(loc._google_maps_url);
+                  if (coords) {
+                    updateRow(idx, "latitude", coords.latitude);
+                    updateRow(idx, "longitude", coords.longitude);
+                    toast({ title: "🔄 Coordenadas atualizadas — clique em Salvar" });
+                  } else {
+                    toast({ title: "Não foi possível extrair coordenadas", variant: "destructive" });
+                  }
+                }}
+              >
+                🔄
+              </Button>
+            </div>
             {loc.latitude != null && loc.longitude != null && (
               <p className="text-[10px] text-muted-foreground">📍 Coordenadas: {loc.latitude}, {loc.longitude}</p>
             )}

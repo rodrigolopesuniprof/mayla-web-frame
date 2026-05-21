@@ -1,73 +1,51 @@
 ## Diagnóstico
 
-Hoje, `company_invite_tokens` tem `expires_at` nullable e **não tem contador de uso**. Em produção todos os tokens estão com `expires_at = NULL` (não expiram por tempo) e nada no código os apaga após signup. O motivo aparente do problema:
+Testei o link `https://maps.app.goo.gl/FVggLpcYVkHgCZeR9` direto na edge function `resolve-maps-url` e ele retorna corretamente:
+- `latitude: -23.6907646, longitude: -46.6241459` (Diadema-SP, Rua Graciosa)
 
-- `AdminCompanyDetail.tsx` usa `.maybeSingle()` numa query que pode retornar **várias linhas** (algumas empresas já têm 4–6 tokens duplicados na base). Quando isso acontece, o Supabase retorna erro/`null`, a UI exibe "sem link" e o admin clica em "regenerar" — que **apaga todos** os tokens da empresa e cria um novo. Resultado prático: links antigos param de funcionar e parece que "expirou após 1 uso".
+Ou seja, **o resolver funciona**. O problema é outro, em duas camadas:
 
-Além disso, não há QR code nem controle de limite/prazo configurável.
+### Problema 1 — Coordenadas não foram salvas no banco
 
-## Objetivo
+Consultando `partner_locations` para os 3 parceiros "Oficial Farma":
 
-1. Link de convite com **uso ilimitado por padrão**, opcionalmente com:
-   - `expires_at` (prazo de validade)
-   - `max_uses` (limite total de cadastros concluídos)
-2. Contar cada cadastro concluído via link (auditoria + enforcement do `max_uses`).
-3. Botão para exibir/baixar **QR code** do link.
-4. Eliminar a duplicação de tokens e a falsa sensação de expiração.
+| Parceiro | google_maps_url | latitude | longitude |
+|---|---|---|---|
+| Oficial Farma - Graciosa | ✅ salvo | ❌ NULL | ❌ NULL |
+| Oficial Farma - Vila América | (vazio) | ❌ NULL | ❌ NULL |
+| Oficial Farma - Figueiras | (vazio) | ❌ NULL | ❌ NULL |
 
-## Mudanças no banco
+A linha "Graciosa" tem o link salvo mas as coordenadas estão nulas — provavelmente o registro foi criado antes do resolver estar deployado, ou pelo formulário principal (`PartnerForm`) numa versão anterior do fluxo. O atual `PartnerLocationsEditor.saveRow` já chama o resolver, mas ele só roda quando você clica em **Salvar** dentro do card de "Locais de atendimento" — não automaticamente em registros antigos.
 
-Migration:
+### Problema 2 — Filtro de raio descarta parceiros distantes
 
-- `company_invite_tokens`:
-  - adicionar `max_uses int null` (null = ilimitado)
-  - adicionar `uses_count int not null default 0`
-  - adicionar `active boolean not null default true`
-  - índice único parcial: 1 token ativo por empresa (`unique (company_id) where active`)
-  - back-fill: marcar como `active = true` apenas o mais recente de cada empresa; demais ficam `active = false` (links antigos continuam válidos para validação histórica, mas só o ativo aparece na UI)
-- `profiles`: adicionar `signed_up_via_token uuid null references company_invite_tokens(id)` para auditoria
-- Função `register_via_invite_token(_token text)`: SECURITY DEFINER, chamada pelo client logo após o `auth.signUp` confirmado. Ela:
-  - valida `active`, `expires_at > now()`, `max_uses is null or uses_count < max_uses`
-  - incrementa `uses_count`
-  - grava `profiles.signed_up_via_token`
-  - retorna `{ ok, reason }`
+`HealthPartnersMap` filtra parceiros a no máximo **50 km** do usuário. Se você estiver em ES (centro padrão `-20.31, -40.31`) e o parceiro está em Diadema-SP, mesmo com coordenadas corretas o pin nunca aparece (distância ~850 km).
 
-## Mudanças no backend / fluxo
+## Plano
 
-- `CompanySignup.tsx`:
-  - validação inicial passa a checar `active`, `expires_at`, `uses_count < max_uses`
-  - após `auth.signUp` bem sucedido, chama `register_via_invite_token(token)` via RPC
-  - mensagens de erro distintas para "expirado", "limite atingido", "desativado"
+### 1. Backfill imediato (migration)
+Criar migration que chama nada no banco, apenas como marco — e em seguida rodar um script via edge function ou direto que percorre `partner_locations` onde `google_maps_url IS NOT NULL` e `latitude IS NULL`, chama o resolver, e atualiza as linhas. Faço isso server-side via uma nova edge function `backfill-partner-coords` (uma chamada manual, sem RLS issues) — assim consigo resolver os 3 registros existentes.
 
-## UI Admin (`AdminCompanySettings.tsx`)
+### 2. Resolver automaticamente no `PartnerLocationsEditor` ao **digitar/colar** o link
+Hoje só roda no clique "Salvar". Vou adicionar: ao sair do campo (`onBlur`) do input do Google Maps, se o link mudou e ainda não há coordenadas, chamar o resolver e mostrar feedback ("📍 Coordenadas extraídas: lat, lng"). Continua exigindo "Salvar" para persistir, mas o usuário enxerga imediatamente se deu certo.
 
-Adicionar painel "Link de cadastro":
+### 3. Botão "🔄 Atualizar coordenadas a partir do link" em cada local
+Para registros antigos: um botão pequeno ao lado do input que força nova resolução, útil quando o link foi trocado.
 
-- Mostra a URL atual + botão **Copiar**
-- Botão **Mostrar QR code** → abre dialog com QR (lib `qrcode.react`) e botão "Baixar PNG"
-- Campos editáveis:
-  - **Validade** (date picker, opcional — vazio = sem prazo)
-  - **Limite de cadastros** (input number, opcional — vazio = ilimitado)
-- Indicadores: `uses_count / max_uses` e status (Ativo / Expirado / Limite atingido)
-- Botão **Gerar novo link** (desativa o atual, cria um novo) — com confirmação clara: "links anteriores deixarão de aceitar novos cadastros"
+### 4. Ampliar e tornar configurável o raio de busca
+- Mudar `DEFAULT_RADIUS_KM` de 10 → 25 km
+- Mudar o raio fixo de `HealthPartnersMap` (50 km) → 200 km
+- Manter já existente o filtro por cidade na UI, então não há risco de "spam"
 
-Ajustes em `AdminCompanies.tsx` e `AdminCompanyDetail.tsx`: trocar `.maybeSingle()` por `.eq("active", true).maybeSingle()` para nunca mais quebrar com múltiplos tokens.
+Esse é o ponto que mais provavelmente está te confundindo no teste: mesmo se as coordenadas estivessem certas no banco, o parceiro de Diadema **não apareceria** num mapa centrado em ES por causa do raio.
 
-## Dependências
+## Detalhes técnicos
 
-- `qrcode.react` (leve, ~3 KB) para renderizar e exportar PNG do QR.
+- Nova edge function `backfill-partner-coords` (verify_jwt = false, protegida por header `x-admin-token` opcional ou apenas sem autenticação dado que é admin-only e idempotente). Faz: `SELECT id, google_maps_url FROM partner_locations WHERE latitude IS NULL AND google_maps_url IS NOT NULL`, chama `resolve-maps-url` para cada um, faz `UPDATE` com as coordenadas e também sincroniza `partners.latitude/longitude` quando `is_main = true`.
+- `PartnerLocationsEditor`: novo handler `handleMapsUrlBlur(idx)` que chama `resolveGoogleMapsUrl` e atualiza state local com as coords (sem persistir até "Salvar").
+- `partner-helpers.ts`: `DEFAULT_RADIUS_KM = 25`.
+- `HealthPartnersMap.tsx` (linha 88): trocar `50` por `200`.
 
-## Arquivos afetados
+## Pergunta antes de implementar
 
-- `supabase/migrations/...` (novo)
-- `src/pages/CompanySignup.tsx`
-- `src/components/admin/AdminCompanySettings.tsx`
-- `src/components/admin/AdminCompanies.tsx`
-- `src/components/admin/AdminCompanyDetail.tsx`
-- `package.json` (qrcode.react)
-- `mem://auth/cadastro-por-token-empresa` (atualizar regra)
-
-## O que **não** muda
-
-- Trigger automática que cria token na criação da empresa (continua igual, agora com `active=true` por padrão).
-- Rota `/cadastro/:token` e UX do formulário público.
+Você confirma que quer **ampliar o raio** para 200 km (assim parceiros em outros estados aparecem)? Ou prefere manter restrito a ~50 km e considerar que parceiros distantes simplesmente não devem aparecer no mapa do colaborador?

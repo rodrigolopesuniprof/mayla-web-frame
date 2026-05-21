@@ -99,7 +99,7 @@ export const TYPE_LABELS: Record<PartnerType, string> = {
   other: "Outro",
 };
 
-export const DEFAULT_RADIUS_KM = 10;
+export const DEFAULT_RADIUS_KM = 25;
 export const DEFAULT_CENTER: [number, number] = [-20.315, -40.312];
 
 /* ─── Haversine ─── */
