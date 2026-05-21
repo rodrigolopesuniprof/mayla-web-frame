@@ -82,10 +82,10 @@ export function HealthPartnersMap({ onBack }: Props) {
     load();
   }, []);
 
-  // Enrich with distance — use larger radius (50km) so partners are more likely to show
+  // Enrich with distance — wide radius (200km) so partners across regions still appear
   const enriched = useMemo(() => {
     if (!userPos) return [];
-    return enrichPartners(partners, locations, userPos, 50);
+    return enrichPartners(partners, locations, userPos, 200);
   }, [partners, locations, userPos]);
 
   // Extract unique specialties & cities for filter dropdowns
