@@ -348,7 +348,7 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
               <button onClick={() => setForm({ ...form!, biological_sex: "female" })} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${form?.biological_sex === "female" ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Feminino</button>
             </div>
           }
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("is_pregnant", "Gravidez"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={pregnantLabel}
           editField={
@@ -360,23 +360,23 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
               ))}
             </div>
           }
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("has_hypertension", "Hipertensão"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.has_hypertension ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_hypertension ?? false} onChange={(v) => setForm({ ...form!, has_hypertension: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("has_diabetes", "Diabetes"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.has_diabetes ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_diabetes ?? false} onChange={(v) => setForm({ ...form!, has_diabetes: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("peso", "Peso"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.peso ? `${health.peso} kg` : "—"}
           editField={<Input type="number" inputMode="decimal" className="w-20 h-8 text-xs" value={form?.peso ?? ""} onChange={(e) => setForm({ ...form!, peso: e.target.value ? Number(e.target.value) : null })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("altura", "Altura"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.altura ? `${health.altura} cm` : "—"}
           editField={<Input type="number" inputMode="numeric" className="w-20 h-8 text-xs" value={form?.altura ?? ""} onChange={(e) => setForm({ ...form!, altura: e.target.value ? Number(e.target.value) : null })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("last_dental_visit", "Última ida ao dentista"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={dentalLabel}
           editField={
@@ -386,7 +386,7 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
               ))}
             </div>
           }
-        ); })()}
+        /> ); })()}
       </div>
 
       {/* Address */}
@@ -403,31 +403,31 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
         {(() => { const f = fieldOf("lives_with_infant", "Mora com criança < 1 ano"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.lives_with_infant ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.lives_with_infant ?? false} onChange={(v) => setForm({ ...form!, lives_with_infant: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("has_child_under_5", "Criança < 5 anos em casa"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.has_child_under_5 ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_child_under_5 ?? false} onChange={(v) => setForm({ ...form!, has_child_under_5: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("has_child_under_12", "Filho < 12 anos (vacinas)"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.has_child_under_12 ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_child_under_12 ?? false} onChange={(v) => setForm({ ...form!, has_child_under_12: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("has_bedridden_at_home", "Acamado em casa"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.has_bedridden_at_home ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_bedridden_at_home ?? false} onChange={(v) => setForm({ ...form!, has_bedridden_at_home: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("has_pregnant_at_home", "Grávida em casa"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.has_pregnant_at_home ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_pregnant_at_home ?? false} onChange={(v) => setForm({ ...form!, has_pregnant_at_home: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("is_bolsa_familia", "Bolsa Família"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.is_bolsa_familia ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.is_bolsa_familia ?? false} onChange={(v) => setForm({ ...form!, is_bolsa_familia: v })} />}
-        ); })()}
+        /> ); })()}
         {(() => { const f = fieldOf("last_acs_visit", "Visita ACS recente"); return f.visible && (
         <InfoRow editing={editing} label={f.label} value={health.last_acs_visit ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.last_acs_visit ?? false} onChange={(v) => setForm({ ...form!, last_acs_visit: v })} />}
-        ); })()}
+        /> ); })()}
       </div>
 
 
