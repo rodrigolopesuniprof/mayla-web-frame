@@ -107,7 +107,7 @@ export function FirstStepsCard() {
     // Silence the recurring PointsOnboardingTour popup permanently
     supabase
       .from("profiles")
-      .update({ points_tour_completed: true, points_tour_dismissed_at: null })
+      .update({ points_tour_completed: true, points_tour_current_step: STEPS.length, points_tour_dismissed_at: null })
       .eq("user_id", user.id)
       .then(() => {
         window.dispatchEvent(new Event(POINTS_TOUR_COMPLETED_EVENT));
@@ -124,6 +124,7 @@ export function FirstStepsCard() {
   if (!loaded || !user || dismissed) return null;
 
   const reopenTour = async () => {
+    if (allDone) return;
     await supabase
       .from("profiles")
       .update({ points_tour_completed: false, points_tour_dismissed_at: null })
@@ -152,12 +153,14 @@ export function FirstStepsCard() {
             {completedCount}/{STEPS.length} concluídos · ganhe pontos de bônus
           </div>
         </div>
-        <button
-          onClick={reopenTour}
-          className="text-xs font-semibold text-primary bg-transparent border-none cursor-pointer hover:underline"
-        >
-          Continuar →
-        </button>
+        {!allDone && (
+          <button
+            onClick={reopenTour}
+            className="text-xs font-semibold text-primary bg-transparent border-none cursor-pointer hover:underline"
+          >
+            Continuar →
+          </button>
+        )}
       </div>
 
       <div className="h-1.5 bg-border rounded-full overflow-hidden mb-3">
