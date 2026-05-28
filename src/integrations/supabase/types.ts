@@ -2470,6 +2470,8 @@ export type Database = {
         Row: {
           altura: number | null
           avatar_points_awarded: boolean
+          avatar_seed: string | null
+          avatar_style: string
           avatar_type: string
           avatar_url: string | null
           bairro: string | null
@@ -2522,6 +2524,8 @@ export type Database = {
         Insert: {
           altura?: number | null
           avatar_points_awarded?: boolean
+          avatar_seed?: string | null
+          avatar_style?: string
           avatar_type?: string
           avatar_url?: string | null
           bairro?: string | null
@@ -2574,6 +2578,8 @@ export type Database = {
         Update: {
           altura?: number | null
           avatar_points_awarded?: boolean
+          avatar_seed?: string | null
+          avatar_style?: string
           avatar_type?: string
           avatar_url?: string | null
           bairro?: string | null
