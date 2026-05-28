@@ -1,38 +1,53 @@
-
 ## Diagnóstico
 
-A subida de nível **já é automática no banco** (`award_points` → `check_user_level` → atualiza `user_level_progress`, paga bônus em `points_ledger`, atualiza badge). O usuário que bateu 500 pts já está como Nível 2 no banco — só **não houve aviso visível** e o card da Home mostra apenas o **acumulado**, sem separar o que ele ganhou na semana.
+O usuário tem **5050 pts** acumulados (e outro tem 500 pts), mas continua como "Iniciante" porque a linha em `user_level_progress` nunca foi criada — o `current_level` está `NULL`.
 
-## Mudanças
+Motivo: os pontos desses usuários vieram de um lançamento com `source = 'backfill'` (provavelmente um INSERT/UPDATE direto ou via importação), e não pela função `add_points_to_profile`, que é a única que chama `check_user_level`. Ou seja: hoje a promoção de nível só roda quando o código aplicativo se lembra de chamar `add_points_to_profile`. Qualquer outra forma de incrementar `profiles.points` (RPCs específicas, scripts, backfills, ajustes manuais) deixa o nível dessincronizado.
 
-### 1. Notificação automática de subida de nível
-- **Migration**: habilitar realtime na tabela `user_level_progress` (`REPLICA IDENTITY FULL` + `ALTER PUBLICATION supabase_realtime ADD TABLE`).
-- **Novo hook `src/hooks/useLevelUpNotifier.ts`**: assina mudanças do `user_level_progress` do usuário logado. Quando `current_level` aumenta:
-  - Busca o nível alcançado em `get_effective_levels` para pegar `name`, `emoji`, `bonus_points`, `badge_title`.
-  - Dispara um **modal celebratório full-screen** (componente novo `LevelUpDialog.tsx`) com:
-    - "🎉 Parabéns! Você subiu de nível!"
-    - `{emoji} Nível N · {name}`
-    - Badge ganha + bônus de pontos creditados
-    - Confete leve via CSS animation
-    - Botão "Continuar"
-  - Toast de fallback caso o modal não monte.
-- **Integração**: chamado em `MaylaApp.tsx` (ao lado do `PointsOnboardingTour`) para cobrir o app inteiro.
+A função `check_user_level` em si está correta — ela cria a linha em `user_level_progress`, percorre todos os níveis atingidos, paga o bônus e atualiza `profiles.level`. O problema é só o gatilho.
 
-### 2. Home: separar pontos da semana vs. acumulado
-- **`src/hooks/useMyRanking.ts`**: também expor `weekPoints` e `totalPoints` (já vêm em `company_leaderboard`).
-- **`GamificationStatusCard.tsx`**: reorganizar Zona 1/2:
-  - Destaque grande: **"⚡ {weekPoints} pts esta semana"**
-  - Linha secundária: barra de progresso de nível (continua usando acumulado, que é o que define nível), texto "Faltam X pts para 💪 Engajado"
-  - Pequeno link à direita: **"🏆 Acumulado: {totalPoints} · ver ranking →"** (abre LeaderboardScreen)
-  - Remover a exibição do acumulado em destaque na frase de progresso (mantém só "faltam X pts" sem expor o número absoluto na Home).
+## Solução
 
-### 3. Ranking: adicionar aba "Total" (acumulado)
-- **`LeaderboardScreen.tsx`**: incluir `"total"` no array de períodos (`["week", "month", "year", "total"]`). Labels:
-  - `total: "Acumulado"` no `periodLabels`
-  - `total: "no total"` no `periodSubtitles`
-- A infra (`useLeaderboard`, `pointsFor`, `rankFor`, `total_points`, `rank_total`) **já existe** — só falta expor a aba.
+1. **Trigger automática em `profiles`** — sempre que `points` for alterado (por qualquer caminho: RPC, backfill, ajuste manual, importação), executar `check_user_level(NEW.user_id)`. Assim a promoção fica garantida, independente de quem mexeu nos pontos.
 
-## Fora de escopo
-- Não muda regras de nível (`levels` permanece 0/500/1500/3500/7500).
-- Não muda a função `check_user_level` (já funciona).
-- Não muda o cálculo de pontos das regras.
+2. **Backfill imediato** — rodar `check_user_level` para todos os usuários que já têm pontos suficientes para subir de nível mas ainda estão no nível 1 (ou sem linha em `user_level_progress`). Isso resolve o caso do usuário Rodrigo (500 pts → Engajado) e do outro com 5050 pts (que deve pular vários níveis e receber os bônus acumulados).
+
+3. **Notificação visual** — como `user_level_progress` já está no Realtime e o `LevelUpNotifier` já está montado, assim que o backfill rodar o usuário verá o modal de "subiu de nível" automaticamente na próxima sessão / reload.
+
+## Detalhes técnicos
+
+Migração única:
+
+```sql
+-- 1) Trigger de sincronização
+CREATE OR REPLACE FUNCTION public.trg_sync_user_level()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+  IF TG_OP = 'INSERT' OR NEW.points IS DISTINCT FROM OLD.points THEN
+    PERFORM public.check_user_level(NEW.user_id);
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER profiles_sync_level
+AFTER INSERT OR UPDATE OF points ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.trg_sync_user_level();
+
+-- 2) Backfill: roda para todo mundo que tem pontos
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT user_id FROM public.profiles WHERE points > 0 LOOP
+    PERFORM public.check_user_level(r.user_id);
+  END LOOP;
+END $$;
+```
+
+Observações:
+- A trigger é idempotente: `check_user_level` só promove se `min_points <= points` e `level_number > current_level`, então atualizações que não cruzam threshold são no-op.
+- O bônus de nível é creditado via `UPDATE profiles SET points = points + bonus`, o que dispara a trigger de novo — porém na segunda chamada não há novo nível a alcançar, então não há loop.
+- Nenhuma mudança em UI ou no front-end é necessária. O `LevelUpNotifier` já escuta `user_level_progress` em tempo real e exibirá o modal celebrativo automaticamente.
+
+## Arquivo
+
+- nova migração SQL em `supabase/migrations/`
