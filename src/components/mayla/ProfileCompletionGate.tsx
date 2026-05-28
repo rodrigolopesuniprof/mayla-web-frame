@@ -50,7 +50,7 @@ export function ProfileCompletionGate({ onComplete }: { onComplete: () => void }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ birth_date: birthDate, biological_sex: sex })
+      .update({ birth_date: birthDate, biological_sex: sex, gender_other_text: sex === "other" ? otherText : null } as any)
       .eq("user_id", user.id);
     setSaving(false);
     if (error) {
