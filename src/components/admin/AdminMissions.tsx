@@ -85,6 +85,12 @@ export function AdminMissions() {
       success_message: m.success_message || "",
       success_link_url: m.success_link_url || "",
       success_link_label: m.success_link_label || "",
+      cap_per_day: m.cap_per_day != null ? String(m.cap_per_day) : "",
+      cap_per_week: m.cap_per_week != null ? String(m.cap_per_week) : "",
+      cap_per_month: m.cap_per_month != null ? String(m.cap_per_month) : "",
+      cap_lifetime: m.cap_lifetime != null ? String(m.cap_lifetime) : "",
+      valid_from: m.valid_from ? m.valid_from.slice(0, 16) : "",
+      valid_until: m.valid_until ? m.valid_until.slice(0, 16) : "",
     });
     setShowForm(true);
   };
