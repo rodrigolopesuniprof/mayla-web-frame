@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { WellbeingPrograms } from "@/components/corporate/WellbeingPrograms";
 import { CampaignsList } from "@/components/corporate/CampaignsList";
 import { TopBar } from "./TopBar";
 import { MissionsTab } from "./MissionsTab";
+import { markFirstStep } from "@/lib/first-steps";
 
 import type { TabId } from "@/lib/mayla-config";
 
