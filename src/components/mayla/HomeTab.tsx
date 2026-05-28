@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
 
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles }: {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
   onOpenAppointment: () => void;
@@ -18,6 +18,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenAssistant?: () => void;
   onOpenArticle?: (id: string) => void;
   onOpenAllArticles?: () => void;
+  onOpenLeaderboard?: () => void;
 }) {
   const { isDefault } = useCompany();
   const { user } = useAuth();
