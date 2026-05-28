@@ -67,7 +67,7 @@ export function ProfileTab() {
     const fetchProfile = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, cpf, phone, birth_date, points, level, esf_team_id")
+        .select("full_name, cpf, phone, birth_date, points, level, esf_team_id, avatar_url, avatar_type")
         .eq("user_id", user.id)
         .single();
       if (data) {
