@@ -88,9 +88,11 @@ export function MaylaApp() {
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
               />
             )}
-            {showSelfAssessment ? (
-              <SelfAssessmentRunner onBack={() => setShowSelfAssessment(false)} />
-            ) : null}
+            {showSelfAssessment && (
+              <div className="absolute inset-0 z-40 bg-background">
+                <SelfAssessmentRunner onBack={() => setShowSelfAssessment(false)} />
+              </div>
+            )}
             {activeVideoCall ? (
               <JitsiConsultationScreen
                 consultation={{ ...activeVideoCall, consultationMode: "online" }}
