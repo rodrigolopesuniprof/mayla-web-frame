@@ -108,6 +108,23 @@ export default function CompanySignup() {
       }
     }
 
+    // Gera avatar DiceBear e credita 50 pts via RPC SECURITY DEFINER
+    if (newUserId) {
+      try {
+        const url = dicebearUrl(fullName, newUserId);
+        const { data: avatarRes } = await supabase.rpc("apply_dicebear_avatar" as any, {
+          _user_id: newUserId,
+          _url: url,
+        });
+        const res = avatarRes as { ok?: boolean; points_awarded?: number } | null;
+        if (res?.ok && (res.points_awarded ?? 0) > 0) {
+          toast({ title: "Avatar criado! 🎨", description: `+${res.points_awarded} pts` });
+        }
+      } catch {
+        // silencioso: avatar é opcional, não bloqueia cadastro
+      }
+    }
+
     setSaving(false);
     toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
     navigate("/login");
