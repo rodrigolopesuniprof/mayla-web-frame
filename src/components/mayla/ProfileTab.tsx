@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FavoriteDoctors } from "./FavoriteDoctors";
 import { TopBar } from "./TopBar";
 import { Avatar } from "./MaylaIcons";
-import { ReadyPlayerMeButton } from "./ReadyPlayerMeButton";
+import { AvatarCustomizerButton } from "./AvatarCustomizerButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -68,7 +68,7 @@ export function ProfileTab() {
     const fetchProfile = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, cpf, phone, birth_date, points, level, esf_team_id, avatar_url, avatar_type")
+        .select("full_name, cpf, phone, birth_date, points, level, esf_team_id, avatar_url, avatar_type, avatar_style, avatar_seed, avatar_points_awarded")
         .eq("user_id", user.id)
         .single();
       if (data) {
@@ -124,12 +124,25 @@ export function ProfileTab() {
         <h2 className="font-display text-xl font-medium text-foreground mt-3">{displayName}</h2>
         <p className="text-[13px] text-muted-foreground mt-1">{user?.email}</p>
         {user?.id && (
-          <ReadyPlayerMeButton
+          <AvatarCustomizerButton
             userId={user.id}
             currentAvatarType={(profile as any)?.avatar_type}
+            currentAvatarStyle={(profile as any)?.avatar_style}
+            currentAvatarSeed={(profile as any)?.avatar_seed}
             pointsAwarded={!!(profile as any)?.avatar_points_awarded}
-            onUpdated={(url, type) =>
-              setProfile((p) => (p ? ({ ...(p as any), avatar_url: url, avatar_type: type, avatar_points_awarded: true } as Profile) : p))
+            onUpdated={(url, type, style, seed) =>
+              setProfile((p) =>
+                p
+                  ? ({
+                      ...(p as any),
+                      avatar_url: url,
+                      avatar_type: type,
+                      avatar_style: style,
+                      avatar_seed: seed,
+                      avatar_points_awarded: true,
+                    } as Profile)
+                  : p,
+              )
             }
           />
         )}
