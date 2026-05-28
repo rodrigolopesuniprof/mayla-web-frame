@@ -119,7 +119,7 @@ export function ProfileTab() {
       <TopBar />
 
       <div className="flex flex-col items-center pt-8 pb-4">
-        <Avatar initials={initials} size={72} />
+        <Avatar initials={initials} size={72} avatarUrl={(profile as any)?.avatar_url} avatarType={(profile as any)?.avatar_type} />
         <h2 className="font-display text-xl font-medium text-foreground mt-3">{displayName}</h2>
         <p className="text-[13px] text-muted-foreground mt-1">{user?.email}</p>
         {!loadingProfile && profile && (
