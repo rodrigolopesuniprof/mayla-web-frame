@@ -244,17 +244,15 @@ Deno.serve(async (req) => {
           notes: `Sessão ${sessionId}`,
         });
 
-        // Award points
-        const { data: currentProfile } = await serviceClient
-          .from("profiles")
-          .select("points")
-          .eq("user_id", userId)
-          .single();
-        if (currentProfile) {
-          await serviceClient
-            .from("profiles")
-            .update({ points: (currentProfile.points || 0) + 50 })
-            .eq("user_id", userId);
+        // Award points via centralized engine (respects admin rules + caps)
+        try {
+          await serviceClient.rpc("award_event", {
+            _user_id: userId,
+            _event_key: "rppg_measurement",
+            _description: "Medição rPPG concluída",
+          });
+        } catch (e) {
+          console.warn("award_event failed:", e);
         }
 
         // Trigger health score calculation
