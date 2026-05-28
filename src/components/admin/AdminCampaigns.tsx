@@ -114,12 +114,16 @@ export function AdminCampaigns() {
       toast.error("Preencha todos os campos obrigatórios."); return;
     }
     const payload = {
-      title: form.title, description: form.description || null, emoji: form.emoji,
+      title: form.title, description: form.description || null,
+      how_to_participate: form.how_to_participate || null,
+      completion_criteria: form.completion_criteria || null,
+      emoji: form.emoji,
       category: form.category, bonus_points: parseInt(form.bonus_points) || 0,
       badge_name: form.badge_name || null, badge_emoji: form.badge_emoji || null,
       company_id: form.company_id, program_id: form.program_id || null,
       starts_at: form.starts_at, ends_at: form.ends_at,
     };
+
     if (editing) {
       const { error } = await supabase.from("campaigns").update(payload).eq("id", editing.id);
       if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
