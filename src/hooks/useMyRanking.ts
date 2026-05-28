@@ -1,0 +1,31 @@
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+
+export function useMyRanking() {
+  const { user } = useAuth();
+  const { companyId } = useCompany();
+  const [rankWeek, setRankWeek] = useState<number | null>(null);
+  const [rankMonth, setRankMonth] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!user || !companyId) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("company_leaderboard" as any)
+      .select("rank_week, rank_month, week_points, month_points")
+      .eq("company_id", companyId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const row = data as any;
+    // só mostra rank se a pessoa tiver pontuado no período
+    setRankWeek(row?.week_points > 0 ? row.rank_week : null);
+    setRankMonth(row?.month_points > 0 ? row.rank_month : null);
+    setLoading(false);
+  }, [user, companyId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { rankWeek, rankMonth, loading, reload: load };
+}
