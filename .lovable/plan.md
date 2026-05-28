@@ -1,68 +1,51 @@
-# Redesign do LeaderboardScreen
+# Corrigir leaderboard mostrando apenas o usuário logado
 
-Substituir apenas o JSX de apresentação do `src/components/mayla/LeaderboardScreen.tsx`. Lógica de dados, queries Supabase, props (`onBack`), estado (`period`, `rows`, `loading`) e toggle "Este mês / Geral" permanecem idênticos.
+## Causa
 
-## Escopo
+A view `public.company_leaderboard` foi criada com `WITH (security_invoker = true)`. Isso faz com que a leitura respeite as RLS policies de `public.profiles`, e a única policy de SELECT que se aplica a um colaborador comum é `Users can view their own profile` (`auth.uid() = user_id`). Resultado: a view só devolve a linha do próprio usuário, mesmo havendo outros colaboradores na mesma empresa.
 
-- **Arquivo único alterado:** `src/components/mayla/LeaderboardScreen.tsx`
-- **Nenhuma outra tela, hook, query ou tipo é tocado.**
-- Sem mudanças em `useGamification`, `company_leaderboard`, `MaylaApp`, `HomeTab`.
+Confirmado pela resposta da API: `company_leaderboard?company_id=eq.0ca13b2a...` retorna apenas `Machado de Assis`.
 
-## Blocos visuais
+## Correção (migração única)
 
-**1. Header**
+Recriar a view sem `security_invoker`, restringindo o resultado ao company do próprio usuário via `get_user_company_id(auth.uid())`. Assim:
 
-- Linha com `← Voltar` à esquerda e título "Ranking" centralizado (mesmo padrão das outras telas Mayla).
-- Logo abaixo, toggle pill "Este mês / Geral": ativo usa `bg-primary text-primary-foreground`, inativo `bg-card text-muted-foreground border border-border`. Comportamento atual mantido.
+- A view bypassa RLS de `profiles` (é dona dos próprios direitos), expondo apenas colunas seguras para ranking: `user_id, company_id, full_name, total_points, month_points, current_level, rank_total, rank_month`.
+- Nenhum usuário consegue ler o leaderboard de outra empresa: o `WHERE` interno força `p.company_id = get_user_company_id(auth.uid())`.
+- Admin global continua enxergando — `get_user_company_id` retorna o `company_id` do próprio admin; para super-admin sem company a view fica vazia, o que é aceitável (admins usam o painel admin, não a UI mobile).
 
-**2. Pódio Top 3** (substitui o bloco atual de barras gradiente)
+```sql
+DROP VIEW IF EXISTS public.company_leaderboard;
 
-- Container: `bg-card rounded-2xl shadow-sm p-5` com leve padding interno.
-- Ordem visual: 2º | 1º | 3º, com 1º elevado ~8px.
-- Avatares circulares com iniciais do `full_name`:
-  - 1º: ~64px, fundo `bg-primary text-primary-foreground`
-  - 2º e 3º: ~48px, fundo `bg-secondary text-secondary-foreground`
-- Medalha (🥇🥈🥉) como badge absoluto no canto superior do avatar.
-- Abaixo: primeiro nome truncado (`text-sm font-semibold text-foreground`) e pontos (`text-xs text-muted-foreground`).
+CREATE VIEW public.company_leaderboard AS
+SELECT
+  p.user_id,
+  p.company_id,
+  p.full_name,
+  p.points AS total_points,
+  COALESCE((SELECT SUM(pl.points) FROM public.points_ledger pl
+            WHERE pl.user_id = p.user_id
+              AND pl.created_at >= date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo')), 0) AS month_points,
+  ulp.current_level,
+  RANK() OVER (PARTITION BY p.company_id ORDER BY p.points DESC) AS rank_total,
+  RANK() OVER (PARTITION BY p.company_id ORDER BY COALESCE((
+    SELECT SUM(pl.points) FROM public.points_ledger pl
+    WHERE pl.user_id = p.user_id
+      AND pl.created_at >= date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo')), 0) DESC) AS rank_month
+FROM public.profiles p
+LEFT JOIN public.user_level_progress ulp ON ulp.user_id = p.user_id
+WHERE p.company_id IS NOT NULL
+  AND p.company_id = public.get_user_company_id(auth.uid());
 
-**3. Lista (posição 4+)**
+GRANT SELECT ON public.company_leaderboard TO authenticated;
+```
 
-- Cada item: `bg-card rounded-xl shadow-sm p-3 flex items-center gap-3`
-  - Número da posição: largura fixa `w-6 text-muted-foreground text-sm`
-  - Avatar circular ~36px com iniciais, fundo `bg-secondary`
-  - Coluna central: nome (`text-sm font-medium text-foreground`) e pontos abaixo (`text-xs text-muted-foreground`)
-  - Direita: badge de nível quando `current_level` existir (`bg-accent/15 text-accent rounded-full px-2 py-0.5 text-[10px] font-semibold`)
-- Espaçamento `space-y-2`, sem dividers.
-- Item do usuário logado: `border-l-[3px] border-primary bg-primary/8`.
+## Privacidade
 
-**4. Sticky "Você"**
-
-- Mantido quando o usuário está fora do top 3 visível, mesmo conteúdo, repintado com tokens (`border-primary bg-primary/10`).
-
-**5. Estado vazio**
-
-- 🏆 grande centralizado, título "Nenhum resultado ainda" (`text-foreground font-medium`), subtexto "Complete missões e desafios para aparecer no ranking" (`text-sm text-muted-foreground`).
-
-**6. Loading**
-
-- `Skeleton` de `@/components/ui/skeleton`: bloco do pódio (3 colunas com círculos + barras) + 5 linhas de lista.
-
-## Tokens
-
-Apenas tokens semânticos do design system: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `bg-primary`, `text-primary-foreground`, `bg-secondary`, `border-border`, `accent`. Nenhum `text-white`, `bg-black` ou hex hardcoded.
-
-## Helper interno
-
-Pequena função `initials(name)` dentro do arquivo para extrair 1–2 iniciais do `full_name` (sem nova dependência).
+A view expõe apenas `full_name`, pontos e nível dos colegas da mesma empresa — dados explicitamente públicos no contexto de ranking corporativo. Nenhum dado de saúde, CPF, e-mail ou telefone é exposto.
 
 ## Fora de escopo
 
-- Lógica de ranking, RPC, view `company_leaderboard`.
-- Outras telas, navegação, props de `MaylaApp`.
-- Animações além das já existentes (`animate-fade-up`).  
-  
-Execute o redesign do LeaderboardScreen conforme o plano levantado, 
-  com dois ajustes:
-  - Substituir bg-primary/8 por bg-primary/10 em todos os lugares
-  - Substituir bg-accent/15 por bg-accent/10 no badge de nível
-  Todo o resto exatamente como especificado no plano.
+- Lógica de pontuação, missões, desafios, níveis.
+- Componente `LeaderboardScreen.tsx` (queries permanecem idênticas).
+- Outras tabelas e policies.
