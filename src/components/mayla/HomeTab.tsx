@@ -8,7 +8,6 @@ import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
 import { GamificationStatusCard } from "./GamificationStatusCard";
 import { MedicationReminderCard } from "./MedicationReminderCard";
-import { POINTS_TOUR_EVENT, POINTS_TOUR_PROGRESS_EVENT } from "./PointsOnboardingTour";
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard }: {
   setTab: (id: TabId) => void;
