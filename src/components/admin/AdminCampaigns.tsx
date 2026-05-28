@@ -115,11 +115,11 @@ export function AdminCampaigns() {
     if (editing) {
       const { error } = await supabase.from("campaigns").update(payload).eq("id", editing.id);
       if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
-      toast.success("Campanha atualizada.");
+      toast.success("Desafio atualizado.");
     } else {
       const { error } = await supabase.from("campaigns").insert(payload);
       if (error) { toast.error("Erro ao criar: " + error.message); return; }
-      toast.success("Campanha criada.");
+      toast.success("Desafio criado.");
     }
     setShowForm(false);
     load();
@@ -134,7 +134,7 @@ export function AdminCampaigns() {
     if (!deleteTarget) return;
     const { error } = await supabase.from("campaigns").delete().eq("id", deleteTarget.id);
     if (error) { toast.error("Erro ao excluir: " + error.message); return; }
-    toast.success("Campanha excluída.");
+    toast.success("Desafio excluído.");
     setDeleteTarget(null);
     load();
   };
@@ -170,12 +170,12 @@ export function AdminCampaigns() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-foreground">🏆 Campanhas</h2>
-        <Button onClick={openNew}>+ Nova Campanha</Button>
+        <h2 className="text-xl font-bold text-foreground">🏆 Desafios</h2>
+        <Button onClick={openNew}>+ Novo Desafio</Button>
       </div>
 
       {campaigns.length === 0 ? (
-        <p className="text-muted-foreground text-center py-12">Nenhuma campanha cadastrada.</p>
+        <p className="text-muted-foreground text-center py-12">Nenhum desafio cadastrado.</p>
       ) : (
         <div className="grid gap-3">
           {campaigns.map(c => (
@@ -207,7 +207,7 @@ export function AdminCampaigns() {
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Editar Campanha" : "Nova Campanha"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Editar Desafio" : "Novo Desafio"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-[60px_1fr] gap-3">
               <div className="space-y-1">
@@ -272,20 +272,20 @@ export function AdminCampaigns() {
                 <Input value={form.badge_emoji} onChange={e => setForm(f => ({ ...f, badge_emoji: e.target.value }))} placeholder="🏅" />
               </div>
             </div>
-            <Button onClick={save} className="w-full">{editing ? "Salvar" : "Criar Campanha"}</Button>
+            <Button onClick={save} className="w-full">{editing ? "Salvar" : "Criar Desafio"}</Button>
 
             {/* Mission linking - only when editing */}
             {editing && (
               <>
                 <Separator />
                 <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground">Missões da Campanha</h4>
+                  <h4 className="font-semibold text-foreground">Missões do Desafio</h4>
                   {loadingMissions ? (
                     <p className="text-sm text-muted-foreground">Carregando missões...</p>
                   ) : (
                     <>
                       {linkedMissions.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Nenhuma missão vinculada a esta campanha.</p>
+                        <p className="text-sm text-muted-foreground">Nenhuma missão vinculada a este desafio.</p>
                       ) : (
                         <div className="space-y-2">
                           {linkedMissions.map(m => (
@@ -328,7 +328,7 @@ export function AdminCampaigns() {
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir campanha?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir desafio?</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir "{deleteTarget?.title}"? Participantes e missões vinculadas serão removidos.
             </AlertDialogDescription>

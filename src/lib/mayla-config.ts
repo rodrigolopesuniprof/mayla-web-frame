@@ -12,7 +12,7 @@ export type TabId = "inicio" | "bemestar" | "campanhas" | "servicos" | "perfil";
 export const TABS: { id: TabId; emoji: string; label: string }[] = [
   { id: "inicio", emoji: "🏠", label: "Início" },
   { id: "bemestar", emoji: "🌿", label: "Bem-estar" },
-  { id: "campanhas", emoji: "🏆", label: "Campanhas" },
+  { id: "campanhas", emoji: "🏆", label: "Desafios" },
   { id: "servicos", emoji: "🩺", label: "Serviços" },
   { id: "perfil", emoji: "👤", label: "Perfil" },
 ];

@@ -71,21 +71,21 @@ export function CampaignsList({ companyId, primaryColor }: Props) {
       user_id: user.id,
     });
     if (error) {
-      toast.error("Erro ao participar da campanha.");
+      toast.error("Erro ao participar do desafio.");
       return;
     }
-    toast.success("Você entrou na campanha! 🎉");
+    toast.success("Você entrou no desafio! 🎉");
     setJoined(prev => new Set([...prev, campaignId]));
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground text-center py-6">Carregando campanhas...</p>;
+  if (loading) return <p className="text-sm text-muted-foreground text-center py-6">Carregando desafios...</p>;
 
   if (campaigns.length === 0) {
     return (
       <Card>
         <CardContent className="p-6 text-center">
           <span className="text-3xl block mb-2">🏆</span>
-          <p className="text-muted-foreground text-sm">Nenhuma campanha ativa no momento.</p>
+          <p className="text-muted-foreground text-sm">Nenhum desafio ativo no momento.</p>
         </CardContent>
       </Card>
     );
@@ -93,7 +93,7 @@ export function CampaignsList({ companyId, primaryColor }: Props) {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-bold text-foreground">Campanhas</h3>
+      <h3 className="text-lg font-bold text-foreground">Desafios</h3>
       {campaigns.map(c => {
         const isJoined = joined.has(c.id);
         return (

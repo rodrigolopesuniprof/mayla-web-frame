@@ -25,7 +25,7 @@ export function CampanhasTab({ onNavigate, onOpenLeaderboard }: Props) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <TopBar title="Campanhas" />
+      <TopBar title="Desafios" />
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
         <button
           onClick={() => setShowQuickRanking(true)}
