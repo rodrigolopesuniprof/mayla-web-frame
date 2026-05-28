@@ -79,6 +79,18 @@ export function MaylaApp() {
         {phase === "main" && (
           <>
             {user && <ProfileCompletionGate onComplete={() => {}} />}
+            {user && (
+              <PointsOnboardingTour
+                onOpenProfile={() => setActiveTab("perfil")}
+                onOpenSelfAssessment={() => setShowSelfAssessment(true)}
+                onOpenRppg={() => setActiveTab("bemestar")}
+                onOpenCampaigns={() => setActiveTab("campanhas")}
+                onOpenLeaderboard={() => setShowLeaderboard(true)}
+              />
+            )}
+            {showSelfAssessment ? (
+              <SelfAssessmentRunner onBack={() => setShowSelfAssessment(false)} />
+            ) : null}
             {activeVideoCall ? (
               <JitsiConsultationScreen
                 consultation={{ ...activeVideoCall, consultationMode: "online" }}
