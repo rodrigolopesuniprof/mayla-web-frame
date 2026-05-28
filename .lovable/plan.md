@@ -1,25 +1,37 @@
-## Mudanças
+## Causa raiz
 
-### `src/lib/first-steps.ts`
-Adicionar suporte a marcação manual por passo + dismiss permanente:
-- Novas chaves: `manual:profile`, `manual:assessment`, `manual:rppg`, `manual:campaigns`, `manual:ranking`, `dismissed`.
-- Reaproveita `markFirstStep` / `hasFirstStep` (mesmo padrão `localStorage` + evento `first-steps-refresh`).
+### 1. Popup de onboarding volta mesmo "completo"
+`PointsOnboardingTour` decide se mostra com base em `profiles.points_tour_completed` (banco) e tem timer de **5 min** que reabre se `points_tour_completed = false`. O `FirstStepsCard` (botões "Já fiz ✓") só grava no `localStorage`, nunca atualiza o banco. Conclusão: card desaparece, popup continua reabrindo.
 
-### `src/components/mayla/FirstStepsCard.tsx`
-1. Cada passo passa a ter uma `manualKey`. O passo é considerado concluído se: (estado real OU flag automática anterior) **OU** flag manual.
-2. Em cada `<li>` pendente, exibir um botão à direita "Já fiz ✓" que chama `markFirstStep(user.id, manualKey)` e dispara o refresh.
-3. Quando `completedCount === STEPS.length`:
-   - Mostrar `toast` com `🎉 Parabéns! Você completou os primeiros passos.` (usar `@/hooks/use-toast` que já existe no projeto).
-   - Marcar `dismissed` no localStorage.
-   - Esconder o card permanentemente (já existe `return null`, mas agora respeita também `dismissed` flag para não voltar caso algum dado mude).
-4. Animação simples de celebração: usar `animate-fade-up` (já existente) num overlay de confete leve com emojis 🎉✨ por ~1.5s antes de esconder (sem deps novas — apenas um `div` absoluto com opacity transition).
+### 2. Endereço/CEP/Cidade não editáveis no Perfil
+Em `src/components/mayla/ProfileTab.tsx` linhas 395–397, os três `<InfoRow>` (`cep`, `endereco`, `cidade`) são renderizados **sem a prop `editField`**. O `InfoRow` cai no fallback de texto quando `editField` está ausente, mesmo com `editing=true`. Os demais campos (peso, altura, sexo etc.) passam `editField` e funcionam.
+
+## Correções
+
+### A. `src/components/mayla/FirstStepsCard.tsx`
+No `useEffect` que dispara a celebração (quando `allDone`), além de marcar `dismissed` no localStorage e exibir o toast, fazer:
+```ts
+await supabase.from("profiles")
+  .update({ points_tour_completed: true, points_tour_dismissed_at: null })
+  .eq("user_id", user.id);
+```
+Isso silencia o `PointsOnboardingTour` permanentemente.
+
+### B. `src/components/mayla/ProfileTab.tsx`
+Adicionar `editField` para os 3 InfoRows de endereço:
+
+- **CEP** — `<Input maxLength={9}>` ligado a `form.cep`, com formatação simples `12345-678`.
+- **Endereço (linha)** — três `<Input>` empilhados no `editField`: `endereco` (rua), `numero`, `complemento`, `bairro`, todos ligados a `form.*`.
+- **Cidade** — dois inputs: `cidade` e `estado` (UF, maxLength=2 uppercase).
+
+A função `save()` já inclui esses campos no `payload` (linha 281: `endereco: form.endereco` está presente — confirmar que os demais também são gravados; se faltar algum, completar o update).
 
 Sem mudanças em banco, sem nova dependência.
 
 ## Fora de escopo
-- Pontuação real ao marcar manualmente (manual é só visual).
-- Sincronização cross-device (fica em localStorage).
+- Autocompletar CEP via ViaCEP (já existe no `HealthSurvey`, mas adicionar aqui seria expansão).
+- Mexer no `PointsOnboardingTour` em si.
 
 ## Arquivos tocados
-- `src/lib/first-steps.ts`
 - `src/components/mayla/FirstStepsCard.tsx`
+- `src/components/mayla/ProfileTab.tsx`
