@@ -1,4 +1,12 @@
-export type FirstStepKey = "campaigns-viewed" | "ranking-viewed";
+export type FirstStepKey =
+  | "campaigns-viewed"
+  | "ranking-viewed"
+  | "manual:profile"
+  | "manual:assessment"
+  | "manual:rppg"
+  | "manual:campaigns"
+  | "manual:ranking"
+  | "dismissed";
 
 export const FIRST_STEPS_REFRESH_EVENT = "first-steps-refresh";
 
