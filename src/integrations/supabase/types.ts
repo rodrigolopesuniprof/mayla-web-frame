@@ -613,11 +613,13 @@ export type Database = {
           bonus_points: number | null
           category: string | null
           company_id: string
+          completion_criteria: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
           emoji: string | null
           ends_at: string
+          how_to_participate: string | null
           id: string
           program_id: string | null
           starts_at: string
@@ -631,11 +633,13 @@ export type Database = {
           bonus_points?: number | null
           category?: string | null
           company_id: string
+          completion_criteria?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           emoji?: string | null
           ends_at: string
+          how_to_participate?: string | null
           id?: string
           program_id?: string | null
           starts_at: string
@@ -649,11 +653,13 @@ export type Database = {
           bonus_points?: number | null
           category?: string | null
           company_id?: string
+          completion_criteria?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           emoji?: string | null
           ends_at?: string
+          how_to_participate?: string | null
           id?: string
           program_id?: string | null
           starts_at?: string
