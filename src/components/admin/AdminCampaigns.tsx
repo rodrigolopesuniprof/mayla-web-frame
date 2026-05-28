@@ -232,9 +232,18 @@ export function AdminCampaigns() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Descrição</Label>
-              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+              <Label>Descrição curta</Label>
+              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Resumo que aparece no card do desafio" />
             </div>
+            <div className="space-y-1">
+              <Label>Como participar</Label>
+              <Textarea value={form.how_to_participate} onChange={e => setForm(f => ({ ...f, how_to_participate: e.target.value }))} rows={3} placeholder="Explique ao colaborador o que precisa fazer para entrar no desafio (ex: clique em Participar e acompanhe as missões diárias)" />
+            </div>
+            <div className="space-y-1">
+              <Label>Como cumprir / critérios</Label>
+              <Textarea value={form.completion_criteria} onChange={e => setForm(f => ({ ...f, completion_criteria: e.target.value }))} rows={3} placeholder="Detalhe os critérios para concluir o desafio e ganhar os pontos (ex: registrar 2L de água por 7 dias seguidos)" />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Empresa</Label>
