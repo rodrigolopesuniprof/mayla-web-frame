@@ -11,7 +11,7 @@ interface Props {
 
 export function GamificationStatusCard({ onOpenLeaderboard, onOpenChallenges }: Props) {
   const { progress, challenge, loading } = useGamification();
-  const { rankWeek } = useMyRanking();
+  const { rankWeek, weekPoints, totalPoints } = useMyRanking();
   const { streak } = useDailyStreak();
 
   if (loading || !progress) {
@@ -24,7 +24,7 @@ export function GamificationStatusCard({ onOpenLeaderboard, onOpenChallenges }: 
     );
   }
 
-  const points = progress.points;
+  const points = progress.points; // acumulado (lifetime) — define o nível
   const current = progress.current;
   const next = progress.next;
 
@@ -41,7 +41,7 @@ export function GamificationStatusCard({ onOpenLeaderboard, onOpenChallenges }: 
 
   return (
     <div className="mx-5 mb-5 bg-card rounded-2xl shadow-sm p-4">
-      {/* Zona 1: identidade + posição */}
+      {/* Zona 1: nível + posição semanal */}
       <div className="flex items-center justify-between gap-3">
         <div className="inline-flex items-center rounded-full bg-secondary text-secondary-foreground px-3 py-1 text-xs font-semibold">
           {levelLabel}
@@ -63,7 +63,13 @@ export function GamificationStatusCard({ onOpenLeaderboard, onOpenChallenges }: 
         ) : null}
       </div>
 
-      {/* Zona 2: progresso */}
+      {/* Zona 2: destaque pontos da semana */}
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="text-3xl font-bold text-foreground">⚡ {weekPoints.toLocaleString()}</span>
+        <span className="text-xs text-muted-foreground">pts esta semana</span>
+      </div>
+
+      {/* Zona 3: progresso de nível (acumulado) */}
       <div className="mt-3">
         {next ? (
           <>
@@ -74,23 +80,27 @@ export function GamificationStatusCard({ onOpenLeaderboard, onOpenChallenges }: 
               />
             </div>
             <div className="text-xs text-muted-foreground mt-1.5">
-              <span className="font-semibold text-foreground">{points.toLocaleString()}</span>
-              {" / "}{nextMin!.toLocaleString()} pts · Faltam{" "}
-              <span className="font-semibold text-foreground">{remaining.toLocaleString()}</span>{" "}
+              Faltam <span className="font-semibold text-foreground">{remaining.toLocaleString()}</span>{" "}
               pts para {next.emoji ?? ""} {next.name}
             </div>
           </>
         ) : (
-          <div className="text-sm font-medium text-foreground">
-            🏆 Nível máximo atingido · {points.toLocaleString()} pts
-          </div>
+          <div className="text-sm font-medium text-foreground">🏆 Nível máximo atingido</div>
+        )}
+        {onOpenLeaderboard && (
+          <button
+            onClick={onOpenLeaderboard}
+            className="text-[11px] text-muted-foreground mt-1 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
+          >
+            🏆 Acumulado: {totalPoints.toLocaleString()} pts · ver ranking →
+          </button>
         )}
       </div>
 
       {/* Divisor */}
       <div className="border-t border-border/50 my-3" />
 
-      {/* Zona 3: streak + desafio */}
+      {/* Zona 4: streak + desafio */}
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm">
           {streak >= 1 ? (
@@ -120,3 +130,4 @@ export function GamificationStatusCard({ onOpenLeaderboard, onOpenChallenges }: 
     </div>
   );
 }
+

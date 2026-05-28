@@ -1,25 +1,38 @@
 
-## Objetivo
+## Diagnóstico
 
-Criar uma subseção visual destacada **"🚀 Onboarding — Primeiros Passos"** no painel admin de Regras de Pontos, agrupando as 5 etapas do tour inicial para facilitar configuração e tornar evidente quais regras direcionam o onboarding.
+A subida de nível **já é automática no banco** (`award_points` → `check_user_level` → atualiza `user_level_progress`, paga bônus em `points_ledger`, atualiza badge). O usuário que bateu 500 pts já está como Nível 2 no banco — só **não houve aviso visível** e o card da Home mostra apenas o **acumulado**, sem separar o que ele ganhou na semana.
 
 ## Mudanças
 
-### 1. `src/components/admin/AdminPointRules.tsx`
-- Definir constante `ONBOARDING_KEYS = ['profile_complete', 'self_assessment', 'rppg_measurement', 'daily_challenge', 'weekly_checkin']` com ordem fixa (espelha as etapas do `PointsOnboardingTour`).
-- Remover o filtro atual que esconde `self_assessment` (passa a aparecer dentro do grupo Onboarding).
-- Separar `rules` em dois arrays:
-  - `onboardingRules` — filtradas e **ordenadas** pela posição em `ONBOARDING_KEYS`.
-  - `otherRules` — todas as demais, mantém ordenação por label.
-- Renderizar duas seções com cabeçalhos:
-  - **🚀 Onboarding — Primeiros Passos** com card de destaque (borda primária, fundo `bg-primary/5`), descrição: *"Estas 5 regras controlam a sequência do tour de boas-vindas. Cada conclusão dispara o popup '🎉 +X pontos!' e avança automaticamente para a próxima etapa."*
-  - **Outras regras** — eventos avulsos (medicação, missões, vínculo ESF/time, avatar, etc.).
-- Cada etapa do Onboarding mostra um chip **"Etapa 1"…"Etapa 5"** ao lado do label para deixar a sequência explícita.
+### 1. Notificação automática de subida de nível
+- **Migration**: habilitar realtime na tabela `user_level_progress` (`REPLICA IDENTITY FULL` + `ALTER PUBLICATION supabase_realtime ADD TABLE`).
+- **Novo hook `src/hooks/useLevelUpNotifier.ts`**: assina mudanças do `user_level_progress` do usuário logado. Quando `current_level` aumenta:
+  - Busca o nível alcançado em `get_effective_levels` para pegar `name`, `emoji`, `bonus_points`, `badge_title`.
+  - Dispara um **modal celebratório full-screen** (componente novo `LevelUpDialog.tsx`) com:
+    - "🎉 Parabéns! Você subiu de nível!"
+    - `{emoji} Nível N · {name}`
+    - Badge ganha + bônus de pontos creditados
+    - Confete leve via CSS animation
+    - Botão "Continuar"
+  - Toast de fallback caso o modal não monte.
+- **Integração**: chamado em `MaylaApp.tsx` (ao lado do `PointsOnboardingTour`) para cobrir o app inteiro.
 
-### 2. Sem mudanças de banco
-As 5 regras (`profile_complete`, `self_assessment`, `rppg_measurement`, `daily_challenge`, `weekly_checkin`) já existem no `seed_default_point_rules` — só vamos **agrupá-las visualmente**.
+### 2. Home: separar pontos da semana vs. acumulado
+- **`src/hooks/useMyRanking.ts`**: também expor `weekPoints` e `totalPoints` (já vêm em `company_leaderboard`).
+- **`GamificationStatusCard.tsx`**: reorganizar Zona 1/2:
+  - Destaque grande: **"⚡ {weekPoints} pts esta semana"**
+  - Linha secundária: barra de progresso de nível (continua usando acumulado, que é o que define nível), texto "Faltam X pts para 💪 Engajado"
+  - Pequeno link à direita: **"🏆 Acumulado: {totalPoints} · ver ranking →"** (abre LeaderboardScreen)
+  - Remover a exibição do acumulado em destaque na frase de progresso (mantém só "faltam X pts" sem expor o número absoluto na Home).
+
+### 3. Ranking: adicionar aba "Total" (acumulado)
+- **`LeaderboardScreen.tsx`**: incluir `"total"` no array de períodos (`["week", "month", "year", "total"]`). Labels:
+  - `total: "Acumulado"` no `periodLabels`
+  - `total: "no total"` no `periodSubtitles`
+- A infra (`useLeaderboard`, `pointsFor`, `rankFor`, `total_points`, `rank_total`) **já existe** — só falta expor a aba.
 
 ## Fora de escopo
-- Não alteramos valores padrão das regras (admin continua editando livremente).
-- Não criamos nova tabela ou categoria persistida — o agrupamento é puramente UI baseado nas chaves.
-- Não mexemos no `PointsOnboardingTour` em si.
+- Não muda regras de nível (`levels` permanece 0/500/1500/3500/7500).
+- Não muda a função `check_user_level` (já funciona).
+- Não muda o cálculo de pontos das regras.
