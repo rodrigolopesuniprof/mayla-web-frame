@@ -16,6 +16,7 @@ import { OnDemandFlow } from "./OnDemandFlow";
 import { HealthAssistantChat } from "./HealthAssistantChat";
 import { HealthMagazineArticle } from "./HealthMagazineArticle";
 import { HealthMagazineList } from "./HealthMagazineList";
+import { LeaderboardScreen } from "./LeaderboardScreen";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { ProfileCompletionGate } from "./ProfileCompletionGate";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,6 +35,7 @@ export function MaylaApp() {
   const [showAssistant, setShowAssistant] = useState(false);
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [showAllArticles, setShowAllArticles] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [assistantInitialMessage, setAssistantInitialMessage] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
@@ -107,6 +109,8 @@ export function MaylaApp() {
               />
             ) : showEsfLink ? (
               <EsfLinkScreen onBack={() => setShowEsfLink(false)} onLinked={() => setShowEsfLink(false)} />
+            ) : showLeaderboard ? (
+              <LeaderboardScreen onBack={() => setShowLeaderboard(false)} />
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden">
                 {activeTab === "inicio" && (
@@ -124,6 +128,7 @@ export function MaylaApp() {
                     onOpenAssistant={() => setShowAssistant(true)}
                     onOpenArticle={(id) => setActiveArticleId(id)}
                     onOpenAllArticles={() => setShowAllArticles(true)}
+                    onOpenLeaderboard={() => setShowLeaderboard(true)}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
