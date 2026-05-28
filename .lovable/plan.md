@@ -1,48 +1,40 @@
-## Objetivo
+## Problema
 
-1. Trocar o ícone do Lovable que aparece ao lado do link na pré-visualização do WhatsApp (favicon).
-2. Permitir editar, dentro do painel administrativo, a imagem de banner que aparece no preview de link (og:image / twitter:image).
+O WhatsApp gera o preview do link buscando `og:image`, `og:title` e `og:description` do HTML retornado pela URL. Hoje o link `/cadastro/:token` aponta direto para o app React (`.lovable.app` ou produção), que serve um `index.html` estático com meta tags genéricas — e o WhatsApp **não executa JavaScript**, então não dá pra trocar isso via React/Helmet.
 
-## Contexto técnico
+Para mostrar logo + nome + cor da empresa convidante, o link precisa passar por um endpoint server-side que devolva HTML com meta tags específicas por token.
 
-Os dois itens estão controlados por tags estáticas em `index.html`:
+## Solução
 
-```text
-<link rel="icon" type="image/png" href="/favicon.png">
-<meta property="og:image"      content="https://storage.googleapis.com/.../Mayla-Insta-Jun_03.webp">
-<meta name="twitter:image"     content="https://storage.googleapis.com/.../Mayla-Insta-Jun_03.webp">
+Criar uma edge function `invite-preview` que serve como porta de entrada do convite:
+
+- **Crawler social** (User-Agent: WhatsApp, facebookexternalhit, Twitterbot, LinkedInBot, Slackbot, Telegram, Discord) → devolve HTML mínimo com `og:image` = logo da empresa, `og:title` = "Você foi convidado para a Mayla por {Empresa}", `og:description` = "Sua empresa contratou um benefício de saúde digital. Cadastre-se em 1 minuto."
+- **Navegador real** → responde com `302 redirect` para `/cadastro/:token` no domínio do app (preview ou produção).
+
+A URL compartilhada passa a ser a URL pública da edge function:
+```
+https://ymexlslqsdflgkcvwjoz.supabase.co/functions/v1/invite-preview/:token
 ```
 
-Como o WhatsApp/Telegram lê o HTML estático no scrape, o caminho mais robusto é manter URLs fixas (em `index.html`) apontando para arquivos públicos no storage do Cloud que o admin possa sobrescrever pelo painel — assim o admin troca a arte sem novo deploy.
+Essa URL funciona igual em preview e produção, e o WhatsApp só faz cache por URL — então cada token tem cache próprio e o preview reflete a empresa correta.
 
 ## Mudanças
 
-### 1. Favicon (ícone ao lado do link)
-- Substituir `public/favicon.png` (e `public/favicon.ico`) pelo novo ícone da Mayla Empresas (uso o logo atual da Mayla — não o do Lovable).
-- Adicionar `<link rel="apple-touch-icon" href="/favicon.png">` no `index.html` para cobrir iOS/WhatsApp em alguns casos.
+### 1. Edge function `supabase/functions/invite-preview/index.ts`
+- GET `/invite-preview/:token`
+- Detecta crawler por User-Agent
+- Crawler: query em `company_invite_tokens` → `companies` (name, logo_url, primary_color) usando service role. Renderiza HTML com `<meta og:*>` apontando para `logo_url`. Fallback: banner padrão Mayla se sem logo.
+- Browser: `Response.redirect('https://saude.saudecomvc.com.br/cadastro/' + token, 302)` (configurável via query `?preview=1` para apontar para o domínio preview .lovable.app durante testes).
+- `verify_jwt = false` em `supabase/config.toml` (precisa ser público).
 
-### 2. Edição do banner social (og:image) pelo super admin
-- Criar bucket público `app-branding` no Cloud (se não existir) com policy de leitura pública e escrita só por super admin.
-- Fixar a URL pública do banner em `index.html`:
-  - `og:image` e `twitter:image` apontando para `https://<projeto>.supabase.co/storage/v1/object/public/app-branding/social-banner.jpg`.
-- Adicionar no painel super admin (em `src/components/admin/AdminCompanySettings.tsx` ou numa nova aba "Branding global" do `AdminDashboard`) uma seção "Imagem de compartilhamento (WhatsApp/redes sociais)":
-  - Upload de arquivo `.jpg/.png`.
-  - Sobe sempre para `app-branding/social-banner.jpg` (upsert), garantindo URL estável.
-  - Mostra preview da imagem atual + dica recomendando 1200x630.
-  - Botão equivalente para favicon: faz upload em `app-branding/favicon.png` — e `index.html` passa a apontar `<link rel="icon" href="https://.../app-branding/favicon.png">`.
-- Aviso na UI: cache do WhatsApp pode demorar; oferecer link para o "WhatsApp Link Preview Debugger" não é viável, mas explicamos que a atualização pode levar algumas horas.
+### 2. Componente que gera o link de convite
+Atualizar onde quer que o admin copia/compartilha o link (provavelmente em `AdminCompanies` ou similar — confirmar na fase de build) para gerar a URL da edge function em vez de `/cadastro/:token` direto.
 
-### 3. Texto do preview
-- Como bônus mínimo: corrigir o `og:description` "App de saúde inteligente para o empresas" → "App de saúde inteligente para empresas" (opcional, confirmo antes de aplicar se preferir manter).
+### 3. Banner padrão de fallback
+Subir um `social-banner.jpg` (1200×630) no bucket `app-branding` — hoje retorna 400. Usado quando a empresa não tem logo cadastrado ou para links sem token. A interface de upload do admin (`AdminBranding`) já existe.
 
-## Arquivos afetados
+## Notas
 
-- `index.html` — trocar URLs de `favicon`, `og:image`, `twitter:image`; adicionar `apple-touch-icon`.
-- `public/favicon.png` / `public/favicon.ico` — substituir pela arte da Mayla.
-- `supabase/migrations/<novo>.sql` — criar bucket `app-branding` + policies (public read, super admin write).
-- `src/components/admin/AdminCompanySettings.tsx` (ou nova `AdminBrandingGlobal.tsx` referenciada em `AdminDashboard.tsx`) — UI para upload do banner social e do favicon global.
-
-## Perguntas antes de implementar
-
-1. A edição do banner deve ser **global** (uma única arte para todos os domínios/empresas, já que `saude.saudecomvc.com.br` é único) ou **por empresa** (cada empresa com seu og:image)? Como o domínio é compartilhado, recomendo **global** — confirma?
-2. Posso usar o logo atual da empresa Mayla como novo favicon, ou você quer enviar um arquivo específico?
+- O WhatsApp **cacheia preview por URL agressivamente** (dias). Cada token é uma URL única, então convites novos sempre puxam preview fresco. Convites antigos já compartilhados continuarão com o preview antigo até o cache expirar.
+- O domínio preview `.lovable.app` continua mostrando favicon do Lovable na aba do navegador — isso é controlado pela Lovable e não tem como remover sem publicar em domínio próprio. Após publicar em `saude.saudecomvc.com.br`, o favicon configurado em `app-branding/favicon.png` aparece.
+- Logos das empresas estão em `company-logos` bucket (já público).
