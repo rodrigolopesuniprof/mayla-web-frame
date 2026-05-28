@@ -167,10 +167,17 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             Medir →
           </button>
         </div>
-        <div className="border-t border-foreground/10 px-5 py-3 flex items-center gap-2">
+        <div className="border-t border-foreground/10 px-5 py-3 flex items-center gap-3">
           <span className="text-base">⭐</span>
           <span className="text-sm font-semibold text-secondary-foreground">{profilePoints.toLocaleString()} pontos</span>
-          <span className="ml-auto text-sm text-accent font-medium cursor-pointer" onClick={() => setTab("campanhas")}>Ver missões →</span>
+          <div className="ml-auto flex items-center gap-3">
+            {onOpenLeaderboard && (
+              <button onClick={onOpenLeaderboard} className="text-sm text-accent font-medium cursor-pointer bg-transparent border-none p-0">
+                🏆 Ranking →
+              </button>
+            )}
+            <span className="text-sm text-accent font-medium cursor-pointer" onClick={() => setTab("campanhas")}>Ver missões →</span>
+          </div>
         </div>
       </div>
 
