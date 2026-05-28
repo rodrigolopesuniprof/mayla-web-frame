@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { POINTS_TOUR_EVENT } from "./PointsOnboardingTour";
+import { POINTS_TOUR_EVENT, POINTS_TOUR_COMPLETED_EVENT } from "./PointsOnboardingTour";
 import {
   FIRST_STEPS_REFRESH_EVENT,
   hasFirstStep,
