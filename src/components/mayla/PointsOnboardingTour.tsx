@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { hasFirstStep } from "@/lib/first-steps";
 
 type Step = {
   emoji: string;
@@ -84,19 +85,42 @@ export function PointsOnboardingTour({
   // Sync helper: load DB state and decide if popup should open
   const loadAndMaybeOpen = async (force = false) => {
     if (!user) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("points_tour_completed,points_tour_current_step")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [{ data }, { data: assess }, { data: rppg }, { data: ledger }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("points_tour_completed,points_tour_current_step,birth_date,biological_sex")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase.from("self_assessment_responses" as any).select("id").eq("user_id", user.id).limit(1),
+      supabase.from("health_measurements").select("id").eq("user_id", user.id).limit(1),
+      supabase.from("points_ledger").select("source").eq("user_id", user.id),
+    ]);
     const p: any = data || {};
-    const completed = !!p.points_tour_completed;
-    const currentStep = Math.min(Number(p.points_tour_current_step || 0), steps.length - 1);
+    const sources = new Set((ledger || []).map((r: any) => r.source));
+    const firstStepStatus = [
+      !!(p.birth_date && p.biological_sex) || hasFirstStep(user.id, "manual:profile"),
+      (assess?.length ?? 0) > 0 || sources.has("self_assessment") || hasFirstStep(user.id, "manual:assessment"),
+      (rppg?.length ?? 0) > 0 || sources.has("rppg_measurement") || sources.has("vitals_measurement") || hasFirstStep(user.id, "manual:rppg"),
+      hasFirstStep(user.id, "campaigns-viewed") || hasFirstStep(user.id, "manual:campaigns") || sources.has("mission_complete") || sources.has("daily_challenge") || sources.has("weekly_checkin"),
+      hasFirstStep(user.id, "ranking-viewed") || hasFirstStep(user.id, "manual:ranking") || sources.has("tour_step_ranking"),
+    ];
+    const firstStepsCompleted = hasFirstStep(user.id, "dismissed") || firstStepStatus.every(Boolean);
+    const completed = !!p.points_tour_completed || firstStepsCompleted;
+    const firstPending = firstStepStatus.findIndex((done) => !done);
+    const inferredStep = firstPending === -1 ? steps.length : firstPending;
+    const savedStep = Number(p.points_tour_current_step || 0);
+    const currentStep = Math.min(Math.max(savedStep, inferredStep), steps.length - 1);
     completedRef.current = completed;
     stepRef.current = currentStep;
     setStep(currentStep);
     if (completed) {
       setShow(false);
+      if (!p.points_tour_completed) {
+        await supabase
+          .from("profiles")
+          .update({ points_tour_completed: true, points_tour_current_step: steps.length, points_tour_dismissed_at: null })
+          .eq("user_id", user.id);
+      }
       return;
     }
     if (force || !completed) {
