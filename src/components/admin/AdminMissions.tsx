@@ -26,7 +26,14 @@ interface Mission {
   success_message: string | null;
   success_link_url: string | null;
   success_link_label: string | null;
+  cap_per_day: number | null;
+  cap_per_week: number | null;
+  cap_per_month: number | null;
+  cap_lifetime: number | null;
+  valid_from: string | null;
+  valid_until: string | null;
 }
+
 
 const FREQUENCIES = [
   { value: "daily", label: "Diária" },
