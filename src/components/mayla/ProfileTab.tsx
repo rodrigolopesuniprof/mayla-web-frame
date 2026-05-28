@@ -206,12 +206,30 @@ export function ProfileTab() {
 
 // Sub-views
 
+type FieldCfg = { field_key: string; label: string; section: string; sort_order: number; visible: boolean };
+
+const InfoRow = ({ label, value, editField, editing }: { label: string; value: string; editField?: React.ReactNode; editing: boolean }) => (
+  <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+    <span className="text-[13px] text-muted-foreground">{label}</span>
+    {editing && editField ? editField : <span className="text-[13px] font-medium text-foreground text-right max-w-[55%]">{value}</span>}
+  </div>
+);
+
+const ToggleField = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
+  <div className="flex gap-2">
+    <button onClick={() => onChange(true)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Sim</button>
+    <button onClick={() => onChange(false)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${!checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Não</button>
+  </div>
+);
+
 function AutoAvaliacao({ userId }: { userId?: string }) {
   const [health, setHealth] = useState<HealthProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<HealthProfile | null>(null);
+  const [fieldsCfg, setFieldsCfg] = useState<Map<string, FieldCfg>>(new Map());
+
 
   useEffect(() => {
     if (!userId) return;
@@ -228,6 +246,20 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
         setLoading(false);
       });
   }, [userId]);
+
+  // Load admin-managed field config (company override or global default)
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data: prof } = await supabase.from("profiles").select("company_id").eq("user_id", userId).maybeSingle();
+      const cid = (prof as any)?.company_id ?? null;
+      const { data } = await supabase.rpc("get_effective_clinical_fields" as any, { _company_id: cid });
+      const map = new Map<string, FieldCfg>();
+      ((data as any[]) || []).forEach((f) => map.set(f.field_key, f));
+      setFieldsCfg(map);
+    })();
+  }, [userId]);
+
 
   const handleSave = async () => {
     if (!userId || !form) return;
@@ -284,19 +316,12 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
   const addressLine = [health.endereco, health.numero, health.complemento, health.bairro].filter(Boolean).join(", ");
   const cityLine = [health.cidade, health.estado].filter(Boolean).join(" - ");
 
-  const InfoRow = ({ label, value, editField }: { label: string; value: string; editField?: React.ReactNode }) => (
-    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
-      <span className="text-[13px] text-muted-foreground">{label}</span>
-      {editing && editField ? editField : <span className="text-[13px] font-medium text-foreground text-right max-w-[55%]">{value}</span>}
-    </div>
-  );
+  // Lookup label/visibility from admin config (falls back to provided defaults)
+  const fieldOf = (key: string, defaultLabel: string) => {
+    const c = fieldsCfg.get(key);
+    return { visible: c ? c.visible : true, label: c?.label ?? defaultLabel };
+  };
 
-  const ToggleField = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
-    <div className="flex gap-2">
-      <button onClick={() => onChange(true)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Sim</button>
-      <button onClick={() => onChange(false)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${!checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Não</button>
-    </div>
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -315,15 +340,17 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
       {/* Health data */}
       <div className="bg-card rounded-2xl border border-border p-4">
         <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Saúde</p>
-        <InfoRow label="Sexo biológico" value={sexLabel}
+        {(() => { const f = fieldOf("biological_sex", "Sexo biológico"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={sexLabel}
           editField={
             <div className="flex gap-2">
               <button onClick={() => setForm({ ...form!, biological_sex: "male" })} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${form?.biological_sex === "male" ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Masculino</button>
               <button onClick={() => setForm({ ...form!, biological_sex: "female" })} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${form?.biological_sex === "female" ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Feminino</button>
             </div>
           }
-        />
-        <InfoRow label="Gravidez" value={pregnantLabel}
+        /> ); })()}
+        {(() => { const f = fieldOf("is_pregnant", "Gravidez"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={pregnantLabel}
           editField={
             <div className="flex gap-1.5">
               {["yes", "no", "unsure"].map(v => (
@@ -333,20 +360,25 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
               ))}
             </div>
           }
-        />
-        <InfoRow label="Hipertensão" value={health.has_hypertension ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("has_hypertension", "Hipertensão"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.has_hypertension ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_hypertension ?? false} onChange={(v) => setForm({ ...form!, has_hypertension: v })} />}
-        />
-        <InfoRow label="Diabetes" value={health.has_diabetes ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("has_diabetes", "Diabetes"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.has_diabetes ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_diabetes ?? false} onChange={(v) => setForm({ ...form!, has_diabetes: v })} />}
-        />
-        <InfoRow label="Peso" value={health.peso ? `${health.peso} kg` : "—"}
-          editField={<Input type="number" className="w-20 h-8 text-xs" value={form?.peso ?? ""} onChange={(e) => setForm({ ...form!, peso: e.target.value ? Number(e.target.value) : null })} />}
-        />
-        <InfoRow label="Altura" value={health.altura ? `${health.altura} cm` : "—"}
-          editField={<Input type="number" className="w-20 h-8 text-xs" value={form?.altura ?? ""} onChange={(e) => setForm({ ...form!, altura: e.target.value ? Number(e.target.value) : null })} />}
-        />
-        <InfoRow label="Última ida ao dentista" value={dentalLabel}
+        /> ); })()}
+        {(() => { const f = fieldOf("peso", "Peso"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.peso ? `${health.peso} kg` : "—"}
+          editField={<Input type="number" inputMode="decimal" className="w-20 h-8 text-xs" value={form?.peso ?? ""} onChange={(e) => setForm({ ...form!, peso: e.target.value ? Number(e.target.value) : null })} />}
+        /> ); })()}
+        {(() => { const f = fieldOf("altura", "Altura"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.altura ? `${health.altura} cm` : "—"}
+          editField={<Input type="number" inputMode="numeric" className="w-20 h-8 text-xs" value={form?.altura ?? ""} onChange={(e) => setForm({ ...form!, altura: e.target.value ? Number(e.target.value) : null })} />}
+        /> ); })()}
+        {(() => { const f = fieldOf("last_dental_visit", "Última ida ao dentista"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={dentalLabel}
           editField={
             <div className="flex gap-1.5">
               {[{ v: "less_6m", l: "< 6m" }, { v: "more_6m", l: "> 6m" }, { v: "never", l: "Nunca" }].map(({ v, l }) => (
@@ -354,42 +386,50 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
               ))}
             </div>
           }
-        />
+        /> ); })()}
       </div>
 
       {/* Address */}
       <div className="bg-card rounded-2xl border border-border p-4">
         <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Endereço</p>
-        <InfoRow label="CEP" value={health.cep || "—"} />
-        <InfoRow label="Endereço" value={addressLine || "—"} />
-        <InfoRow label="Cidade" value={cityLine || "—"} />
+        {(() => { const f = fieldOf("cep", "CEP"); return f.visible && <InfoRow editing={editing} label={f.label} value={health.cep || "—"} />; })()}
+        {(() => { const f = fieldOf("endereco", "Endereço"); return f.visible && <InfoRow editing={editing} label={f.label} value={addressLine || "—"} />; })()}
+        {(() => { const f = fieldOf("cidade", "Cidade"); return f.visible && <InfoRow editing={editing} label={f.label} value={cityLine || "—"} />; })()}
       </div>
 
       {/* Family */}
       <div className="bg-card rounded-2xl border border-border p-4">
         <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Família</p>
-        <InfoRow label="Mora com criança < 1 ano" value={health.lives_with_infant ? "Sim" : "Não"}
+        {(() => { const f = fieldOf("lives_with_infant", "Mora com criança < 1 ano"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.lives_with_infant ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.lives_with_infant ?? false} onChange={(v) => setForm({ ...form!, lives_with_infant: v })} />}
-        />
-        <InfoRow label="Criança < 5 anos em casa" value={health.has_child_under_5 ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("has_child_under_5", "Criança < 5 anos em casa"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.has_child_under_5 ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_child_under_5 ?? false} onChange={(v) => setForm({ ...form!, has_child_under_5: v })} />}
-        />
-        <InfoRow label="Filho < 12 anos (vacinas)" value={health.has_child_under_12 ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("has_child_under_12", "Filho < 12 anos (vacinas)"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.has_child_under_12 ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_child_under_12 ?? false} onChange={(v) => setForm({ ...form!, has_child_under_12: v })} />}
-        />
-        <InfoRow label="Acamado em casa" value={health.has_bedridden_at_home ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("has_bedridden_at_home", "Acamado em casa"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.has_bedridden_at_home ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_bedridden_at_home ?? false} onChange={(v) => setForm({ ...form!, has_bedridden_at_home: v })} />}
-        />
-        <InfoRow label="Grávida em casa" value={health.has_pregnant_at_home ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("has_pregnant_at_home", "Grávida em casa"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.has_pregnant_at_home ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.has_pregnant_at_home ?? false} onChange={(v) => setForm({ ...form!, has_pregnant_at_home: v })} />}
-        />
-        <InfoRow label="Bolsa Família" value={health.is_bolsa_familia ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("is_bolsa_familia", "Bolsa Família"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.is_bolsa_familia ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.is_bolsa_familia ?? false} onChange={(v) => setForm({ ...form!, is_bolsa_familia: v })} />}
-        />
-        <InfoRow label="Visita ACS recente" value={health.last_acs_visit ? "Sim" : "Não"}
+        /> ); })()}
+        {(() => { const f = fieldOf("last_acs_visit", "Visita ACS recente"); return f.visible && (
+        <InfoRow editing={editing} label={f.label} value={health.last_acs_visit ? "Sim" : "Não"}
           editField={<ToggleField checked={form?.last_acs_visit ?? false} onChange={(v) => setForm({ ...form!, last_acs_visit: v })} />}
-        />
+        /> ); })()}
       </div>
+
 
     </div>
   );

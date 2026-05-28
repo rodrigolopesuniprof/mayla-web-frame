@@ -723,6 +723,50 @@ export type Database = {
         }
         Relationships: []
       }
+      clinical_profile_field_config: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          field_key: string
+          id: string
+          label: string
+          section: string
+          sort_order: number
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          field_key: string
+          id?: string
+          label: string
+          section: string
+          sort_order?: number
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          field_key?: string
+          id?: string
+          label?: string
+          section?: string
+          sort_order?: number
+          updated_at?: string
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_profile_field_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collaborative_teams: {
         Row: {
           company_id: string
@@ -4109,6 +4153,16 @@ export type Database = {
           unique_participants: number
           week_start: string
           wellbeing_index: number
+        }[]
+      }
+      get_effective_clinical_fields: {
+        Args: { _company_id: string }
+        Returns: {
+          field_key: string
+          label: string
+          section: string
+          sort_order: number
+          visible: boolean
         }[]
       }
       get_effective_goals: {
