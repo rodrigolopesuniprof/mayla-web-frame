@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FavoriteDoctors } from "./FavoriteDoctors";
 import { TopBar } from "./TopBar";
 import { Avatar } from "./MaylaIcons";
+import { ReadyPlayerMeButton } from "./ReadyPlayerMeButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
