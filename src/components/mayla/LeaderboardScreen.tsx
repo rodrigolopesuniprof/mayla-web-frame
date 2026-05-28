@@ -3,16 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, pointsFor, rankFor, goalFor, type LeaderboardPeriod, type LeaderboardRow } from "@/hooks/useLeaderboard";
 import { DailyChallengeCard } from "./DailyChallengeCard";
-
-interface Props { onBack: () => void; }
-
-function initials(name?: string | null) {
-  if (!name) return "—";
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (first + last).toUpperCase() || "—";
-}
+import { Avatar } from "./MaylaIcons";
+import { getInitials as initials, hasCustomAvatar } from "@/lib/avatar";
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
