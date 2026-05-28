@@ -1,37 +1,77 @@
-# Corrigir pontuação mensal zerada no ranking
 
-## Causa raiz
+# Reestruturação do Ranking + Desafios + Atalho em Campanhas
 
-A view `company_leaderboard` calcula `month_points` somando `points_ledger` filtrado pelo mês atual. Porém o `points_ledger` está **vazio** (0 linhas). Os pontos atuais nos perfis vieram de triggers/funções legadas que escrevem direto em `profiles.points` sem registrar no ledger:
+## Objetivo
+Hoje a tela "Ranking" mostra apenas "Este mês" vs "Geral", e o mês aparece zerado porque pontos antigos não estavam no `points_ledger` (já corrigido na migração anterior — novos pontos contam). Vamos evoluir a tela para suportar desafios **semanais, mensais e anuais**, mostrar **progresso de meta**, dar destaque ao **desafio do dia**, e criar um **atalho de ranking dentro de Campanhas**.
 
-- `add_points_on_mission_complete()` — missões completadas
-- `award_medication_points()` — adesão a medicamentos
-- `award_esf_link_points()` / `award_support_team_link_points()` — bônus de vínculo
-- Updates manuais e migrações antigas
+## 1. Banco de dados
 
-Apenas as funções novas (`award_points`, `add_points_to_profile`, `check_user_level`) registram no ledger.
+### 1a. View `company_leaderboard` — adicionar semana e ano
+Recriar a view incluindo:
+- `week_points` (soma de `points_ledger` da semana corrente, segunda a domingo, TZ America/Sao_Paulo)
+- `year_points` (soma do ano corrente)
+- `rank_week`, `rank_year` (window function por `company_id`)
+- manter `month_points`, `total_points`, `rank_month`, `rank_total`
 
-## Correção
+### 1b. Tabela `company_point_goals` (nova)
+Metas mínimas configuráveis por empresa para badge/recompensa:
+- `company_id`, `weekly_goal`, `monthly_goal`, `yearly_goal`
+- Defaults globais (linha com `company_id IS NULL`): 200 / 800 / 10000
+- Função `get_effective_goals(_company_id)` no mesmo padrão de `get_effective_levels`
+- RLS: leitura para `authenticated` da própria empresa; escrita só admin
 
-Migração única que atualiza as funções legadas para também inserir no `points_ledger`. Assim, **toda nova pontuação concedida passa a contar no ranking mensal**. Pontos históricos permanecem em `profiles.points` (ranking "Geral" continua correto); não fazemos backfill porque pontos antigos não foram ganhos "este mês".
+> Admin UI de edição das metas fica fora deste escopo (criar depois se quiser).
 
-### Funções a atualizar
+## 2. Tela Ranking (`LeaderboardScreen.tsx`)
 
-1. `add_points_on_mission_complete()` — após o `UPDATE profiles`, inserir em `points_ledger` com `source = 'mission'`, `source_id = NEW.mission_id`, `description = 'Missão completada'`.
+### 2a. Toggle com 3 períodos
+Substituir o toggle binário por **segmented control de 3 abas**:
+`Semana` · `Mês` · `Ano` · (manter `Geral` como 4ª aba opcional num botão "ver geral" discreto abaixo, para não poluir)
 
-2. `award_medication_points()` — após o `UPDATE profiles`, inserir em `points_ledger` com `source = 'medication'`, `source_id = NEW.id`, `description = 'Adesão a medicamento'`.
+### 2b. Card "Sua meta" (topo, acima do pódio)
+Para o período ativo, exibir:
+```
+SEMANA · 120 / 200 pts
+[========------]  60%
+Faltam 80 pts para a meta semanal 🎯
+```
+- Barra de progresso usando tokens do design system
+- Trocar copy conforme período (Semana/Mês/Ano)
+- Se já bateu a meta: "Meta atingida! 🎉" com check
 
-3. `award_esf_link_points()` / `award_support_team_link_points()` — essas funções rodam em `BEFORE UPDATE` em `profiles` e mexem em `NEW.points`. Adicionar `INSERT INTO points_ledger` com `source = 'team_link'`, `description = 'Bônus por vínculo de equipe'`, 500 pontos.
+### 2c. Card "Desafio do dia" (abaixo da meta)
+Um card destacado com:
+- Emoji + título do desafio (vindo de `useGamification().challenge`)
+- Pontos
+- Botão CTA "Fazer desafio" (ou "Concluído ✓" se já feito)
+- Ao clicar: abre a mesma experiência do `DailyChallengeCard` (reusar componente ou navegar para Home)
 
-Em todas, ler `company_id` do próprio NEW/profiles para preencher a coluna `company_id` do ledger.
+### 2d. Pódio + Lista
+Manter visual atual, apenas usando o período ativo para `points`/`rank`.
 
-## Validação pós-migração
+## 3. Atalho na aba Campanhas (`CampanhasTab.tsx`)
+Adicionar no topo (ou após o header da aba) um **card-botão "Ranking"**:
+- Ícone 🏆 + título "Ranking da empresa" + subtítulo dinâmico "Você está em #N esta semana"
+- Ao clicar: abre uma **tela rápida** (drawer/sheet ou rota interna) com versão compacta do ranking — pódio + top 10, sem toggle de período (mostra semana por padrão) + link "Ver ranking completo" que abre o `LeaderboardScreen` normal.
 
-- Conceder 1 ponto de teste via `award_points()` → checar que `month_points` reflete no leaderboard "Este mês".
-- Completar uma missão de teste → checar entrada nova em `points_ledger` e atualização do `month_points`.
+Componente novo: `RankingQuickView.tsx` (reusa o fetch da view e renderiza compacto).
 
-## Fora de escopo
+## 4. Arquivos afetados
 
-- Backfill histórico para o mês atual (criaria pontuação mensal artificial).
-- Alteração da view, do componente `LeaderboardScreen.tsx` ou de qualquer UI.
-- Lógica de níveis, badges, desafios.
+**Migrations:**
+- Nova migration: recriar `company_leaderboard` com week/year + criar `company_point_goals` + `get_effective_goals` + seed defaults
+
+**Frontend:**
+- `src/components/mayla/LeaderboardScreen.tsx` — toggle 3 períodos, card de meta, card desafio do dia
+- `src/components/mayla/RankingQuickView.tsx` — novo, drawer compacto
+- `src/components/mayla/CampanhasTab.tsx` — botão atalho Ranking
+- `src/hooks/useLeaderboard.ts` — novo hook centralizando fetch da view + meta efetiva (reduz duplicação)
+
+## 5. Fora de escopo
+- Tela admin para editar `company_point_goals` (usa defaults por enquanto)
+- Backfill histórico de `points_ledger`
+- Recompensas automáticas ao bater meta (só visual por ora)
+
+---
+
+Quer que eu siga assim ou prefere ajustar algo (ex.: trocar "Geral" por aba fixa, mudar defaults de meta, ou começar só pelo banco + toggle de 3 períodos)?
