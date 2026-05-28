@@ -20,6 +20,9 @@ import { LeaderboardScreen } from "./LeaderboardScreen";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { ProfileCompletionGate } from "./ProfileCompletionGate";
 import { PointsOnboardingTour } from "./PointsOnboardingTour";
+import { LevelUpDialog } from "./LevelUpDialog";
+import { useLevelUpNotifier } from "@/hooks/useLevelUpNotifier";
+
 import { SelfAssessmentRunner } from "./SelfAssessmentRunner";
 import { useAuth } from "@/contexts/AuthContext";
 
