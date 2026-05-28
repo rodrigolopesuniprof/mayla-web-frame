@@ -40,7 +40,7 @@ export function AdminDailyChallenges({ companyId }: Props) {
       supabase.from("daily_challenges" as any).select("*").eq("company_id", companyId).order("sort_order").order("created_at"),
       supabase.rpc("ensure_daily_challenge" as any, { _company_id: companyId }),
     ]);
-    setItems((pool as Challenge[]) || []);
+    setItems(((pool as unknown) as Challenge[]) || []);
     if (ensureRes.data) {
       const { data: asg } = await supabase
         .from("daily_challenge_assignments" as any)

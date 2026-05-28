@@ -39,7 +39,7 @@ export function AdminLevels({ companyId }: Props) {
       .eq("company_id", companyId)
       .order("level_number");
     if (data && data.length > 0) {
-      setItems(data as Level[]);
+      setItems((data as unknown) as Level[]);
       setUsingDefault(false);
     } else {
       setItems(DEFAULT_LEVELS);

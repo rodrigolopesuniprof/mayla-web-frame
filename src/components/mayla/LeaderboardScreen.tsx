@@ -34,7 +34,7 @@ export function LeaderboardScreen({ onBack }: Props) {
       .order(order, { ascending: false })
       .limit(50)
       .then(({ data }) => {
-        setRows((data as Row[]) || []);
+        setRows(((data as unknown) as Row[]) || []);
         setLoading(false);
       });
   }, [companyId, period]);
