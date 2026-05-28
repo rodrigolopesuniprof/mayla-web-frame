@@ -13,7 +13,8 @@ export function ProfileCompletionGate({ onComplete }: { onComplete: () => void }
   const [loading, setLoading] = useState(true);
   const [needsCompletion, setNeedsCompletion] = useState(false);
   const [birthDate, setBirthDate] = useState("");
-  const [sex, setSex] = useState<"male" | "female" | "">("");
+  const [sex, setSex] = useState<string>("");
+  const [otherText, setOtherText] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export function ProfileCompletionGate({ onComplete }: { onComplete: () => void }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ birth_date: birthDate, biological_sex: sex })
+      .update({ birth_date: birthDate, biological_sex: sex, gender_other_text: sex === "other" ? otherText : null } as any)
       .eq("user_id", user.id);
     setSaving(false);
     if (error) {
@@ -90,33 +91,43 @@ export function ProfileCompletionGate({ onComplete }: { onComplete: () => void }
 
           <div>
             <label className="text-[12px] font-medium text-foreground block mb-1.5">
-              Sexo
+              Gênero
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setSex("male")}
-                className={`h-11 rounded-xl text-[13px] font-medium border transition-colors ${
-                  sex === "male"
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-secondary text-foreground border-border"
-                }`}
-              >
-                Masculino
-              </button>
-              <button
-                type="button"
-                onClick={() => setSex("female")}
-                className={`h-11 rounded-xl text-[13px] font-medium border transition-colors ${
-                  sex === "female"
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-secondary text-foreground border-border"
-                }`}
-              >
-                Feminino
-              </button>
+              {[
+                { v: "male", l: "Masculino" },
+                { v: "female", l: "Feminino" },
+                { v: "non_binary", l: "Não-binário" },
+                { v: "agender", l: "Agênero" },
+                { v: "other", l: "Outro" },
+                { v: "prefer_not_say", l: "Prefiro não informar" },
+              ].map(({ v, l }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setSex(v)}
+                  className={`h-11 rounded-xl text-[12px] font-medium border transition-colors ${
+                    sex === v
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-secondary text-foreground border-border"
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
             </div>
+            {sex === "other" && (
+              <input
+                type="text"
+                value={otherText}
+                onChange={(e) => setOtherText(e.target.value)}
+                placeholder="Especifique..."
+                className="w-full h-11 px-3 mt-2 bg-secondary border border-border rounded-xl text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                maxLength={50}
+              />
+            )}
           </div>
+
 
           <button
             onClick={handleSave}

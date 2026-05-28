@@ -19,6 +19,8 @@ import { HealthMagazineList } from "./HealthMagazineList";
 import { LeaderboardScreen } from "./LeaderboardScreen";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { ProfileCompletionGate } from "./ProfileCompletionGate";
+import { PointsOnboardingTour } from "./PointsOnboardingTour";
+import { SelfAssessmentRunner } from "./SelfAssessmentRunner";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "main";
@@ -36,6 +38,7 @@ export function MaylaApp() {
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [showAllArticles, setShowAllArticles] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showSelfAssessment, setShowSelfAssessment] = useState(false);
   const [assistantInitialMessage, setAssistantInitialMessage] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
@@ -76,6 +79,20 @@ export function MaylaApp() {
         {phase === "main" && (
           <>
             {user && <ProfileCompletionGate onComplete={() => {}} />}
+            {user && (
+              <PointsOnboardingTour
+                onOpenProfile={() => setActiveTab("perfil")}
+                onOpenSelfAssessment={() => setShowSelfAssessment(true)}
+                onOpenRppg={() => setActiveTab("bemestar")}
+                onOpenCampaigns={() => setActiveTab("campanhas")}
+                onOpenLeaderboard={() => setShowLeaderboard(true)}
+              />
+            )}
+            {showSelfAssessment && (
+              <div className="absolute inset-0 z-40 bg-background">
+                <SelfAssessmentRunner onBack={() => setShowSelfAssessment(false)} />
+              </div>
+            )}
             {activeVideoCall ? (
               <JitsiConsultationScreen
                 consultation={{ ...activeVideoCall, consultationMode: "online" }}
