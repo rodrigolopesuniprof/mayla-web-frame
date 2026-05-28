@@ -2571,6 +2571,7 @@ export type Database = {
           esf_team_id: string | null
           estado: string | null
           full_name: string | null
+          gender_other_text: string | null
           has_bedridden_at_home: boolean | null
           has_child_under_12: boolean | null
           has_child_under_5: boolean | null
@@ -2597,6 +2598,7 @@ export type Database = {
           peso: number | null
           phone: string | null
           points: number
+          points_tour_completed: boolean
           prenatal_dental_done: boolean | null
           prenatal_started: boolean | null
           signed_up_via_token: string | null
@@ -2625,6 +2627,7 @@ export type Database = {
           esf_team_id?: string | null
           estado?: string | null
           full_name?: string | null
+          gender_other_text?: string | null
           has_bedridden_at_home?: boolean | null
           has_child_under_12?: boolean | null
           has_child_under_5?: boolean | null
@@ -2651,6 +2654,7 @@ export type Database = {
           peso?: number | null
           phone?: string | null
           points?: number
+          points_tour_completed?: boolean
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
           signed_up_via_token?: string | null
@@ -2679,6 +2683,7 @@ export type Database = {
           esf_team_id?: string | null
           estado?: string | null
           full_name?: string | null
+          gender_other_text?: string | null
           has_bedridden_at_home?: boolean | null
           has_child_under_12?: boolean | null
           has_child_under_5?: boolean | null
@@ -2705,6 +2710,7 @@ export type Database = {
           peso?: number | null
           phone?: string | null
           points?: number
+          points_tour_completed?: boolean
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
           signed_up_via_token?: string | null
@@ -3168,6 +3174,80 @@ export type Database = {
           },
         ]
       }
+      self_assessment_questions: {
+        Row: {
+          active: boolean
+          company_id: string | null
+          created_at: string
+          id: string
+          options: Json | null
+          qtype: string
+          question: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          options?: Json | null
+          qtype?: string
+          question: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          options?: Json | null
+          qtype?: string
+          question?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "self_assessment_questions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      self_assessment_responses: {
+        Row: {
+          answers: Json
+          company_id: string | null
+          completed_at: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          company_id?: string | null
+          completed_at?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          company_id?: string | null
+          completed_at?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       special_measurements: {
         Row: {
           company_id: string | null
@@ -3605,6 +3685,8 @@ export type Database = {
           frequency: string
           id: string
           name: string
+          reminder_time: string | null
+          start_date: string | null
           updated_at: string
           user_id: string
         }
@@ -3615,6 +3697,8 @@ export type Database = {
           frequency?: string
           id?: string
           name: string
+          reminder_time?: string | null
+          start_date?: string | null
           updated_at?: string
           user_id: string
         }
@@ -3625,6 +3709,8 @@ export type Database = {
           frequency?: string
           id?: string
           name?: string
+          reminder_time?: string | null
+          start_date?: string | null
           updated_at?: string
           user_id?: string
         }
