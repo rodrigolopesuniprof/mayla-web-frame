@@ -128,6 +128,7 @@ export function MaylaApp() {
                     onOpenAssistant={() => setShowAssistant(true)}
                     onOpenArticle={(id) => setActiveArticleId(id)}
                     onOpenAllArticles={() => setShowAllArticles(true)}
+                    onOpenLeaderboard={() => setShowLeaderboard(true)}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
