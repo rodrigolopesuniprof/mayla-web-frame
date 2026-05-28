@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FavoriteDoctors } from "./FavoriteDoctors";
 import { TopBar } from "./TopBar";
 import { Avatar } from "./MaylaIcons";
+import { ReadyPlayerMeButton } from "./ReadyPlayerMeButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -122,6 +123,16 @@ export function ProfileTab() {
         <Avatar initials={initials} size={72} avatarUrl={(profile as any)?.avatar_url} avatarType={(profile as any)?.avatar_type} />
         <h2 className="font-display text-xl font-medium text-foreground mt-3">{displayName}</h2>
         <p className="text-[13px] text-muted-foreground mt-1">{user?.email}</p>
+        {user?.id && (
+          <ReadyPlayerMeButton
+            userId={user.id}
+            currentAvatarType={(profile as any)?.avatar_type}
+            pointsAwarded={!!(profile as any)?.avatar_points_awarded}
+            onUpdated={(url, type) =>
+              setProfile((p) => (p ? ({ ...(p as any), avatar_url: url, avatar_type: type, avatar_points_awarded: true } as Profile) : p))
+            }
+          />
+        )}
         {!loadingProfile && profile && (
           <div className="flex items-center gap-2 mt-3">
             <span className="text-sm">⭐</span>
