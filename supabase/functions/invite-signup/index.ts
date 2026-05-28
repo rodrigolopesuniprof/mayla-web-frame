@@ -61,11 +61,11 @@ Deno.serve(async (req) => {
     }
     const company_id: string = tInfo.company_id;
 
-    // 2) cria usuário (sem auto-confirm — mantém fluxo de verificação por e-mail)
+    // 2) cria usuário já confirmado (verificação por e-mail desativada por enquanto)
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: { full_name, cpf, company_id },
     });
 
