@@ -14,17 +14,25 @@ function initials(name?: string | null) {
   return (first + last).toUpperCase() || "—";
 }
 
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const currentMonthName = MONTH_NAMES[new Date().getMonth()];
+const currentYear = new Date().getFullYear();
+
 const PERIOD_LABELS: Record<LeaderboardPeriod, string> = {
   week: "Semana",
-  month: "Mês",
-  year: "Ano",
+  month: currentMonthName,
+  year: String(currentYear),
   total: "Geral",
 };
 
 const GOAL_LABELS: Record<LeaderboardPeriod, string> = {
   week: "semanal",
-  month: "mensal",
-  year: "anual",
+  month: `de ${currentMonthName.toLowerCase()}`,
+  year: `de ${currentYear}`,
   total: "",
 };
 
