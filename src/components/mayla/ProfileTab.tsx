@@ -206,12 +206,30 @@ export function ProfileTab() {
 
 // Sub-views
 
+type FieldCfg = { field_key: string; label: string; section: string; sort_order: number; visible: boolean };
+
+const InfoRow = ({ label, value, editField, editing }: { label: string; value: string; editField?: React.ReactNode; editing: boolean }) => (
+  <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+    <span className="text-[13px] text-muted-foreground">{label}</span>
+    {editing && editField ? editField : <span className="text-[13px] font-medium text-foreground text-right max-w-[55%]">{value}</span>}
+  </div>
+);
+
+const ToggleField = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
+  <div className="flex gap-2">
+    <button onClick={() => onChange(true)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Sim</button>
+    <button onClick={() => onChange(false)} className={`text-xs px-3 py-1 rounded-full border cursor-pointer ${!checked ? "bg-accent/20 border-accent text-accent" : "bg-card border-border text-muted-foreground"}`}>Não</button>
+  </div>
+);
+
 function AutoAvaliacao({ userId }: { userId?: string }) {
   const [health, setHealth] = useState<HealthProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<HealthProfile | null>(null);
+  const [fieldsCfg, setFieldsCfg] = useState<Map<string, FieldCfg>>(new Map());
+
 
   useEffect(() => {
     if (!userId) return;
