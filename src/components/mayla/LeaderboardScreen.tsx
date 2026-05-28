@@ -6,6 +6,8 @@ import { DailyChallengeCard } from "./DailyChallengeCard";
 import { Avatar } from "./MaylaIcons";
 import { getInitials as initials, hasCustomAvatar } from "@/lib/avatar";
 
+interface Props { onBack: () => void; }
+
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
