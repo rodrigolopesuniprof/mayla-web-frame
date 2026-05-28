@@ -230,6 +230,42 @@ export function AdminMissions() {
 
             <div className="border-t border-border pt-4 space-y-3">
               <div>
+                <h4 className="text-sm font-semibold text-foreground">⚖️ Limites de pontuação (opcional)</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Quantas vezes esta missão pode pontuar para o mesmo colaborador. Deixe em branco para ilimitado.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx/dia</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_per_day} onChange={e => setForm(f => ({ ...f, cap_per_day: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx/semana</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_per_week} onChange={e => setForm(f => ({ ...f, cap_per_week: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx/mês</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_per_month} onChange={e => setForm(f => ({ ...f, cap_per_month: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx total (lifetime)</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_lifetime} onChange={e => setForm(f => ({ ...f, cap_lifetime: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Válido a partir de</Label>
+                  <Input type="datetime-local" value={form.valid_from} onChange={e => setForm(f => ({ ...f, valid_from: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Válido até</Label>
+                  <Input type="datetime-local" value={form.valid_until} onChange={e => setForm(f => ({ ...f, valid_until: e.target.value }))} />
+                </div>
+              </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <div>
                 <h4 className="text-sm font-semibold text-foreground">🎉 Ação pós-sucesso (opcional)</h4>
                 <p className="text-xs text-muted-foreground mt-1">
                   Mensagem e link mostrados ao usuário quando ele concluir a missão. Use para enviá-lo a um cupom, parceiro, conteúdo, etc.
