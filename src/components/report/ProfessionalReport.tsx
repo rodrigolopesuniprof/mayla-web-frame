@@ -116,15 +116,12 @@ export default function ProfessionalReport({ tokenOverride, embedMode, onBack }:
       }
 
       // ─── Path 3: Fallback to report_shares (temporary 48h links from teleconsultation) ───
-      const { data: shareData } = await supabase.from("report_shares").select("*").eq("token", token).maybeSingle();
+      const { data: shareRows } = await supabase.rpc("consume_report_share", { _token: token });
+      const shareInfo = Array.isArray(shareRows) ? shareRows[0] : shareRows;
 
       let resolvedUserId: string | null = null;
-
-      if (shareData && new Date(shareData.expires_at) >= new Date()) {
-        resolvedUserId = shareData.user_id;
-        if (!shareData.accessed_at) {
-          await supabase.from("report_shares").update({ accessed_at: new Date().toISOString() } as any).eq("id", shareData.id);
-        }
+      if (shareInfo?.valid && shareInfo.user_id) {
+        resolvedUserId = shareInfo.user_id;
       }
 
       if (!resolvedUserId) {
@@ -203,10 +200,16 @@ export default function ProfessionalReport({ tokenOverride, embedMode, onBack }:
     if (!userId || saving) return;
     setSaving(true);
     try {
-      await supabase.from("clinical_notes").insert({
-        user_id: userId,
-        note_text: noteText,
-      } as any);
+      // If anonymous viewer (no logged-in user), save via secure RPC using share token
+      if (!user && token) {
+        const { error } = await supabase.rpc("save_clinical_note_via_share", { _token: token, _note: noteText });
+        if (error) throw error;
+      } else {
+        await supabase.from("clinical_notes").insert({
+          user_id: userId,
+          note_text: noteText,
+        } as any);
+      }
       toast({ title: "Nota salva com sucesso" });
     } catch {
       toast({ title: "Erro ao salvar nota", variant: "destructive" });
