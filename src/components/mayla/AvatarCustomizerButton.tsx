@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DICEBEAR_STYLES,
   DICEBEAR_STYLE_LABELS,
@@ -33,6 +34,7 @@ export function AvatarCustomizerButton({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const initialStyle: DicebearStyle =
     (DICEBEAR_STYLES as readonly string[]).includes(currentAvatarStyle ?? "")
@@ -91,6 +93,7 @@ export function AvatarCustomizerButton({
     }
 
     onUpdated(dataUri, "dicebear", style, seed);
+    queryClient.invalidateQueries({ queryKey: ["my-avatar"] });
     setSaving(false);
     setOpen(false);
   };

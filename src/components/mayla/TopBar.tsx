@@ -1,6 +1,8 @@
 import { BrandBadge, Avatar } from "./MaylaIcons";
+import { useMyAvatar } from "@/hooks/useMyAvatar";
 
 export function TopBar({ title, onBack }: { title?: string; onBack?: () => void }) {
+  const { avatarUrl, avatarType, initials } = useMyAvatar();
   return (
     <div className="px-5 py-4 pb-3 flex items-center justify-between border-b border-border shrink-0">
       {onBack ? (
@@ -13,7 +15,7 @@ export function TopBar({ title, onBack }: { title?: string; onBack?: () => void 
       ) : (
         <BrandBadge height={38} />
       )}
-      <Avatar />
+      <Avatar initials={initials} avatarUrl={avatarUrl} avatarType={avatarType} />
     </div>
   );
 }
