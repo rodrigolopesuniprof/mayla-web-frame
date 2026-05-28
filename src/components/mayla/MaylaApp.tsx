@@ -109,6 +109,8 @@ export function MaylaApp() {
               />
             ) : showEsfLink ? (
               <EsfLinkScreen onBack={() => setShowEsfLink(false)} onLinked={() => setShowEsfLink(false)} />
+            ) : showLeaderboard ? (
+              <LeaderboardScreen onBack={() => setShowLeaderboard(false)} />
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden">
                 {activeTab === "inicio" && (
