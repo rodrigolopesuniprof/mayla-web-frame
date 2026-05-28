@@ -2469,6 +2469,8 @@ export type Database = {
       profiles: {
         Row: {
           altura: number | null
+          avatar_points_awarded: boolean
+          avatar_type: string
           avatar_url: string | null
           bairro: string | null
           biological_sex: string | null
@@ -2519,6 +2521,8 @@ export type Database = {
         }
         Insert: {
           altura?: number | null
+          avatar_points_awarded?: boolean
+          avatar_type?: string
           avatar_url?: string | null
           bairro?: string | null
           biological_sex?: string | null
@@ -2569,6 +2573,8 @@ export type Database = {
         }
         Update: {
           altura?: number | null
+          avatar_points_awarded?: boolean
+          avatar_type?: string
           avatar_url?: string | null
           bairro?: string | null
           biological_sex?: string | null
