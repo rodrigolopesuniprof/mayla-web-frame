@@ -4073,6 +4073,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      backfill_user_levels: { Args: never; Returns: number }
       check_user_level: { Args: { _user_id: string }; Returns: undefined }
       complete_daily_challenge: {
         Args: { _assignment_id: string }
