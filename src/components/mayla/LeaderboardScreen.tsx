@@ -205,9 +205,13 @@ export function LeaderboardScreen({ onBack }: Props) {
                     <div className="w-6 text-center text-sm font-medium text-muted-foreground">
                       {rankFor(r, period)}
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-display font-semibold">
-                      {initials(r.full_name)}
-                    </div>
+                    {hasCustomAvatar(r.avatar_url, r.avatar_type) ? (
+                      <Avatar initials={initials(r.full_name)} size={36} avatarUrl={r.avatar_url} avatarType={r.avatar_type} />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-display font-semibold">
+                        {initials(r.full_name)}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{r.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">
