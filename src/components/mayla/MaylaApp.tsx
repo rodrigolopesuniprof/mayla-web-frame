@@ -19,6 +19,8 @@ import { HealthMagazineList } from "./HealthMagazineList";
 import { LeaderboardScreen } from "./LeaderboardScreen";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { ProfileCompletionGate } from "./ProfileCompletionGate";
+import { PointsOnboardingTour } from "./PointsOnboardingTour";
+import { SelfAssessmentRunner } from "./SelfAssessmentRunner";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "main";
