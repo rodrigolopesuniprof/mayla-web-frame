@@ -467,7 +467,7 @@ export default function HealthReport({ userIdOverride, embedMode, onBack }: Heal
           ) : companySurveys.length === 0 ? (
             <div className="rpt-q-card">
               <div className="rpt-q-header">
-                <span className="rpt-q-category">Campanhas</span>
+                <span className="rpt-q-category">Desafios</span>
                 <span className="rpt-q-status" style={{ background: "var(--rpt-surface2)", color: "var(--rpt-text-tertiary)" }}>Sem dados</span>
               </div>
               <div className="rpt-q-text">Nenhuma campanha de questionários ativa para sua empresa no momento.</div>

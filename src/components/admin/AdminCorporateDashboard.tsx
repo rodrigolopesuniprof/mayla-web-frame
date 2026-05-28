@@ -73,7 +73,7 @@ export function AdminCorporateDashboard() {
     { label: "Questionário completo", value: stats.surveyed, emoji: "📋" },
     { label: "Em equipes", value: stats.withTeam, emoji: "👥" },
     { label: "Programas", value: stats.programs, emoji: "🌿" },
-    { label: "Campanhas", value: stats.campaigns, emoji: "🏆" },
+    { label: "Desafios", value: stats.campaigns, emoji: "🏆" },
     { label: "Check-ins", value: stats.checkins, emoji: "💚" },
     { label: "Agendamentos", value: stats.appointments, emoji: "📅" },
     { label: "Notificações", value: stats.notifications, emoji: "📢" },

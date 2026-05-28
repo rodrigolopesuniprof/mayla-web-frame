@@ -292,7 +292,7 @@ export default function CompanyDashboard() {
               <TabsTrigger value="users">Usuários</TabsTrigger>
               <TabsTrigger value="wellbeing">Bem-estar</TabsTrigger>
               <TabsTrigger value="programs">Programas</TabsTrigger>
-              <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
+              <TabsTrigger value="campaigns">Desafios</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview">
