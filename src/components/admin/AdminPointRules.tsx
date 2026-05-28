@@ -24,6 +24,14 @@ interface Rule {
 
 interface Props { companyId: string }
 
+const ONBOARDING_KEYS = [
+  "profile_complete",
+  "self_assessment",
+  "rppg_measurement",
+  "daily_challenge",
+  "weekly_checkin",
+] as const;
+
 const numOrNull = (v: string) => {
   const t = v.trim();
   if (t === "") return null;
@@ -42,13 +50,14 @@ export function AdminPointRules({ companyId }: Props) {
       .from("point_rules" as any)
       .select("*")
       .eq("company_id", companyId)
-      .not("event_key", "in", "(mission_complete,self_assessment)")
+      .neq("event_key", "mission_complete")
       .order("label");
     setRules((data as any) || []);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [companyId]);
+
 
   const update = (id: string, patch: Partial<Rule>) => {
     setRules(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
