@@ -47,9 +47,6 @@ export function AdminPointRules({ companyId }: Props) {
     setRules((data as any) || []);
     setLoading(false);
   };
-    setRules((data as any) || []);
-    setLoading(false);
-  };
 
   useEffect(() => { load(); }, [companyId]);
 
