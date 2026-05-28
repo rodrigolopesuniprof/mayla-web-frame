@@ -46,10 +46,12 @@ export function AdminCampaigns() {
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
   const [form, setForm] = useState({
-    title: "", description: "", emoji: "🏆", category: "challenge",
+    title: "", description: "", how_to_participate: "", completion_criteria: "",
+    emoji: "🏆", category: "challenge",
     bonus_points: "0", badge_name: "", badge_emoji: "", company_id: "",
     program_id: "", starts_at: "", ends_at: "",
   });
+
 
   // Mission linking
   const [linkedMissions, setLinkedMissions] = useState<LinkedMission[]>([]);
