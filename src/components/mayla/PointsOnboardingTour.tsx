@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 type Step = {
   emoji: string;
@@ -8,6 +9,8 @@ type Step = {
   body: string;
   ctaLabel: string;
   action: () => void;
+  /** points_ledger.source values that mark this step as done */
+  completionSources: string[];
 };
 
 interface Props {
@@ -18,12 +21,8 @@ interface Props {
   onOpenLeaderboard: () => void;
 }
 
-/**
- * Trigger the tour from anywhere via:
- *   window.dispatchEvent(new CustomEvent("open-points-tour"))
- */
 export const POINTS_TOUR_EVENT = "open-points-tour";
-export const POINTS_TOUR_PROGRESS_EVENT = "points-tour-progress";
+const IDLE_REOPEN_MS = 5 * 60 * 1000;
 
 export function PointsOnboardingTour({
   onOpenProfile,
@@ -35,65 +34,127 @@ export function PointsOnboardingTour({
   const { user } = useAuth();
   const [show, setShow] = useState(false);
   const [step, setStep] = useState(0);
+  const stepRef = useRef(0);
+  const completedRef = useRef(false);
 
-  // Initial load: decide whether to auto-open
+  const steps: Step[] = [
+    {
+      emoji: "📋",
+      title: "Complete seus dados pessoais",
+      body: "Vamos começar com seus dados. Quanto mais completo, melhor a experiência.",
+      ctaLabel: "Abrir meu perfil",
+      action: onOpenProfile,
+      completionSources: ["profile_complete"],
+    },
+    {
+      emoji: "🩺",
+      title: "Faça sua autoavaliação",
+      body: "Responda algumas perguntas sobre sua saúde e ganhe pontos de bônus.",
+      ctaLabel: "Fazer agora",
+      action: onOpenSelfAssessment,
+      completionSources: ["self_assessment"],
+    },
+    {
+      emoji: "📷",
+      title: "Faça uma medição rPPG",
+      body: "Em segundos pela câmera você mede seus sinais vitais e ganha pontos.",
+      ctaLabel: "Medir agora",
+      action: onOpenRppg,
+      completionSources: ["rppg_measurement", "vitals_measurement"],
+    },
+    {
+      emoji: "🎯",
+      title: "Participe de atividades e desafios",
+      body: "Acompanhe campanhas, complete missões e desafios para ganhar pontos extras.",
+      ctaLabel: "Ver campanhas",
+      action: onOpenCampaigns,
+      completionSources: ["mission_complete", "daily_challenge", "weekly_checkin"],
+    },
+    {
+      emoji: "🏆",
+      title: "Acompanhe sua pontuação no ranking",
+      body: "Veja sua posição entre os colegas e suba de nível.",
+      ctaLabel: "Ver ranking",
+      action: onOpenLeaderboard,
+      completionSources: ["tour_step_ranking"], // user clicking CTA marks it done
+    },
+  ];
+
+  // Sync helper: load DB state and decide if popup should open
+  const loadAndMaybeOpen = async (force = false) => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("points_tour_completed,points_tour_current_step")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const p: any = data || {};
+    const completed = !!p.points_tour_completed;
+    const currentStep = Math.min(Number(p.points_tour_current_step || 0), steps.length - 1);
+    completedRef.current = completed;
+    stepRef.current = currentStep;
+    setStep(currentStep);
+    if (force || !completed) {
+      setTimeout(() => setShow(true), force ? 0 : 600);
+    }
+  };
+
+  // Initial open + listen for manual triggers
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("points_tour_completed,points_tour_dismissed_at,points_tour_current_step")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (cancelled || !data) return;
-      const p: any = data;
-      const completed = !!p.points_tour_completed;
-      const dismissedAt: string | null = p.points_tour_dismissed_at;
-      const currentStep: number = Number(p.points_tour_current_step || 0);
-
-      // Always broadcast progress so the home card knows what to show
-      window.dispatchEvent(new CustomEvent(POINTS_TOUR_PROGRESS_EVENT, {
-        detail: { completed, currentStep, total: 5 },
-      }));
-
-      if (completed) return;
-
-      let shouldOpen = false;
-      if (!dismissedAt) {
-        // never opened or never dismissed → open
-        shouldOpen = true;
-      } else {
-        // re-open once per day until completed
-        const dismissed = new Date(dismissedAt);
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        if (dismissed < todayStart) shouldOpen = true;
-      }
-      if (shouldOpen) {
-        setStep(Math.min(currentStep, 4));
-        setTimeout(() => setShow(true), 600);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user]);
-
-  // Listen for manual open requests
-  useEffect(() => {
-    if (!user) return;
-    const handler = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("points_tour_current_step,points_tour_completed")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const p: any = data || {};
-      const startStep = p.points_tour_completed ? 0 : Math.min(Number(p.points_tour_current_step || 0), 4);
-      setStep(startStep);
-      setShow(true);
-    };
+    loadAndMaybeOpen(false);
+    const handler = () => loadAndMaybeOpen(true);
     window.addEventListener(POINTS_TOUR_EVENT, handler);
     return () => window.removeEventListener(POINTS_TOUR_EVENT, handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Idle re-open every 5 minutes if still incomplete
+  useEffect(() => {
+    if (!user) return;
+    const id = setInterval(() => {
+      if (!completedRef.current && !show) {
+        loadAndMaybeOpen(true);
+      }
+    }, IDLE_REOPEN_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, show]);
+
+  // Realtime: listen for new points and advance tour when a step source matches
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`points-tour-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "points_ledger", filter: `user_id=eq.${user.id}` },
+        async (payload) => {
+          const row: any = payload.new || {};
+          const source: string = row.source || "";
+          const points: number = Number(row.points || 0);
+
+          // Always celebrate
+          if (points > 0) {
+            toast.success(`🎉 +${points} pontos!`, {
+              description: row.description || "Continue assim, você está mandando bem!",
+              duration: 4500,
+              position: "top-center",
+            });
+          }
+
+          if (completedRef.current) return;
+
+          // Does this point award match the current tour step?
+          const current = steps[stepRef.current];
+          if (current && current.completionSources.includes(source)) {
+            await advanceStep(`+${points} pts · ${current.title}`);
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const persistProgress = async (nextStep: number, opts: { completed?: boolean; dismissed?: boolean }) => {
@@ -106,74 +167,62 @@ export function PointsOnboardingTour({
       payload.points_tour_dismissed_at = new Date().toISOString();
     }
     await supabase.from("profiles").update(payload).eq("user_id", user.id);
-    window.dispatchEvent(new CustomEvent(POINTS_TOUR_PROGRESS_EVENT, {
-      detail: { completed: !!opts.completed, currentStep: nextStep, total: 5 },
-    }));
+  };
+
+  const advanceStep = async (justEarned: string) => {
+    const next = stepRef.current + 1;
+    if (next >= steps.length) {
+      completedRef.current = true;
+      stepRef.current = steps.length;
+      await persistProgress(steps.length, { completed: true });
+      toast.success("🏆 Você concluiu o tour de pontuação!", {
+        description: "Continue explorando o app para ganhar ainda mais pontos.",
+        duration: 5000,
+        position: "top-center",
+      });
+      setShow(false);
+      return;
+    }
+    stepRef.current = next;
+    setStep(next);
+    await persistProgress(next, {});
+    toast(`✅ Etapa concluída · vamos para a próxima!`, {
+      description: justEarned,
+      duration: 4000,
+      position: "top-center",
+    });
+    // Reopen popup at next step
+    setTimeout(() => setShow(true), 1200);
   };
 
   const dismiss = async () => {
-    await persistProgress(step, { dismissed: true });
+    await persistProgress(stepRef.current, { dismissed: true });
     setShow(false);
   };
 
-  const complete = async () => {
-    await persistProgress(5, { completed: true });
+  const goToCurrentTask = () => {
+    const s = steps[stepRef.current];
     setShow(false);
+    s?.action();
   };
 
-  const runAction = async (action: () => void, idx: number) => {
-    // Save progress (next step) so reopening continues forward, but don't mark complete
-    const nextStep = idx + 1;
-    if (nextStep >= 5) {
-      await persistProgress(5, { completed: true });
-    } else {
-      await persistProgress(nextStep, { dismissed: true });
+  const skipCurrentStep = async () => {
+    // Manually advance without earning points (rare escape hatch)
+    const next = stepRef.current + 1;
+    if (next >= steps.length) {
+      completedRef.current = true;
+      await persistProgress(steps.length, { completed: true });
+      setShow(false);
+      return;
     }
-    setShow(false);
-    action();
+    stepRef.current = next;
+    setStep(next);
+    await persistProgress(next, {});
   };
-
-  const steps: Step[] = [
-    {
-      emoji: "📋",
-      title: "Complete seus dados pessoais",
-      body: "Vamos começar com seus dados. Quanto mais completo, melhor a experiência.",
-      ctaLabel: "Abrir meu perfil",
-      action: onOpenProfile,
-    },
-    {
-      emoji: "🩺",
-      title: "Faça sua autoavaliação",
-      body: "Responda algumas perguntas sobre sua saúde e ganhe +200 pts de bônus.",
-      ctaLabel: "Fazer agora",
-      action: onOpenSelfAssessment,
-    },
-    {
-      emoji: "📷",
-      title: "Faça uma medição rPPG",
-      body: "Em segundos pela câmera você mede seus sinais vitais e ganha +50 pts.",
-      ctaLabel: "Medir agora",
-      action: onOpenRppg,
-    },
-    {
-      emoji: "🎯",
-      title: "Participe de atividades e desafios",
-      body: "Acompanhe campanhas, complete missões e desafios para ganhar pontos extras.",
-      ctaLabel: "Ver campanhas",
-      action: onOpenCampaigns,
-    },
-    {
-      emoji: "🏆",
-      title: "Acompanhe sua pontuação no ranking",
-      body: "Veja sua posição entre os colegas e suba de nível.",
-      ctaLabel: "Ver ranking",
-      action: onOpenLeaderboard,
-    },
-  ];
 
   if (!show) return null;
-  const s = steps[step];
-  const isLast = step === steps.length - 1;
+  const s = steps[Math.min(step, steps.length - 1)];
+  const isLast = step >= steps.length - 1;
 
   return (
     <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-5">
@@ -206,36 +255,27 @@ export function PointsOnboardingTour({
 
         <div className="flex flex-col gap-2 mt-4">
           <button
-            onClick={() => runAction(s.action, step)}
+            onClick={() => {
+              if (isLast) {
+                // Last step: clicking opens leaderboard AND completes tour
+                setShow(false);
+                s.action();
+                completedRef.current = true;
+                persistProgress(steps.length, { completed: true });
+              } else {
+                goToCurrentTask();
+              }
+            }}
             className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold cursor-pointer"
           >
             {s.ctaLabel}
           </button>
-          <div className="flex gap-2">
-            {step > 0 && (
-              <button
-                onClick={() => setStep(step - 1)}
-                className="flex-1 h-10 rounded-xl bg-transparent border border-border text-[12px] text-foreground cursor-pointer"
-              >
-                ← Anterior
-              </button>
-            )}
-            {!isLast ? (
-              <button
-                onClick={async () => { await persistProgress(step + 1, {}); setStep(step + 1); }}
-                className="flex-1 h-10 rounded-xl bg-transparent border border-border text-[12px] text-foreground cursor-pointer"
-              >
-                Próximo →
-              </button>
-            ) : (
-              <button
-                onClick={complete}
-                className="flex-1 h-10 rounded-xl bg-accent/15 text-accent text-[12px] font-semibold cursor-pointer"
-              >
-                Concluir
-              </button>
-            )}
-          </div>
+          <button
+            onClick={skipCurrentStep}
+            className="w-full h-9 rounded-xl bg-transparent text-[11px] text-muted-foreground cursor-pointer"
+          >
+            Pular esta etapa
+          </button>
         </div>
       </div>
     </div>

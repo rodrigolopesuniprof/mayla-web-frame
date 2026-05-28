@@ -8,7 +8,6 @@ import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
 import { GamificationStatusCard } from "./GamificationStatusCard";
 import { MedicationReminderCard } from "./MedicationReminderCard";
-import { POINTS_TOUR_EVENT, POINTS_TOUR_PROGRESS_EVENT } from "./PointsOnboardingTour";
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard }: {
   setTab: (id: TabId) => void;
@@ -79,34 +78,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [lastMeasurement, setLastMeasurement] = useState<{ heart_rate: number | null; measured_at: string } | null>(null);
 
-  // Tour progress for the always-visible "Como ganhar pontos" chip / continue card
-  const [tourProgress, setTourProgress] = useState<{ completed: boolean; currentStep: number; total: number }>({
-    completed: false, currentStep: 0, total: 5,
-  });
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("profiles")
-      .select("points_tour_completed,points_tour_current_step")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setTourProgress({
-            completed: !!(data as any).points_tour_completed,
-            currentStep: Number((data as any).points_tour_current_step || 0),
-            total: 5,
-          });
-        }
-      });
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { completed: boolean; currentStep: number; total: number };
-      if (detail) setTourProgress(detail);
-    };
-    window.addEventListener(POINTS_TOUR_PROGRESS_EVENT, handler);
-    return () => window.removeEventListener(POINTS_TOUR_PROGRESS_EVENT, handler);
-  }, [user]);
-
   useEffect(() => {
     if (!user) return;
     supabase.from("health_scores").select("score_general").eq("user_id", user.id).order("generated_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
@@ -117,9 +88,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
     });
   }, [user]);
 
-  const openTour = () => window.dispatchEvent(new CustomEvent(POINTS_TOUR_EVENT));
-
-  const stepLabels = ["Dados pessoais", "Autoavaliação", "Medição rPPG", "Atividades e desafios", "Ranking"];
 
 
 
@@ -159,17 +127,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             opacity: 0.09, zIndex: 0
           }} />
         <div className="relative z-[1]"><BrandBadge height={38} /></div>
-        <div className="relative z-[1] flex items-center gap-2">
-          <button
-            onClick={openTour}
-            aria-label="Como ganhar pontos"
-            className="h-9 px-3 rounded-full bg-accent/15 border border-accent/30 text-accent text-[11px] font-semibold cursor-pointer hover:bg-accent/25 transition-colors flex items-center gap-1.5"
-          >
-            <span>🎯</span>
-            <span className="hidden sm:inline">{tourProgress.completed ? "Como ganhar pontos" : "Ganhe pontos"}</span>
-          </button>
-          <Avatar initials={firstName.slice(0, 2).toUpperCase()} avatarUrl={avatarUrl} avatarType={avatarType} />
-        </div>
+        <Avatar initials={firstName.slice(0, 2).toUpperCase()} avatarUrl={avatarUrl} avatarType={avatarType} />
       </div>
 
       {/* Greeting */}
@@ -182,24 +140,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </p>
       </div>
 
-      {/* Continue points tour */}
-      {!tourProgress.completed && (
-        <button
-          onClick={openTour}
-          className="mx-5 mb-5 rounded-[18px] px-4 py-3 flex items-center gap-3 border border-accent/30 bg-gradient-to-r from-accent/10 to-primary/10 cursor-pointer hover:from-accent/15 hover:to-primary/15 transition-colors w-[calc(100%-2.5rem)] text-left"
-        >
-          <div className="shrink-0 flex items-center justify-center text-xl" style={{ width: 42, height: 42, borderRadius: 12, background: "hsl(var(--accent) / .18)" }}>🎯</div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-semibold text-foreground">
-              {tourProgress.currentStep === 0 ? "Conheça como ganhar pontos" : "Continue conhecendo o app"}
-            </div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              Passo {Math.min(tourProgress.currentStep + 1, tourProgress.total)} de {tourProgress.total} · {stepLabels[Math.min(tourProgress.currentStep, stepLabels.length - 1)]}
-            </div>
-          </div>
-          <span className="text-accent text-[12px] font-semibold whitespace-nowrap">{tourProgress.currentStep === 0 ? "Começar →" : "Retomar →"}</span>
-        </button>
-      )}
+
 
 
 
