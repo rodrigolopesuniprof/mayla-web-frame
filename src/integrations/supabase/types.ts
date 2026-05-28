@@ -2599,6 +2599,8 @@ export type Database = {
           phone: string | null
           points: number
           points_tour_completed: boolean
+          points_tour_current_step: number
+          points_tour_dismissed_at: string | null
           prenatal_dental_done: boolean | null
           prenatal_started: boolean | null
           signed_up_via_token: string | null
@@ -2655,6 +2657,8 @@ export type Database = {
           phone?: string | null
           points?: number
           points_tour_completed?: boolean
+          points_tour_current_step?: number
+          points_tour_dismissed_at?: string | null
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
           signed_up_via_token?: string | null
@@ -2711,6 +2715,8 @@ export type Database = {
           phone?: string | null
           points?: number
           points_tour_completed?: boolean
+          points_tour_current_step?: number
+          points_tour_dismissed_at?: string | null
           prenatal_dental_done?: boolean | null
           prenatal_started?: boolean | null
           signed_up_via_token?: string | null
