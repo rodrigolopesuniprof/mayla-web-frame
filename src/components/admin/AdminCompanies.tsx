@@ -150,7 +150,7 @@ export function AdminCompanies() {
   const copyInviteLink = (companyId: string) => {
     const token = tokens[companyId];
     if (!token) { toast({ title: "Token não encontrado", description: "Recarregue a página.", variant: "destructive" }); return; }
-    const url = `${window.location.origin}/cadastro/${token}`;
+    const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/invite-preview/${token}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link de cadastro copiado!", description: url });
   };

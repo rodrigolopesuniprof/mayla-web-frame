@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 
-const PUBLISHED_DOMAIN = "https://saude.saudecomvc.com.br";
+const INVITE_BASE = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/invite-preview`;
 
 interface InviteToken {
   id: string;
@@ -71,12 +71,12 @@ export function InviteLinkPanel({ companyId, companySlug, onTokenChanged }: Prop
     return data as InviteToken;
   };
 
-  const link = token ? `${PUBLISHED_DOMAIN}/cadastro/${token.token}` : "";
+  const link = token ? `${INVITE_BASE}/${token.token}` : "";
 
   const copyLink = async () => {
     const t = await ensureToken();
     if (!t) return;
-    const url = `${PUBLISHED_DOMAIN}/cadastro/${t.token}`;
+    const url = `${INVITE_BASE}/${t.token}`;
     await navigator.clipboard.writeText(url);
     toast({ title: "Link copiado!", description: url });
     if (!token) { setToken(t); onTokenChanged?.(); }
