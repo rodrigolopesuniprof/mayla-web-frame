@@ -31,25 +31,17 @@ export default function CompanySignup() {
     if (!token) { setInvalid(true); setLoading(false); return; }
 
     const validate = async () => {
-      const { data: tokenData } = await supabase
-        .from("company_invite_tokens")
-        .select("company_id, expires_at, active, max_uses, uses_count")
-        .eq("token", token)
-        .maybeSingle();
+      const { data: tokenRows } = await supabase.rpc("validate_invite_token", { _token: token });
+      const tokenInfo = Array.isArray(tokenRows) ? tokenRows[0] : tokenRows;
 
-      if (!tokenData) { setInvalid(true); setLoading(false); return; }
-      if (!tokenData.active) { setInvalid(true); setLoading(false); return; }
-      if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
-        setInvalid(true); setLoading(false); return;
-      }
-      if (tokenData.max_uses != null && tokenData.uses_count >= tokenData.max_uses) {
+      if (!tokenInfo || !tokenInfo.valid || !tokenInfo.company_id) {
         setInvalid(true); setLoading(false); return;
       }
 
       const { data: companyData } = await supabase
         .from("companies")
         .select("id, name, logo_url, primary_color, background_color")
-        .eq("id", tokenData.company_id)
+        .eq("id", tokenInfo.company_id)
         .single();
 
       if (!companyData) { setInvalid(true); setLoading(false); return; }
