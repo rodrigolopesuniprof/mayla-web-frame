@@ -4,7 +4,7 @@ import { WellbeingPrograms } from "@/components/corporate/WellbeingPrograms";
 import { CampaignsList } from "@/components/corporate/CampaignsList";
 import { TopBar } from "./TopBar";
 import { MissionsTab } from "./MissionsTab";
-import { RankingQuickView } from "./RankingQuickView";
+
 import type { TabId } from "@/lib/mayla-config";
 
 type SubView = "overview" | "missions";
@@ -17,7 +17,6 @@ interface Props {
 export function CampanhasTab({ onNavigate, onOpenLeaderboard }: Props) {
   const { companyId, primaryColor } = useCompany();
   const [subView, setSubView] = useState<SubView>("overview");
-  const [showQuickRanking, setShowQuickRanking] = useState(false);
 
   if (subView === "missions") {
     return <MissionsTab onBack={() => setSubView("overview")} />;
@@ -28,7 +27,7 @@ export function CampanhasTab({ onNavigate, onOpenLeaderboard }: Props) {
       <TopBar title="Desafios" />
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
         <button
-          onClick={() => setShowQuickRanking(true)}
+          onClick={() => onOpenLeaderboard?.()}
           className="w-full rounded-2xl p-4 border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card flex items-center gap-4 cursor-pointer text-left"
         >
           <span className="text-3xl">🏆</span>
@@ -54,12 +53,6 @@ export function CampanhasTab({ onNavigate, onOpenLeaderboard }: Props) {
         <WellbeingPrograms companyId={companyId || ""} primaryColor={primaryColor} onNavigate={onNavigate} />
         <CampaignsList companyId={companyId || ""} primaryColor={primaryColor} />
       </div>
-
-      <RankingQuickView
-        open={showQuickRanking}
-        onOpenChange={setShowQuickRanking}
-        onOpenFull={() => onOpenLeaderboard?.()}
-      />
     </div>
   );
 }
