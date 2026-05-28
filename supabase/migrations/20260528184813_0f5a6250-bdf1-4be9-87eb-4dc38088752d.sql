@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.award_event(uuid, text, uuid, text, uuid);

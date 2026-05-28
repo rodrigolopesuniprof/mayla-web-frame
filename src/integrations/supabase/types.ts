@@ -4081,28 +4081,17 @@ export type Database = {
         Args: { _url: string; _user_id: string }
         Returns: Json
       }
-      award_event:
-        | {
-            Args: {
-              _company_id?: string
-              _description?: string
-              _event_key: string
-              _source_id?: string
-              _user_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _company_id?: string
-              _description?: string
-              _event_key: string
-              _override_points?: number
-              _source_id?: string
-              _user_id: string
-            }
-            Returns: Json
-          }
+      award_event: {
+        Args: {
+          _company_id?: string
+          _description?: string
+          _event_key: string
+          _override_points?: number
+          _source_id?: string
+          _user_id: string
+        }
+        Returns: Json
+      }
       award_mission_event: {
         Args: { _mission_id: string; _user_id: string }
         Returns: Json
