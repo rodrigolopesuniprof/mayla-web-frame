@@ -1,18 +1,38 @@
-## Mudança
+## Problema
 
-Trocar a base do link de cadastro gerado no painel admin: em vez de apontar para a edge function `invite-preview`, apontar direto para `https://saude.saudecomvc.com.br/cadastro/<token>`.
+O cadastro via link de convite (`/cadastro/:token`) falha com **"Signups not allowed for this instance"**.
 
-## Arquivos
+Causa: o backend tem cadastro público **desabilitado de propósito** (regra de segurança — só pode entrar quem tem convite). Mas a página hoje chama `supabase.auth.signUp` direto do navegador, e esse caminho está bloqueado para qualquer um, mesmo quem tem token válido.
 
-1. **`src/components/admin/InviteLinkPanel.tsx`**
-   - Substituir a constante `INVITE_BASE` por `"https://saude.saudecomvc.com.br/cadastro"`.
-   - O link copiado, exibido e o QR Code passam a ser `https://saude.saudecomvc.com.br/cadastro/<token>`.
+A troca de domínio feita antes só mudou a URL exibida, não mexeu nessa regra.
 
-2. **`src/components/admin/AdminCompanies.tsx`**
-   - Se houver geração de link na lista de empresas usando a mesma base da edge function, alinhar para o mesmo domínio `https://saude.saudecomvc.com.br/cadastro/<token>`.
+## Solução
 
-## Observações
+Criar uma edge function `invite-signup` que roda no servidor com permissão administrativa, valida o token e cria o usuário pela API de admin do Supabase (que ignora a trava de signup público). Assim mantemos cadastro fechado para o público em geral **e** funcionando para quem tem link válido.
 
-- Não mexer no `.env`, no `supabase/config.toml` nem na edge function `invite-preview` (ela continua existindo caso seja necessária no futuro, mas não será mais usada para gerar o link compartilhado).
-- O fluxo de cadastro em `/cadastro/:token` já está implementado em `CompanySignup.tsx`, então o link novo cai direto na tela correta no domínio de produção.
-- Resultado: ao copiar/compartilhar, o usuário vê o domínio oficial `saude.saudecomvc.com.br` e o preview do link no WhatsApp passa a usar os metadados do `index.html` do app publicado.
+### Passos
+
+1. **Nova edge function `supabase/functions/invite-signup/index.ts`** (pública, sem JWT):
+   - Recebe `{ token, email, password, full_name, cpf }`.
+   - Valida o token via RPC `validate_invite_token` (checa ativo, prazo, limite).
+   - Se válido, cria o usuário com `supabase.auth.admin.createUser` usando `SERVICE_ROLE_KEY`, gravando em `user_metadata`: `full_name`, `cpf`, `company_id`. Mantém `email_confirm: false` (usuário precisa confirmar e-mail, como hoje).
+   - O trigger `handle_new_user` já existente cria automaticamente o `profiles` com o `company_id`.
+   - Chama `register_via_invite_token` para incrementar o contador e marcar `signed_up_via_token`.
+   - Chama `apply_dicebear_avatar` para gerar avatar + creditar 50 pts.
+   - Se `register_via_invite_token` falhar (limite atingido em corrida, por ex.), faz `auth.admin.deleteUser` para não deixar conta órfã.
+   - Retorna `{ ok, user_id }` ou `{ ok: false, reason }` com mensagens conhecidas: `not_found`, `inactive`, `expired`, `limit_reached`, `email_in_use`, `weak_password`, `invalid_email`.
+
+2. **Registrar no `supabase/config.toml`** com `verify_jwt = false` (já está, mas confirmar).
+
+3. **Ajustar `src/pages/CompanySignup.tsx`**:
+   - Trocar a chamada `supabase.auth.signUp(...)` por `supabase.functions.invoke("invite-signup", { body: {...} })`.
+   - Remover a etapa cliente de `register_via_invite_token` e `apply_dicebear_avatar` (passam para dentro da function, evitando race conditions).
+   - Traduzir os códigos de erro retornados pela function em mensagens em português via toast.
+
+4. **Não mexer** em: configuração global de auth (signup público continua desligado), `.env`, schema do banco, ou no domínio do link já ajustado.
+
+### Resultado esperado
+
+- Link `https://saude.saudecomvc.com.br/cadastro/<token>` válido → cadastro funciona, e-mail de confirmação é enviado, contador do token incrementa, perfil criado com `company_id` correto, avatar e +50 pts.
+- Sem token / token expirado / limite / desativado → mensagem clara em português, sem criar usuário.
+- Tentativa de cadastro fora do convite → continua bloqueada.
