@@ -33,7 +33,7 @@ export function CampanhasTab({ onNavigate, onOpenLeaderboard }: Props) {
         >
           <span className="text-3xl">🏆</span>
           <div className="flex-1">
-            <div className="text-[15px] font-semibold text-foreground">Ranking da empresa</div>
+            <div className="text-[15px] font-semibold text-foreground">Ranking </div>
             <div className="text-sm text-muted-foreground">Veja sua posição desta semana</div>
           </div>
           <span className="text-muted-foreground text-lg">›</span>
