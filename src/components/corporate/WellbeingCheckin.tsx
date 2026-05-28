@@ -153,8 +153,11 @@ export function WellbeingCheckin({ companyId, primaryColor, onComplete }: Props)
         className="w-full"
         style={primaryColor ? { backgroundColor: `hsl(${primaryColor})` } : undefined}
       >
-        {loading ? "Enviando..." : "Enviar Check-in"}
+        {loading ? "Enviando..." : "Enviar Check-in · +50 pts"}
       </Button>
+      <p className="text-[11px] text-center text-muted-foreground">
+        Ganhe +50 pontos ao concluir o check-in da semana.
+      </p>
     </div>
   );
 }

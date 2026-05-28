@@ -109,7 +109,9 @@ export function TeamPickerDialog({ open, onOpenChange }: { open: boolean; onOpen
               </div>
             )}
 
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">Times disponíveis</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Times disponíveis <span className="text-accent normal-case">· +500 pts ao aderir (uma vez)</span>
+            </div>
             {availableTeams.map((team) => (
               <div key={team.id} className="bg-secondary rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleJoinTeam(team.id)}>
                 <span className="text-xl">{team.emoji}</span>
