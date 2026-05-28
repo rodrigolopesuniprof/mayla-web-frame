@@ -69,7 +69,7 @@ export function useLeaderboard(period: LeaderboardPeriod, limit = 50) {
     const [{ data: rowsData }, { data: goalsData }] = await Promise.all([
       supabase
         .from("company_leaderboard" as any)
-        .select("user_id, full_name, total_points, week_points, month_points, year_points, current_level, rank_total, rank_week, rank_month, rank_year")
+        .select("user_id, full_name, avatar_url, avatar_type, total_points, week_points, month_points, year_points, current_level, rank_total, rank_week, rank_month, rank_year")
         .eq("company_id", companyId)
         .order(orderCol, { ascending: false })
         .limit(limit),
