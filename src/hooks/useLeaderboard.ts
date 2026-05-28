@@ -7,6 +7,8 @@ export type LeaderboardPeriod = "week" | "month" | "year" | "total";
 export interface LeaderboardRow {
   user_id: string;
   full_name: string | null;
+  avatar_url: string | null;
+  avatar_type: string | null;
   total_points: number;
   week_points: number;
   month_points: number;
