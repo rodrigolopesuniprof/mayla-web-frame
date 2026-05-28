@@ -21,6 +21,7 @@ import CompanySignup from "./pages/CompanySignup.tsx";
 import Subscribe from "./pages/Subscribe.tsx";
 import MySubscription from "./pages/MySubscription.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
+import PublicLeaderboard from "./pages/PublicLeaderboard.tsx";
 import { AccessGate } from "./components/AccessGate";
 import { lazy, Suspense } from "react";
 
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/empresa/:slug" element={<CompanyLanding />} />
               <Route path="/cadastro-parceiro" element={<PartnerRegistration />} />
               <Route path="/cadastro/:token" element={<CompanySignup />} />
+              <Route path="/painel-publico/:token" element={<PublicLeaderboard />} />
               <Route path="/assinar/:slug" element={<Subscribe />} />
               {/* Backward compat */}
               <Route path="/cidade/:slug" element={<CompanyLanding />} />

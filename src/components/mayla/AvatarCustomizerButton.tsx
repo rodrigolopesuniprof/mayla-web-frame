@@ -81,14 +81,22 @@ export function AvatarCustomizerButton({
       return;
     }
 
-    if (!pointsAwarded) {
-      await supabase.rpc("add_points_to_profile" as any, { _user_id: userId, _points: 150 });
-      await supabase
-        .from("profiles")
-        .update({ avatar_points_awarded: true } as any)
-        .eq("user_id", userId);
-      toast({ title: "Avatar personalizado! 🎉", description: "+150 pts" });
-    } else {
+    try {
+      const { data: res } = await supabase.rpc("award_event" as any, {
+        _user_id: userId,
+        _event_key: "avatar_dicebear",
+        _description: "Avatar personalizado",
+      });
+      const r: any = res || {};
+      if (r.ok && r.points > 0) {
+        await supabase.from("profiles").update({ avatar_points_awarded: true } as any).eq("user_id", userId);
+        toast({ title: "Avatar personalizado! 🎉", description: `+${r.points} pts` });
+      } else if (r.reason === "cap_reached") {
+        toast({ title: "Avatar atualizado! ✓", description: "Limite de pontos desta atividade atingido." });
+      } else {
+        toast({ title: "Avatar atualizado! ✓" });
+      }
+    } catch {
       toast({ title: "Avatar atualizado! ✓" });
     }
 

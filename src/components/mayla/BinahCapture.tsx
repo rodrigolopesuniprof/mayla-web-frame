@@ -213,8 +213,19 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       notes: `Medição especial via ${providerName}`,
     });
 
-    // Award points
-    try { await supabase.rpc("add_points_to_profile" as any, { _user_id: user.id, _points: 100 }); } catch {}
+    // Award points via centralized engine
+    let awarded = 0;
+    let capReached = false;
+    try {
+      const { data: res } = await supabase.rpc("award_event" as any, {
+        _user_id: user.id,
+        _event_key: "vitals_measurement",
+        _description: "Medição especial Vitals",
+      });
+      const r: any = res || {};
+      if (r.ok) awarded = r.points || 0;
+      else if (r.reason === "cap_reached") capReached = true;
+    } catch {}
 
     // Trigger health score calculation
     try {
@@ -225,7 +236,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
 
     setSaving(false);
     setSaved(true);
-    toast({ title: "Medição especial salva! 🎉", description: "+100 pontos de saúde" });
+    toast({
+      title: "Medição especial salva! 🎉",
+      description: capReached
+        ? "Limite semanal de pontos atingido."
+        : awarded > 0 ? `+${awarded} pontos de saúde` : "Salvo com sucesso",
+    });
     onComplete();
   };
 
