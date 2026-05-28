@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, pointsFor, rankFor } from "@/hooks/useLeaderboard";
+import { markFirstStep } from "@/lib/first-steps";
 
 interface Props {
   open: boolean;
@@ -15,6 +17,10 @@ import { getInitials as initials, hasCustomAvatar } from "@/lib/avatar";
 export function RankingQuickView({ open, onOpenChange, onOpenFull }: Props) {
   const { user } = useAuth();
   const { rows, loading } = useLeaderboard("week", 10);
+
+  useEffect(() => {
+    if (open && user?.id) markFirstStep(user.id, "ranking-viewed");
+  }, [open, user?.id]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

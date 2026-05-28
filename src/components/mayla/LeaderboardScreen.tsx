@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, pointsFor, rankFor, goalFor, type LeaderboardPeriod, type LeaderboardRow } from "@/hooks/useLeaderboard";
 import { DailyChallengeCard } from "./DailyChallengeCard";
 import { Avatar } from "./MaylaIcons";
 import { getInitials as initials, hasCustomAvatar } from "@/lib/avatar";
+import { markFirstStep } from "@/lib/first-steps";
 
 interface Props { onBack: () => void; }
 
@@ -34,6 +35,10 @@ export function LeaderboardScreen({ onBack }: Props) {
   const { user } = useAuth();
   const [period, setPeriod] = useState<LeaderboardPeriod>("week");
   const { rows, goals, loading } = useLeaderboard(period);
+
+  useEffect(() => {
+    if (user?.id) markFirstStep(user.id, "ranking-viewed");
+  }, [user?.id]);
 
   const myRow = rows.find((r) => r.user_id === user?.id);
   const podium = rows.slice(0, 3);

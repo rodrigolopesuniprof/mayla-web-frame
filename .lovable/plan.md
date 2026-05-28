@@ -1,38 +1,58 @@
-## Objetivo
+## Problema
 
-Permitir que o usuário clique em um desafio (em "Desafios") para abrir um box (modal) com a explicação completa: o que é, como participar e como cumprir, além dos detalhes (pontos, período, badge).
+Hoje o card `FirstStepsCard` marca cada passo como concluído só quando encontra um registro com `source` específico em `points_ledger`. Resultado: quem já completou perfil, autoavaliação ou rPPG antes (ou já abriu campanhas/ranking) continua vendo tudo como pendente, porque ou nunca houve evento de pontos, ou o cap semanal/lifetime impediu o registro.
+
+Vamos passar a detectar cada passo pelo **estado real** do usuário, e adicionar um passo simples de "visualização de campanhas" sem exigir ação pontuada.
 
 ## Mudanças
 
-### 1. `src/components/corporate/CampaignsList.tsx`
-- Tornar o card inteiro clicável (cursor pointer + onClick) abrindo um `Dialog` com os detalhes do desafio selecionado.
-- O botão "Participar" continua funcionando normalmente, mas com `stopPropagation` para não abrir o modal ao clicar nele.
-- Adicionar um ícone discreto de "?" / "info" no canto do card para reforçar a affordance de clique.
-- No modal mostrar:
-  - Emoji + título grande
-  - Descrição completa (sem `line-clamp`)
-  - Seção **"Como participar"** — texto explicativo (usa `how_to_participate` se existir; senão fallback genérico baseado em categoria/tipo).
-  - Seção **"Como cumprir"** / critério de conclusão (usa `completion_criteria` se existir; senão fallback genérico).
-  - Pontos, badge, período.
-  - Botão "Participar" / status "✅ Participando" dentro do modal também.
+### 1. `src/components/mayla/FirstStepsCard.tsx` — nova lógica de detecção
 
-### 2. Suporte a textos editáveis pelo admin (opcional, recomendado)
-Atualmente `campaigns` só tem `description`. Para suportar textos ricos de "como participar" e "como cumprir":
+Substituir a checagem única em `points_ledger` por consultas paralelas ao estado real. Cada passo fica concluído assim que a condição abaixo é verdadeira (independente de pontos terem sido creditados):
 
-- **Migration**: adicionar duas colunas opcionais em `public.campaigns`:
-  - `how_to_participate text` (nullable)
-  - `completion_criteria text` (nullable)
-- Atualizar `src/components/admin/AdminCampaigns.tsx` para incluir esses dois campos no formulário de criação/edição (textarea).
-- O front (`CampaignsList`) lê esses campos; quando vazios, mostra fallback padrão.
+| Passo | Como passa a ser detectado |
+|---|---|
+| 📋 Complete seus dados pessoais | `profiles.birth_date` **e** `profiles.biological_sex` preenchidos (mesma regra do `ProfileCompletionGate`) |
+| 🩺 Faça sua autoavaliação | existe ≥1 linha em `self_assessment_responses` para `user_id` |
+| 📷 Faça uma medição rPPG | existe ≥1 linha em `health_measurements` para `user_id` (qualquer data) |
+| 👀 Veja as campanhas (**novo**, substitui "Participe de uma campanha ou missão") | flag local `mayla:first-steps:campaigns-viewed:<userId>` em `localStorage`, marcada ao abrir a aba Desafios; **ou** existe registro em `points_ledger` com source `mission_complete` / `daily_challenge` / `weekly_checkin` (mantém compatibilidade pra quem já fez algo) |
+| 🏆 Veja sua posição no ranking | flag local `mayla:first-steps:ranking-viewed:<userId>` em `localStorage`, marcada ao abrir `LeaderboardScreen` ou `RankingQuickView`; **ou** ainda registro `tour_step_ranking` no ledger |
 
-Se preferir manter o escopo só no front por enquanto, posso pular a migration e usar apenas `description` (mostrando-o completo no modal). Vou incluir a migration por padrão para o admin poder editar a explicação.
+A nova lógica:
+- Faz `Promise.all` com 4 queries (`profiles`, `self_assessment_responses`, `health_measurements`, `points_ledger` para fallback) + leitura de localStorage.
+- Mantém o realtime em `points_ledger` e adiciona um listener no evento customizado `first-steps-refresh` para forçar recarga quando uma flag local for setada na mesma sessão.
+- Remove a dependência do source `profile_complete`/`self_assessment`/`rppg_measurement` para marcar como done — eles continuam existindo no banco, só não são mais a fonte de verdade da UI.
 
-## Arquivos
+### 2. Marcar "viu campanhas" e "viu ranking"
 
-- `src/components/corporate/CampaignsList.tsx` — card clicável + Dialog com detalhes
-- `src/components/admin/AdminCampaigns.tsx` — novos campos `how_to_participate` e `completion_criteria`
-- Migration: `ALTER TABLE public.campaigns ADD COLUMN how_to_participate text, ADD COLUMN completion_criteria text;`
+Helper único `src/lib/first-steps.ts` com:
+```ts
+markFirstStep(userId: string, key: "campaigns-viewed" | "ranking-viewed"): void
+hasFirstStep(userId: string, key): boolean
+```
+Seta no `localStorage` e dispara `window.dispatchEvent(new Event("first-steps-refresh"))`.
+
+Chamadas:
+- `src/components/mayla/CampanhasTab.tsx` — `useEffect(() => markFirstStep(user.id, "campaigns-viewed"), [])` quando a aba monta.
+- `src/components/mayla/LeaderboardScreen.tsx` — idem ao montar.
+- `src/components/mayla/RankingQuickView.tsx` — idem (caso o usuário só abra o quick view sem entrar na tela cheia).
+
+### 3. Sem mudanças em banco / pontuação
+
+- Nenhuma migração.
+- Regras de pontos do `point_rules` permanecem como estão — "visualizar campanhas" e "ver ranking" não geram pontos (eram passos informativos no tour).
+- Os passos com pontos atrelados (perfil, autoavaliação, rPPG) continuam creditando normalmente via os triggers/`award_event` existentes; só a detecção visual do card é desacoplada.
 
 ## Fora de escopo
-- Não muda lógica de pontuação nem fluxo de participação.
-- Não mexe em "Missões" (`MissionsTab`) — só nos cards de "Desafios" (campaigns) que aparecem na imagem.
+
+- Adicionar pontuação por visualizar campanhas/ranking.
+- Alterar o `PointsOnboardingTour` (popup) — ele continua usando a mesma flag `points_tour_completed` que já tem.
+- Alterar `CampaignsList`/`MissionsTab`.
+
+## Arquivos tocados
+
+- `src/lib/first-steps.ts` (novo)
+- `src/components/mayla/FirstStepsCard.tsx`
+- `src/components/mayla/CampanhasTab.tsx`
+- `src/components/mayla/LeaderboardScreen.tsx`
+- `src/components/mayla/RankingQuickView.tsx`

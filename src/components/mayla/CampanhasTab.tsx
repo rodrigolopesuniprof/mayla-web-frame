@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { WellbeingPrograms } from "@/components/corporate/WellbeingPrograms";
 import { CampaignsList } from "@/components/corporate/CampaignsList";
 import { TopBar } from "./TopBar";
 import { MissionsTab } from "./MissionsTab";
+import { markFirstStep } from "@/lib/first-steps";
 
 import type { TabId } from "@/lib/mayla-config";
 
@@ -16,7 +18,12 @@ interface Props {
 
 export function CampanhasTab({ onNavigate, onOpenLeaderboard }: Props) {
   const { companyId, primaryColor } = useCompany();
+  const { user } = useAuth();
   const [subView, setSubView] = useState<SubView>("overview");
+
+  useEffect(() => {
+    if (user?.id) markFirstStep(user.id, "campaigns-viewed");
+  }, [user?.id]);
 
   if (subView === "missions") {
     return <MissionsTab onBack={() => setSubView("overview")} />;
