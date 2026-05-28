@@ -42,7 +42,7 @@ export function AdminPointRules({ companyId }: Props) {
       .from("point_rules" as any)
       .select("*")
       .eq("company_id", companyId)
-      .neq("event_key", "mission_complete")
+      .not("event_key", "in", "(mission_complete,self_assessment)")
       .order("label");
     setRules((data as any) || []);
     setLoading(false);
