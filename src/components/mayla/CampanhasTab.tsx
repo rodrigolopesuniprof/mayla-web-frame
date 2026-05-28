@@ -18,7 +18,12 @@ interface Props {
 
 export function CampanhasTab({ onNavigate, onOpenLeaderboard }: Props) {
   const { companyId, primaryColor } = useCompany();
+  const { user } = useAuth();
   const [subView, setSubView] = useState<SubView>("overview");
+
+  useEffect(() => {
+    if (user?.id) markFirstStep(user.id, "campaigns-viewed");
+  }, [user?.id]);
 
   if (subView === "missions") {
     return <MissionsTab onBack={() => setSubView("overview")} />;
