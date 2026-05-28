@@ -866,6 +866,19 @@ function Medicamentos({ userId }: { userId?: string }) {
               ))}
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Horário do lembrete</Label>
+              <Input type="time" value={form.reminder_time} onChange={(e) => setForm({ ...form, reminder_time: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Data de início</Label>
+              <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            💊 Ganhe +100 pts por dia ao confirmar adesão.
+          </p>
           <Button onClick={handleAdd} disabled={saving || !form.name.trim()} className="w-full">
             {saving ? "Salvando..." : "Adicionar medicamento"}
           </Button>
