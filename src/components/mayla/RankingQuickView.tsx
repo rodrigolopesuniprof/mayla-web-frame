@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, pointsFor, rankFor } from "@/hooks/useLeaderboard";
+import { markFirstStep } from "@/lib/first-steps";
 
 interface Props {
   open: boolean;
