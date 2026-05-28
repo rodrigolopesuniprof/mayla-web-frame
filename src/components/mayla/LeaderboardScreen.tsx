@@ -36,6 +36,10 @@ export function LeaderboardScreen({ onBack }: Props) {
   const [period, setPeriod] = useState<LeaderboardPeriod>("week");
   const { rows, goals, loading } = useLeaderboard(period);
 
+  useEffect(() => {
+    if (user?.id) markFirstStep(user.id, "ranking-viewed");
+  }, [user?.id]);
+
   const myRow = rows.find((r) => r.user_id === user?.id);
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
