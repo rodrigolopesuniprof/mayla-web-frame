@@ -3708,6 +3708,14 @@ export type Database = {
         Args: { _assignment_id: string }
         Returns: Json
       }
+      consume_report_share: {
+        Args: { _token: string }
+        Returns: {
+          expires_at: string
+          user_id: string
+          valid: boolean
+        }[]
+      }
       current_user_affiliate_ids: { Args: never; Returns: string[] }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -3784,6 +3792,18 @@ export type Database = {
       register_via_invite_token: {
         Args: { _token: string; _user_id: string }
         Returns: Json
+      }
+      save_clinical_note_via_share: {
+        Args: { _note: string; _token: string }
+        Returns: string
+      }
+      validate_invite_token: {
+        Args: { _token: string }
+        Returns: {
+          company_id: string
+          reason: string
+          valid: boolean
+        }[]
       }
     }
     Enums: {
