@@ -284,11 +284,11 @@ function ConsentScreen({
             boxShadow: "0 8px 24px rgba(232,87,74,.3)",
           }}
         >
-          📸 Iniciar Medição
+          📸 Iniciar Medição · +50 pts
         </button>
 
         <p className="text-[10px] text-muted-foreground">
-          A câmera só será usada durante a medição
+          A câmera só será usada durante a medição · ganhe +50 pontos ao concluir
         </p>
       </div>
     </div>
