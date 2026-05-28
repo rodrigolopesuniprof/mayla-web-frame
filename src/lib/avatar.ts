@@ -65,6 +65,26 @@ export function dicebearUrl(fullName: string, userId: string, style: DicebearSty
   return dicebearDataUri(style, seed);
 }
 
+/** Lista fixa de sementes para navegar por variações pré-definidas. */
+export const AVATAR_PRESET_SEEDS: readonly string[] = [
+  "alex", "sky", "mia", "leo", "luna", "noah",
+  "zoe", "kai", "iris", "max", "nina", "ravi",
+  "sara", "theo", "yuki", "vera", "omar", "june",
+  "bia", "caio", "elis", "dora", "ian", "tom",
+];
+
+export function findPresetIndex(seed: string | null | undefined): number {
+  if (!seed) return -1;
+  return AVATAR_PRESET_SEEDS.indexOf(seed);
+}
+
+export function nextPresetSeed(currentIndex: number, direction: 1 | -1): { index: number; seed: string } {
+  const len = AVATAR_PRESET_SEEDS.length;
+  const base = currentIndex < 0 ? 0 : currentIndex;
+  const next = (base + direction + len) % len;
+  return { index: next, seed: AVATAR_PRESET_SEEDS[next] };
+}
+
 export function getInitials(name?: string | null): string {
   if (!name) return "—";
   const parts = name.trim().split(/\s+/);

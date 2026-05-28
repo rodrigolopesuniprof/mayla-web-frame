@@ -1,17 +1,18 @@
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   DICEBEAR_STYLES,
   DICEBEAR_STYLE_LABELS,
+  AVATAR_PRESET_SEEDS,
   dicebearDataUri,
+  findPresetIndex,
+  nextPresetSeed,
   type DicebearStyle,
 } from "@/lib/avatar";
-import { RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Props {
   userId: string;
@@ -38,22 +39,29 @@ export function AvatarCustomizerButton({
       ? (currentAvatarStyle as DicebearStyle)
       : "adventurer";
 
+  const initialIndex = (() => {
+    const idx = findPresetIndex(currentAvatarSeed);
+    return idx >= 0 ? idx : 0;
+  })();
+
   const [style, setStyle] = useState<DicebearStyle>(initialStyle);
-  const [seed, setSeed] = useState<string>(currentAvatarSeed || userId);
+  const [presetIndex, setPresetIndex] = useState<number>(initialIndex);
+
+  const seed = AVATAR_PRESET_SEEDS[presetIndex];
 
   const isCustom = currentAvatarType === "dicebear";
   const label = isCustom ? "✏️ Alterar avatar" : "✏️ Personalizar avatar";
 
-  const previewUri = useMemo(() => dicebearDataUri(style, seed || userId), [style, seed, userId]);
+  const previewUri = useMemo(() => dicebearDataUri(style, seed), [style, seed]);
 
-  const randomizeSeed = () => {
-    setSeed(Math.random().toString(36).slice(2, 12));
+  const go = (direction: 1 | -1) => {
+    const { index } = nextPresetSeed(presetIndex, direction);
+    setPresetIndex(index);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    const finalSeed = seed || userId;
-    const dataUri = dicebearDataUri(style, finalSeed);
+    const dataUri = dicebearDataUri(style, seed);
 
     const { error } = await supabase
       .from("profiles")
@@ -61,7 +69,7 @@ export function AvatarCustomizerButton({
         avatar_url: dataUri,
         avatar_type: "dicebear",
         avatar_style: style,
-        avatar_seed: finalSeed,
+        avatar_seed: seed,
       } as any)
       .eq("user_id", userId);
 
@@ -82,10 +90,12 @@ export function AvatarCustomizerButton({
       toast({ title: "Avatar atualizado! ✓" });
     }
 
-    onUpdated(dataUri, "dicebear", style, finalSeed);
+    onUpdated(dataUri, "dicebear", style, seed);
     setSaving(false);
     setOpen(false);
   };
+
+  const total = AVATAR_PRESET_SEEDS.length;
 
   return (
     <>
@@ -103,48 +113,58 @@ export function AvatarCustomizerButton({
             <div className="w-28 h-28 rounded-full overflow-hidden bg-muted ring-2 ring-border">
               <img src={previewUri} alt="Pré-visualização" className="w-full h-full object-cover" />
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={randomizeSeed} className="gap-1">
-              <RefreshCw className="w-3.5 h-3.5" /> Aleatório
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => go(-1)}
+                aria-label="Variação anterior"
+                className="h-9 w-9"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums min-w-[3.5rem] text-center">
+                {presetIndex + 1} / {total}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => go(1)}
+                aria-label="Próxima variação"
+                className="h-9 w-9"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Estilo</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {DICEBEAR_STYLES.map((s) => {
-                  const active = s === style;
-                  const thumb = dicebearDataUri(s, seed || userId);
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setStyle(s)}
-                      className={
-                        "flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors " +
-                        (active
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-card hover:bg-muted")
-                      }
-                    >
-                      <img src={thumb} alt={s} className="w-12 h-12 rounded-full bg-muted" />
-                      <span className="text-[10px] text-foreground leading-tight text-center">
-                        {DICEBEAR_STYLE_LABELS[s]}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="avatar-seed" className="text-xs">Semente (personalizar)</Label>
-              <Input
-                id="avatar-seed"
-                value={seed}
-                onChange={(e) => setSeed(e.target.value)}
-                placeholder="ex.: meu-nome"
-              />
+          <div className="space-y-1.5">
+            <div className="text-xs text-foreground font-medium">Estilo</div>
+            <div className="grid grid-cols-3 gap-2">
+              {DICEBEAR_STYLES.map((s) => {
+                const active = s === style;
+                const thumb = dicebearDataUri(s, seed);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStyle(s)}
+                    className={
+                      "flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors " +
+                      (active
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-card hover:bg-muted")
+                    }
+                  >
+                    <img src={thumb} alt={s} className="w-12 h-12 rounded-full bg-muted" />
+                    <span className="text-[10px] text-foreground leading-tight text-center">
+                      {DICEBEAR_STYLE_LABELS[s]}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
