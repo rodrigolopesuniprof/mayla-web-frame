@@ -1,96 +1,68 @@
+# Redesign do LeaderboardScreen
 
-# Plano — Gamificação Mayla
+Substituir apenas o JSX de apresentação do `src/components/mayla/LeaderboardScreen.tsx`. Lógica de dados, queries Supabase, props (`onBack`), estado (`period`, `rows`, `loading`) e toggle "Este mês / Geral" permanecem idênticos.
 
-Aproveita o que já existe (`profiles.points`, RPC `add_points_to_profile`, `collaborative_teams`, `missions`) e adiciona 3 pilares: **Desafio Diário**, **Ranking por Empresa** e **Níveis configuráveis**.
+## Escopo
 
----
+- **Arquivo único alterado:** `src/components/mayla/LeaderboardScreen.tsx`
+- **Nenhuma outra tela, hook, query ou tipo é tocado.**
+- Sem mudanças em `useGamification`, `company_leaderboard`, `MaylaApp`, `HomeTab`.
 
-## 1. Desafio Diário (curadoria do admin)
+## Blocos visuais
 
-**Modelo**
-- Admin de cada empresa cadastra um **pool de desafios** (rotulados com pontos, descrição, emoji, tipo de validação reaproveitando o de missões: QR, foto, auto-relato, check-in, survey).
-- Job/edge function seleciona 1 desafio por dia por empresa (rotativo determinístico por `date + company_id` para todos verem o mesmo desafio do dia).
-- Colaborador conclui → pontos vão para `profiles.points` via RPC existente + registro de conclusão.
+**1. Header**
 
-**Tabelas novas**
-- `daily_challenges` — pool por empresa: `company_id`, `title`, `description`, `emoji`, `points`, `validation_type`, `validation_config` (jsonb), `active`, `sort_order`.
-- `daily_challenge_assignments` — escolha do dia: `company_id`, `challenge_id`, `assigned_date` (unique por empresa+data).
-- `daily_challenge_completions` — conclusões: `user_id`, `assignment_id`, `completed_at`, `points_awarded` (unique por user+assignment).
+- Linha com `← Voltar` à esquerda e título "Ranking" centralizado (mesmo padrão das outras telas Mayla).
+- Logo abaixo, toggle pill "Este mês / Geral": ativo usa `bg-primary text-primary-foreground`, inativo `bg-card text-muted-foreground border border-border`. Comportamento atual mantido.
 
-**UI**
-- **HomeTab**: novo card "Desafio do dia" abaixo do Health Score, com CTA "Concluir".
-- **Admin** (`AdminCampaigns` ou nova aba `AdminDailyChallenges`): CRUD do pool + preview do desafio do dia.
+**2. Pódio Top 3** (substitui o bloco atual de barras gradiente)
 
----
+- Container: `bg-card rounded-2xl shadow-sm p-5` com leve padding interno.
+- Ordem visual: 2º | 1º | 3º, com 1º elevado ~8px.
+- Avatares circulares com iniciais do `full_name`:
+  - 1º: ~64px, fundo `bg-primary text-primary-foreground`
+  - 2º e 3º: ~48px, fundo `bg-secondary text-secondary-foreground`
+- Medalha (🥇🥈🥉) como badge absoluto no canto superior do avatar.
+- Abaixo: primeiro nome truncado (`text-sm font-semibold text-foreground`) e pontos (`text-xs text-muted-foreground`).
 
-## 2. Ranking individual por empresa
+**3. Lista (posição 4+)**
 
-**Modelo**
-- Ranking baseado em `profiles.points` filtrado por `company_id`.
-- Suporte a **período**: all-time + mensal (calculado a partir de `points_ledger`).
-- Tabela `points_ledger` (nova) registra cada ganho de pontos com `user_id`, `company_id`, `points`, `source` ('rppg' | 'vitals' | 'mission' | 'daily_challenge' | 'medication' | 'level_bonus'), `source_id`, `created_at`. RPC `add_points_to_profile` passa a inserir no ledger também.
-- View `company_leaderboard` agrega pontos por período + empresa, com nome/avatar do `profiles` (respeitando privacidade: mostra `full_name` apenas dentro da mesma empresa via RLS).
+- Cada item: `bg-card rounded-xl shadow-sm p-3 flex items-center gap-3`
+  - Número da posição: largura fixa `w-6 text-muted-foreground text-sm`
+  - Avatar circular ~36px com iniciais, fundo `bg-secondary`
+  - Coluna central: nome (`text-sm font-medium text-foreground`) e pontos abaixo (`text-xs text-muted-foreground`)
+  - Direita: badge de nível quando `current_level` existir (`bg-accent/15 text-accent rounded-full px-2 py-0.5 text-[10px] font-semibold`)
+- Espaçamento `space-y-2`, sem dividers.
+- Item do usuário logado: `border-l-[3px] border-primary bg-primary/8`.
 
-**UI**
-- Nova tela **"Ranking"** dentro da aba **Campanhas** (ou novo botão na HomeTab): top 50 da empresa + posição do usuário, toggle Mês/Geral, pódio top 3.
+**4. Sticky "Você"**
 
----
+- Mantido quando o usuário está fora do top 3 visível, mesmo conteúdo, repintado com tokens (`border-primary bg-primary/10`).
 
-## 3. Níveis (admin define níveis e metas)
+**5. Estado vazio**
 
-**Modelo**
-- Cada empresa define sua escala: `levels` com `company_id`, `level_number`, `name` (ex: "Iniciante", "Atleta"), `emoji`, `min_points` (meta para entrar), `bonus_points` (pago ao subir), `badge_title`.
-- `user_level_progress` rastreia `user_id`, `current_level`, `reached_at`, `bonus_paid`.
-- Trigger/edge function ao inserir em `points_ledger` recalcula nível do usuário: se acumulado ≥ `min_points` do próximo nível → atualiza `current_level`, paga `bonus_points` (cria entrada no ledger source='level_bonus'), grava badge.
+- 🏆 grande centralizado, título "Nenhum resultado ainda" (`text-foreground font-medium`), subtexto "Complete missões e desafios para aparecer no ranking" (`text-sm text-muted-foreground`).
 
-**UI**
-- **ProfileTab**: barra de progresso "Nível X — faltam Y pts para Z", lista de badges conquistados.
-- **Admin** (nova aba `AdminLevels`): CRUD da escala de níveis da empresa, com validação (níveis sequenciais, pontos crescentes).
-- **Fallback global**: se a empresa não definir escala, usa uma escala padrão (5 níveis) seeded para `company_id IS NULL`.
+**6. Loading**
 
----
+- `Skeleton` de `@/components/ui/skeleton`: bloco do pódio (3 colunas com círculos + barras) + 5 linhas de lista.
 
-## 4. Integração com pontuação existente
+## Tokens
 
-- Refatorar RPC `add_points_to_profile` para:
-  1. Atualizar `profiles.points` (como já faz).
-  2. Inserir em `points_ledger` (com `source`, `source_id`).
-  3. Chamar `check_user_level(user_id)` que avalia subida de nível.
-- Todos os pontos atuais (rPPG +50, Vitals +100, medicação +100, missões) passam a alimentar ledger + ranking + níveis automaticamente, sem mudar chamadas existentes.
+Apenas tokens semânticos do design system: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `bg-primary`, `text-primary-foreground`, `bg-secondary`, `border-border`, `accent`. Nenhum `text-white`, `bg-black` ou hex hardcoded.
 
----
+## Helper interno
 
-## 5. Estrutura técnica (apêndice)
+Pequena função `initials(name)` dentro do arquivo para extrair 1–2 iniciais do `full_name` (sem nova dependência).
 
-**Migrations (todas com GRANT + RLS por `company_id`)**
-- `daily_challenges` — admin/company_admin escreve, colaborador da empresa lê ativos.
-- `daily_challenge_assignments` — service_role/admin escreve, colaborador da empresa lê do dia.
-- `daily_challenge_completions` — colaborador insere/lê o próprio, admin/HR vê agregado.
-- `points_ledger` — colaborador lê o próprio, agregação por empresa só via view.
-- `levels` — admin/company_admin gerencia, colaborador da empresa lê.
-- `user_level_progress` — colaborador lê o próprio, admin/HR agregado.
-- View `company_leaderboard` (security invoker, filtra por `company_id = get_user_company_id(auth.uid())`).
+## Fora de escopo
 
-**Edge functions / jobs**
-- `assign-daily-challenge` (cron diário 00:05 BRT): para cada `company_id` com pool ativo, escolhe e grava `daily_challenge_assignments` do dia.
-- `check_user_level` (DB function `SECURITY DEFINER`) chamada via trigger após insert em `points_ledger`.
-
-**Frontend**
-- `src/components/mayla/DailyChallengeCard.tsx` (HomeTab).
-- `src/components/mayla/LeaderboardScreen.tsx` (acessível pela aba Campanhas).
-- `src/components/mayla/LevelProgress.tsx` (ProfileTab).
-- `src/components/admin/AdminDailyChallenges.tsx`, `AdminLevels.tsx`.
-- Hook `useGamification()` consolidando query de desafio do dia, nível atual e posição no ranking.
-
-**Recompensas (fase 1)**
-- Badge + título no perfil quando sobe de nível.
-- Pontos bônus do nível creditados via ledger.
-- Sem desbloqueio de conteúdo/serviço nesta fase (deixa preparado o campo `unlock_config jsonb` em `levels` para extensão futura).
-
----
-
-## Fora do escopo desta fase
-- Ranking por times colaborativos (fica para fase 2 — base do ledger já permite).
-- Temporadas sazonais com reset (ledger por período já cobre mensal, reset visual fica para depois).
-- Recompensas materiais / desbloqueio de serviços.
-- Notificações push do desafio do dia (fica como melhoria após validar).
+- Lógica de ranking, RPC, view `company_leaderboard`.
+- Outras telas, navegação, props de `MaylaApp`.
+- Animações além das já existentes (`animate-fade-up`).  
+  
+Execute o redesign do LeaderboardScreen conforme o plano levantado, 
+  com dois ajustes:
+  - Substituir bg-primary/8 por bg-primary/10 em todos os lugares
+  - Substituir bg-accent/15 por bg-accent/10 no badge de nível
+  Todo o resto exatamente como especificado no plano.
