@@ -82,12 +82,20 @@ export function QuestionnaireRunner({ questionnaireId, questionnaireTitle, userM
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     } else {
-      // Auto-complete linked mission if exists
+      // Auto-complete linked mission if exists (mission trigger awards mission points)
       if (userMissionId) {
         await supabase
           .from("user_missions")
           .update({ status: "completed", completed_at: new Date().toISOString() } as any)
           .eq("id", userMissionId);
+      } else {
+        // Standalone questionnaire — award survey_complete points
+        await supabase.rpc("award_event" as any, {
+          _user_id: user.id,
+          _event_key: "survey_complete",
+          _source_id: questionnaireId,
+          _description: `Pesquisa respondida: ${questionnaireTitle}`,
+        } as any);
       }
       toast({ title: "✅ Respostas salvas!", description: "Obrigado pela sua avaliação." });
       onComplete();
