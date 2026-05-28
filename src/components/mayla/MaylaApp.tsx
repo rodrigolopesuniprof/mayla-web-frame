@@ -20,8 +20,8 @@ import { LeaderboardScreen } from "./LeaderboardScreen";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { ProfileCompletionGate } from "./ProfileCompletionGate";
 import { PointsOnboardingTour } from "./PointsOnboardingTour";
-import { LevelUpDialog } from "./LevelUpDialog";
-import { useLevelUpNotifier } from "@/hooks/useLevelUpNotifier";
+import { LevelUpNotifier } from "./LevelUpNotifier";
+
 
 import { SelfAssessmentRunner } from "./SelfAssessmentRunner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,6 +82,7 @@ export function MaylaApp() {
         {phase === "main" && (
           <>
             {user && <ProfileCompletionGate onComplete={() => {}} />}
+            {user && <LevelUpNotifier />}
             {user && (
               <PointsOnboardingTour
                 onOpenProfile={() => setActiveTab("perfil")}
@@ -91,6 +92,7 @@ export function MaylaApp() {
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
               />
             )}
+
             {showSelfAssessment && (
               <div className="absolute inset-0 z-40 bg-background">
                 <SelfAssessmentRunner onBack={() => setShowSelfAssessment(false)} />
