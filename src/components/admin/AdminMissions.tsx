@@ -263,6 +263,7 @@ export function AdminMissions() {
                   <Input type="datetime-local" value={form.valid_until} onChange={e => setForm(f => ({ ...f, valid_until: e.target.value }))} />
                 </div>
               </div>
+            </div>
 
             <div className="border-t border-border pt-4 space-y-3">
               <div>
