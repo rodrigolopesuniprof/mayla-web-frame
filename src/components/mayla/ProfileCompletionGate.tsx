@@ -57,6 +57,12 @@ export function ProfileCompletionGate({ onComplete }: { onComplete: () => void }
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
+    // Award one-time bonus for completing profile (caps to lifetime=1)
+    await supabase.rpc("award_event" as any, {
+      _user_id: user.id,
+      _event_key: "profile_complete",
+      _description: "Cadastro completo",
+    } as any);
     toast({ title: "Dados salvos!" });
     setNeedsCompletion(false);
     onComplete();
