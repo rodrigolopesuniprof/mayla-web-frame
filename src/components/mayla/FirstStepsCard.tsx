@@ -1,24 +1,40 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import { POINTS_TOUR_EVENT } from "./PointsOnboardingTour";
-import { FIRST_STEPS_REFRESH_EVENT, hasFirstStep } from "@/lib/first-steps";
+import {
+  FIRST_STEPS_REFRESH_EVENT,
+  hasFirstStep,
+  markFirstStep,
+  type FirstStepKey,
+} from "@/lib/first-steps";
 
-const STEPS = [
-  { emoji: "📋", title: "Complete seus dados pessoais" },
-  { emoji: "🩺", title: "Faça sua autoavaliação" },
-  { emoji: "📷", title: "Faça uma medição rPPG" },
-  { emoji: "👀", title: "Veja as campanhas disponíveis" },
-  { emoji: "🏆", title: "Veja sua posição no ranking" },
+type Step = { emoji: string; title: string; manualKey: FirstStepKey };
+
+const STEPS: Step[] = [
+  { emoji: "📋", title: "Complete seus dados pessoais", manualKey: "manual:profile" },
+  { emoji: "🩺", title: "Faça sua autoavaliação", manualKey: "manual:assessment" },
+  { emoji: "📷", title: "Faça uma medição rPPG", manualKey: "manual:rppg" },
+  { emoji: "👀", title: "Veja as campanhas disponíveis", manualKey: "manual:campaigns" },
+  { emoji: "🏆", title: "Veja sua posição no ranking", manualKey: "manual:ranking" },
 ];
 
 export function FirstStepsCard() {
   const { user } = useAuth();
   const [done, setDone] = useState<boolean[]>(STEPS.map(() => false));
   const [loaded, setLoaded] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const celebratedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user) return;
+    if (hasFirstStep(user.id, "dismissed")) {
+      setDismissed(true);
+      setLoaded(true);
+      return;
+    }
     const [
       { data: profile },
       { data: assess },
@@ -32,13 +48,26 @@ export function FirstStepsCard() {
     ]);
 
     const sources = new Set((ledger || []).map((r: any) => r.source));
-    const profileComplete = !!((profile as any)?.birth_date && (profile as any)?.biological_sex);
-    const assessmentDone = (assess?.length ?? 0) > 0 || sources.has("self_assessment");
-    const rppgDone = (rppg?.length ?? 0) > 0 || sources.has("rppg_measurement") || sources.has("vitals_measurement");
+    const profileComplete =
+      !!((profile as any)?.birth_date && (profile as any)?.biological_sex) ||
+      hasFirstStep(user.id, "manual:profile");
+    const assessmentDone =
+      (assess?.length ?? 0) > 0 ||
+      sources.has("self_assessment") ||
+      hasFirstStep(user.id, "manual:assessment");
+    const rppgDone =
+      (rppg?.length ?? 0) > 0 ||
+      sources.has("rppg_measurement") ||
+      sources.has("vitals_measurement") ||
+      hasFirstStep(user.id, "manual:rppg");
     const campaignsViewed =
       hasFirstStep(user.id, "campaigns-viewed") ||
+      hasFirstStep(user.id, "manual:campaigns") ||
       sources.has("mission_complete") || sources.has("daily_challenge") || sources.has("weekly_checkin");
-    const rankingViewed = hasFirstStep(user.id, "ranking-viewed") || sources.has("tour_step_ranking");
+    const rankingViewed =
+      hasFirstStep(user.id, "ranking-viewed") ||
+      hasFirstStep(user.id, "manual:ranking") ||
+      sources.has("tour_step_ranking");
 
     setDone([profileComplete, assessmentDone, rppgDone, campaignsViewed, rankingViewed]);
     setLoaded(true);
@@ -63,9 +92,27 @@ export function FirstStepsCard() {
     };
   }, [user, load]);
 
-  if (!loaded || !user) return null;
   const completedCount = done.filter(Boolean).length;
-  if (completedCount === STEPS.length) return null;
+  const allDone = loaded && completedCount === STEPS.length;
+
+  // Celebrate + dismiss when all done
+  useEffect(() => {
+    if (!allDone || dismissed || celebratedRef.current || !user) return;
+    celebratedRef.current = true;
+    setCelebrate(true);
+    toast.success("🎉 Parabéns! Você completou os primeiros passos.", {
+      description: "Bons ganhos pela frente. Continue cuidando da sua saúde!",
+      duration: 5000,
+    });
+    const t = setTimeout(() => {
+      markFirstStep(user.id, "dismissed");
+      setDismissed(true);
+      setCelebrate(false);
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [allDone, dismissed, user]);
+
+  if (!loaded || !user || dismissed) return null;
 
   const reopenTour = async () => {
     await supabase
@@ -78,7 +125,17 @@ export function FirstStepsCard() {
   const pct = Math.round((completedCount / STEPS.length) * 100);
 
   return (
-    <div className="mx-5 mb-5 rounded-[18px] p-4 bg-card border border-border">
+    <div className="mx-5 mb-5 rounded-[18px] p-4 bg-card border border-border relative overflow-hidden">
+      {celebrate && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/90 backdrop-blur-sm animate-fade-up">
+          <div className="text-center">
+            <div className="text-5xl mb-2">🎉✨🎊</div>
+            <div className="font-display text-lg font-semibold text-foreground">Parabéns!</div>
+            <div className="text-sm text-muted-foreground">Primeiros passos concluídos</div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Primeiros passos</div>
@@ -113,6 +170,14 @@ export function FirstStepsCard() {
             </span>
             <span className="text-base">{s.emoji}</span>
             <span className="flex-1">{s.title}</span>
+            {!done[i] && (
+              <button
+                onClick={() => markFirstStep(user.id, s.manualKey)}
+                className="text-[11px] font-semibold text-primary border border-primary/30 rounded-full px-2.5 py-1 hover:bg-primary/10 transition-colors whitespace-nowrap"
+              >
+                Já fiz ✓
+              </button>
+            )}
           </li>
         ))}
       </ul>
