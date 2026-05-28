@@ -2386,6 +2386,71 @@ export type Database = {
         }
         Relationships: []
       }
+      point_rules: {
+        Row: {
+          active: boolean
+          cap_lifetime: number | null
+          cap_per_day: number | null
+          cap_per_month: number | null
+          cap_per_week: number | null
+          company_id: string
+          created_at: string
+          description: string | null
+          emoji: string | null
+          event_key: string
+          id: string
+          label: string
+          points: number
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          cap_lifetime?: number | null
+          cap_per_day?: number | null
+          cap_per_month?: number | null
+          cap_per_week?: number | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          emoji?: string | null
+          event_key: string
+          id?: string
+          label: string
+          points?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          cap_lifetime?: number | null
+          cap_per_day?: number | null
+          cap_per_month?: number | null
+          cap_per_week?: number | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          emoji?: string | null
+          event_key?: string
+          id?: string
+          label?: string
+          points?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       points_ledger: {
         Row: {
           company_id: string | null
@@ -2779,6 +2844,44 @@ export type Database = {
           },
         ]
       }
+      public_dashboard_tokens: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          token: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          token?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_dashboard_tokens_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       questionnaire_questions: {
         Row: {
           category: string
@@ -2933,6 +3036,119 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      reward_grants: {
+        Row: {
+          company_id: string
+          created_at: string
+          granted_at: string
+          granted_by: string | null
+          id: string
+          note: string | null
+          notified_email_at: string | null
+          notified_whatsapp_at: string | null
+          reward_id: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          notified_email_at?: string | null
+          notified_whatsapp_at?: string | null
+          reward_id: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          notified_email_at?: string | null
+          notified_whatsapp_at?: string | null
+          reward_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_grants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reward_grants_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "rewards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rewards: {
+        Row: {
+          active: boolean
+          company_id: string
+          cost_points: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          min_level: number | null
+          stock: number | null
+          title: string
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          cost_points?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          min_level?: number | null
+          stock?: number | null
+          title: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          cost_points?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          min_level?: number | null
+          stock?: number | null
+          title?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rewards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       special_measurements: {
         Row: {
@@ -3711,6 +3927,16 @@ export type Database = {
         Args: { _url: string; _user_id: string }
         Returns: Json
       }
+      award_event: {
+        Args: {
+          _company_id?: string
+          _description?: string
+          _event_key: string
+          _source_id?: string
+          _user_id: string
+        }
+        Returns: Json
+      }
       award_points: {
         Args: {
           _description?: string
@@ -3777,6 +4003,7 @@ export type Database = {
           name: string
         }[]
       }
+      get_public_dashboard: { Args: { _token: string }; Returns: Json }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_municipality_id: { Args: { _user_id: string }; Returns: string }
       has_platform_access: { Args: { _user_id: string }; Returns: boolean }
@@ -3814,6 +4041,10 @@ export type Database = {
       save_clinical_note_via_share: {
         Args: { _note: string; _token: string }
         Returns: string
+      }
+      seed_default_point_rules: {
+        Args: { _company_id: string }
+        Returns: undefined
       }
       validate_invite_token: {
         Args: { _token: string }
