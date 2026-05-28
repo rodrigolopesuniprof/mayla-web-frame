@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, pointsFor, rankFor, goalFor, type LeaderboardPeriod, type LeaderboardRow } from "@/hooks/useLeaderboard";
 import { DailyChallengeCard } from "./DailyChallengeCard";
 import { Avatar } from "./MaylaIcons";
 import { getInitials as initials, hasCustomAvatar } from "@/lib/avatar";
+import { markFirstStep } from "@/lib/first-steps";
 
 interface Props { onBack: () => void; }
 
