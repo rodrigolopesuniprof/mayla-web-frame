@@ -107,7 +107,7 @@ export function FirstStepsCard() {
     // Silence the recurring PointsOnboardingTour popup permanently
     supabase
       .from("profiles")
-      .update({ points_tour_completed: true, points_tour_dismissed_at: null })
+      .update({ points_tour_completed: true, points_tour_current_step: STEPS.length, points_tour_dismissed_at: null })
       .eq("user_id", user.id)
       .then(() => {
         window.dispatchEvent(new Event(POINTS_TOUR_COMPLETED_EVENT));
