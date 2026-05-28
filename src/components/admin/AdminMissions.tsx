@@ -72,7 +72,7 @@ export function AdminMissions() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0", success_message: "", success_link_url: "", success_link_label: "" });
+    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0", success_message: "", success_link_url: "", success_link_label: "", cap_per_day: "", cap_per_week: "", cap_per_month: "", cap_lifetime: "", valid_from: "", valid_until: "" });
     setShowForm(true);
   };
 
