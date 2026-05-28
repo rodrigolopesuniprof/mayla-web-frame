@@ -19,6 +19,8 @@ interface Campaign {
   program_id: string | null;
   title: string;
   description: string | null;
+  how_to_participate: string | null;
+  completion_criteria: string | null;
   emoji: string;
   category: string;
   bonus_points: number;
@@ -29,6 +31,7 @@ interface Campaign {
   ends_at: string;
   created_at: string;
 }
+
 
 interface Company { id: string; name: string; }
 interface Program { id: string; title: string; emoji: string; company_id: string; }
@@ -43,10 +46,12 @@ export function AdminCampaigns() {
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
   const [form, setForm] = useState({
-    title: "", description: "", emoji: "🏆", category: "challenge",
+    title: "", description: "", how_to_participate: "", completion_criteria: "",
+    emoji: "🏆", category: "challenge",
     bonus_points: "0", badge_name: "", badge_emoji: "", company_id: "",
     program_id: "", starts_at: "", ends_at: "",
   });
+
 
   // Mission linking
   const [linkedMissions, setLinkedMissions] = useState<LinkedMission[]>([]);
@@ -86,14 +91,16 @@ export function AdminCampaigns() {
     setEditing(null);
     setLinkedMissions([]);
     setAllMissions([]);
-    setForm({ title: "", description: "", emoji: "🏆", category: "challenge", bonus_points: "0", badge_name: "", badge_emoji: "", company_id: companies[0]?.id || "", program_id: "", starts_at: "", ends_at: "" });
+    setForm({ title: "", description: "", how_to_participate: "", completion_criteria: "", emoji: "🏆", category: "challenge", bonus_points: "0", badge_name: "", badge_emoji: "", company_id: companies[0]?.id || "", program_id: "", starts_at: "", ends_at: "" });
     setShowForm(true);
   };
 
   const openEdit = (c: Campaign) => {
     setEditing(c);
     setForm({
-      title: c.title, description: c.description || "", emoji: c.emoji, category: c.category,
+      title: c.title, description: c.description || "",
+      how_to_participate: c.how_to_participate || "", completion_criteria: c.completion_criteria || "",
+      emoji: c.emoji, category: c.category,
       bonus_points: String(c.bonus_points), badge_name: c.badge_name || "", badge_emoji: c.badge_emoji || "",
       company_id: c.company_id, program_id: c.program_id || "", starts_at: c.starts_at, ends_at: c.ends_at,
     });
@@ -101,17 +108,22 @@ export function AdminCampaigns() {
     loadCampaignMissions(c.id);
   };
 
+
   const save = async () => {
     if (!form.title || !form.company_id || !form.starts_at || !form.ends_at) {
       toast.error("Preencha todos os campos obrigatórios."); return;
     }
     const payload = {
-      title: form.title, description: form.description || null, emoji: form.emoji,
+      title: form.title, description: form.description || null,
+      how_to_participate: form.how_to_participate || null,
+      completion_criteria: form.completion_criteria || null,
+      emoji: form.emoji,
       category: form.category, bonus_points: parseInt(form.bonus_points) || 0,
       badge_name: form.badge_name || null, badge_emoji: form.badge_emoji || null,
       company_id: form.company_id, program_id: form.program_id || null,
       starts_at: form.starts_at, ends_at: form.ends_at,
     };
+
     if (editing) {
       const { error } = await supabase.from("campaigns").update(payload).eq("id", editing.id);
       if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
@@ -220,9 +232,18 @@ export function AdminCampaigns() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Descrição</Label>
-              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+              <Label>Descrição curta</Label>
+              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Resumo que aparece no card do desafio" />
             </div>
+            <div className="space-y-1">
+              <Label>Como participar</Label>
+              <Textarea value={form.how_to_participate} onChange={e => setForm(f => ({ ...f, how_to_participate: e.target.value }))} rows={3} placeholder="Explique ao colaborador o que precisa fazer para entrar no desafio (ex: clique em Participar e acompanhe as missões diárias)" />
+            </div>
+            <div className="space-y-1">
+              <Label>Como cumprir / critérios</Label>
+              <Textarea value={form.completion_criteria} onChange={e => setForm(f => ({ ...f, completion_criteria: e.target.value }))} rows={3} placeholder="Detalhe os critérios para concluir o desafio e ganhar os pontos (ex: registrar 2L de água por 7 dias seguidos)" />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Empresa</Label>
