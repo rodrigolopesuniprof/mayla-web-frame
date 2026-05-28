@@ -1,20 +1,8 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface Row {
-  user_id: string;
-  full_name: string | null;
-  total_points: number;
-  month_points: number;
-  current_level: number | null;
-  rank_total: number;
-  rank_month: number;
-}
-
-type Period = "month" | "total";
+import { useLeaderboard, pointsFor, rankFor, goalFor, type LeaderboardPeriod, type LeaderboardRow } from "@/hooks/useLeaderboard";
+import { DailyChallengeCard } from "./DailyChallengeCard";
 
 interface Props { onBack: () => void; }
 
@@ -26,44 +14,38 @@ function initials(name?: string | null) {
   return (first + last).toUpperCase() || "—";
 }
 
+const PERIOD_LABELS: Record<LeaderboardPeriod, string> = {
+  week: "Semana",
+  month: "Mês",
+  year: "Ano",
+  total: "Geral",
+};
+
+const GOAL_LABELS: Record<LeaderboardPeriod, string> = {
+  week: "semanal",
+  month: "mensal",
+  year: "anual",
+  total: "",
+};
+
 export function LeaderboardScreen({ onBack }: Props) {
   const { user } = useAuth();
-  const { companyId } = useCompany();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [period, setPeriod] = useState<Period>("month");
-  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<LeaderboardPeriod>("week");
+  const { rows, goals, loading } = useLeaderboard(period);
 
-  useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
-    setLoading(true);
-    const order = period === "month" ? "month_points" : "total_points";
-    supabase
-      .from("company_leaderboard" as any)
-      .select("user_id, full_name, total_points, month_points, current_level, rank_total, rank_month")
-      .eq("company_id", companyId)
-      .order(order, { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        setRows(((data as unknown) as Row[]) || []);
-        setLoading(false);
-      });
-  }, [companyId, period]);
-
-  const myRank = rows.find((r) => r.user_id === user?.id);
+  const myRow = rows.find((r) => r.user_id === user?.id);
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
-
-  const points = (r: Row) => period === "month" ? r.month_points : r.total_points;
-  const rank = (r: Row) => period === "month" ? r.rank_month : r.rank_total;
+  const goal = goalFor(goals, period);
+  const myPoints = myRow ? pointsFor(myRow, period) : 0;
+  const pct = goal && goal > 0 ? Math.min(100, Math.round((myPoints / goal) * 100)) : 0;
+  const remaining = goal ? Math.max(0, goal - myPoints) : 0;
 
   return (
     <div className="animate-fade-up flex-1 overflow-y-auto pb-6 bg-background">
       {/* Header */}
       <div className="px-5 py-4 flex items-center gap-3 relative">
-        <button
-          onClick={onBack}
-          className="text-sm text-foreground bg-transparent border-none cursor-pointer p-1"
-        >
+        <button onClick={onBack} className="text-sm text-foreground bg-transparent border-none cursor-pointer p-1">
           ← Voltar
         </button>
         <h1 className="font-display text-lg font-semibold text-foreground absolute left-1/2 -translate-x-1/2">
@@ -71,26 +53,66 @@ export function LeaderboardScreen({ onBack }: Props) {
         </h1>
       </div>
 
-      {/* Toggle */}
-      <div className="px-5 pt-2 flex gap-2">
-        {(["month", "total"] as Period[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`flex-1 px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition-colors ${
-              period === p
-                ? "bg-primary text-primary-foreground border border-primary"
-                : "bg-card text-muted-foreground border border-border"
-            }`}
-          >
-            {p === "month" ? "Este mês" : "Geral"}
-          </button>
-        ))}
+      {/* Period segmented control */}
+      <div className="px-5 pt-2">
+        <div className="flex gap-1 p-1 bg-card rounded-full border border-border">
+          {(["week", "month", "year"] as LeaderboardPeriod[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`flex-1 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors border-none ${
+                period === p ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground"
+              }`}
+            >
+              {PERIOD_LABELS[p]}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setPeriod("total")}
+          className={`mt-2 text-[11px] font-medium cursor-pointer bg-transparent border-none ${
+            period === "total" ? "text-primary underline" : "text-muted-foreground"
+          }`}
+        >
+          {period === "total" ? "✓ vendo ranking geral" : "ver ranking geral"}
+        </button>
+      </div>
+
+      {/* Goal progress card */}
+      {period !== "total" && goal !== null && (
+        <div className="mx-5 mt-4 bg-card rounded-2xl shadow-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-[10px] font-semibold tracking-[.1em] uppercase text-muted-foreground">
+                Sua meta {GOAL_LABELS[period]}
+              </div>
+              <div className="text-[15px] font-semibold text-foreground mt-0.5">
+                {myPoints.toLocaleString()} / {goal.toLocaleString()} pts
+              </div>
+            </div>
+            <div className="text-2xl">{remaining === 0 ? "🎉" : "🎯"}</div>
+          </div>
+          <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-accent to-primary transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1.5">
+            {remaining === 0
+              ? "Meta atingida! Continue acumulando pontos."
+              : `Faltam ${remaining.toLocaleString()} pts para a meta ${GOAL_LABELS[period]}`}
+          </div>
+        </div>
+      )}
+
+      {/* Daily challenge */}
+      <div className="mt-4 -mb-1">
+        <DailyChallengeCard />
       </div>
 
       {loading ? (
-        <div className="px-5 mt-5 space-y-4">
-          {/* Podium skeleton */}
+        <div className="px-5 mt-2 space-y-4">
           <div className="bg-card rounded-2xl shadow-sm p-5 grid grid-cols-3 gap-3 items-end">
             {[48, 64, 48].map((s, i) => (
               <div key={i} className="flex flex-col items-center gap-2">
@@ -100,7 +122,6 @@ export function LeaderboardScreen({ onBack }: Props) {
               </div>
             ))}
           </div>
-          {/* List skeleton */}
           <div className="space-y-2">
             {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-card rounded-xl shadow-sm p-3 flex items-center gap-3">
@@ -124,9 +145,8 @@ export function LeaderboardScreen({ onBack }: Props) {
         </div>
       ) : (
         <>
-          {/* Podium */}
           {podium.length > 0 && (
-            <div className="mx-5 mt-5 bg-card rounded-2xl shadow-sm p-5">
+            <div className="mx-5 mt-4 bg-card rounded-2xl shadow-sm p-5">
               <div className="grid grid-cols-3 gap-3 items-end">
                 {[1, 0, 2].map((idx) => {
                   const r = podium[idx];
@@ -135,16 +155,11 @@ export function LeaderboardScreen({ onBack }: Props) {
                   const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
                   const size = isFirst ? 64 : 48;
                   return (
-                    <div
-                      key={r.user_id}
-                      className={`flex flex-col items-center ${isFirst ? "-mt-2" : ""}`}
-                    >
+                    <div key={r.user_id} className={`flex flex-col items-center ${isFirst ? "-mt-2" : ""}`}>
                       <div className="relative">
                         <div
                           className={`rounded-full flex items-center justify-center font-display font-semibold ${
-                            isFirst
-                              ? "bg-primary text-primary-foreground text-xl"
-                              : "bg-secondary text-secondary-foreground text-base"
+                            isFirst ? "bg-primary text-primary-foreground text-xl" : "bg-secondary text-secondary-foreground text-base"
                           }`}
                           style={{ width: size, height: size }}
                         >
@@ -156,7 +171,7 @@ export function LeaderboardScreen({ onBack }: Props) {
                         {r.full_name?.split(" ")[0] || "—"}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {points(r).toLocaleString()} pts
+                        {pointsFor(r, period).toLocaleString()} pts
                       </div>
                     </div>
                   );
@@ -165,7 +180,6 @@ export function LeaderboardScreen({ onBack }: Props) {
             </div>
           )}
 
-          {/* List */}
           {rest.length > 0 && (
             <div className="px-5 mt-4 space-y-2">
               {rest.map((r) => {
@@ -174,23 +188,19 @@ export function LeaderboardScreen({ onBack }: Props) {
                   <div
                     key={r.user_id}
                     className={`rounded-xl shadow-sm p-3 flex items-center gap-3 ${
-                      isMe
-                        ? "bg-primary/10 border-l-[3px] border-primary"
-                        : "bg-card"
+                      isMe ? "bg-primary/10 border-l-[3px] border-primary" : "bg-card"
                     }`}
                   >
                     <div className="w-6 text-center text-sm font-medium text-muted-foreground">
-                      {rank(r)}
+                      {rankFor(r, period)}
                     </div>
                     <div className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-display font-semibold">
                       {initials(r.full_name)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">
-                        {r.full_name || "—"}
-                      </div>
+                      <div className="text-sm font-medium text-foreground truncate">{r.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">
-                        {points(r).toLocaleString()} pts
+                        {pointsFor(r, period).toLocaleString()} pts
                       </div>
                     </div>
                     {r.current_level && (
@@ -204,20 +214,19 @@ export function LeaderboardScreen({ onBack }: Props) {
             </div>
           )}
 
-          {/* Sticky self position */}
-          {myRank && rank(myRank) > 3 && (
+          {myRow && rankFor(myRow, period) > 3 && (
             <div className="sticky bottom-0 mt-4 px-5 pb-3 pt-2 bg-gradient-to-t from-background via-background to-transparent">
               <div className="rounded-xl border-l-[3px] border-primary bg-primary/10 shadow-sm p-3 flex items-center gap-3">
                 <div className="w-6 text-center text-sm font-bold text-primary">
-                  {rank(myRank)}
+                  {rankFor(myRow, period)}
                 </div>
                 <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-display font-semibold">
-                  {initials(myRank.full_name)}
+                  {initials(myRow.full_name)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground">Você</div>
                   <div className="text-xs text-muted-foreground">
-                    {points(myRank).toLocaleString()} pts
+                    {pointsFor(myRow, period).toLocaleString()} pts
                   </div>
                 </div>
               </div>

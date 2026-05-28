@@ -132,7 +132,12 @@ export function MaylaApp() {
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
-                {activeTab === "campanhas" && <CampanhasTab onNavigate={(tab) => setActiveTab(tab)} />}
+                {activeTab === "campanhas" && (
+                  <CampanhasTab
+                    onNavigate={(tab) => setActiveTab(tab)}
+                    onOpenLeaderboard={() => setShowLeaderboard(true)}
+                  />
+                )}
                 {activeTab === "servicos" && <ServicosTab startOnlineMode={consultOnlineMode} onClearOnlineMode={() => setConsultOnlineMode(false)} />}
                 {activeTab === "perfil" && <ProfileTab />}
               </div>

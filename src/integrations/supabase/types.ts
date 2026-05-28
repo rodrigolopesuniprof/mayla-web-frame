@@ -1039,6 +1039,36 @@ export type Database = {
           },
         ]
       }
+      company_point_goals: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          monthly_goal: number
+          updated_at: string
+          weekly_goal: number
+          yearly_goal: number
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          monthly_goal?: number
+          updated_at?: string
+          weekly_goal?: number
+          yearly_goal?: number
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          monthly_goal?: number
+          updated_at?: string
+          weekly_goal?: number
+          yearly_goal?: number
+        }
+        Relationships: []
+      }
       consultation_documents: {
         Row: {
           consultation_id: string
@@ -3597,8 +3627,12 @@ export type Database = {
           month_points: number | null
           rank_month: number | null
           rank_total: number | null
+          rank_week: number | null
+          rank_year: number | null
           total_points: number | null
           user_id: string | null
+          week_points: number | null
+          year_points: number | null
         }
         Relationships: [
           {
@@ -3696,6 +3730,14 @@ export type Database = {
           unique_participants: number
           week_start: string
           wellbeing_index: number
+        }[]
+      }
+      get_effective_goals: {
+        Args: { _company_id: string }
+        Returns: {
+          monthly_goal: number
+          weekly_goal: number
+          yearly_goal: number
         }[]
       }
       get_effective_levels: {
