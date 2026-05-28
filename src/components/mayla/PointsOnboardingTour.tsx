@@ -22,6 +22,7 @@ interface Props {
 }
 
 export const POINTS_TOUR_EVENT = "open-points-tour";
+export const POINTS_TOUR_COMPLETED_EVENT = "points-tour-completed";
 const IDLE_REOPEN_MS = 5 * 60 * 1000;
 
 export function PointsOnboardingTour({
@@ -94,6 +95,10 @@ export function PointsOnboardingTour({
     completedRef.current = completed;
     stepRef.current = currentStep;
     setStep(currentStep);
+    if (completed) {
+      setShow(false);
+      return;
+    }
     if (force || !completed) {
       setTimeout(() => setShow(true), force ? 0 : 600);
     }
@@ -104,8 +109,16 @@ export function PointsOnboardingTour({
     if (!user) return;
     loadAndMaybeOpen(false);
     const handler = () => loadAndMaybeOpen(true);
+    const completedHandler = () => {
+      completedRef.current = true;
+      setShow(false);
+    };
     window.addEventListener(POINTS_TOUR_EVENT, handler);
-    return () => window.removeEventListener(POINTS_TOUR_EVENT, handler);
+    window.addEventListener(POINTS_TOUR_COMPLETED_EVENT, completedHandler);
+    return () => {
+      window.removeEventListener(POINTS_TOUR_EVENT, handler);
+      window.removeEventListener(POINTS_TOUR_COMPLETED_EVENT, completedHandler);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 

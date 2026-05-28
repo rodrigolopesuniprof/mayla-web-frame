@@ -1,37 +1,19 @@
-## Causa raiz
+Plano de correção:
 
-### 1. Popup de onboarding volta mesmo "completo"
-`PointsOnboardingTour` decide se mostra com base em `profiles.points_tour_completed` (banco) e tem timer de **5 min** que reabre se `points_tour_completed = false`. O `FirstStepsCard` (botões "Já fiz ✓") só grava no `localStorage`, nunca atualiza o banco. Conclusão: card desaparece, popup continua reabrindo.
+1. Sincronizar o estado local com o popup de onboarding
+- Quando os 5 primeiros passos forem concluídos no `FirstStepsCard`, além de salvar `points_tour_completed = true` no perfil, disparar também um evento global de atualização.
+- Esse evento vai permitir que o popup `PointsOnboardingTour` feche imediatamente e atualize sua referência interna de conclusão, sem esperar recarregar a tela.
 
-### 2. Endereço/CEP/Cidade não editáveis no Perfil
-Em `src/components/mayla/ProfileTab.tsx` linhas 395–397, os três `<InfoRow>` (`cep`, `endereco`, `cidade`) são renderizados **sem a prop `editField`**. O `InfoRow` cai no fallback de texto quando `editField` está ausente, mesmo com `editing=true`. Os demais campos (peso, altura, sexo etc.) passam `editField` e funcionam.
+2. Blindar o `PointsOnboardingTour`
+- Fazer o popup escutar o evento dos primeiros passos.
+- Ao receber o evento, recarregar o perfil e, se `points_tour_completed = true`, fechar o popup e impedir o timer de 5 minutos de reabrir.
+- Ajustar `loadAndMaybeOpen` para nunca abrir quando o perfil já estiver concluído, inclusive em chamadas forçadas.
 
-## Correções
+3. Evitar reabertura acidental pelo botão “Continuar”
+- O botão “Continuar” do card hoje seta `points_tour_completed = false`, o que pode reativar o onboarding mesmo depois de concluído.
+- Vou manter o botão apenas enquanto ainda houver pendências; quando tudo estiver concluído, o card some como esperado.
 
-### A. `src/components/mayla/FirstStepsCard.tsx`
-No `useEffect` que dispara a celebração (quando `allDone`), além de marcar `dismissed` no localStorage e exibir o toast, fazer:
-```ts
-await supabase.from("profiles")
-  .update({ points_tour_completed: true, points_tour_dismissed_at: null })
-  .eq("user_id", user.id);
-```
-Isso silencia o `PointsOnboardingTour` permanentemente.
-
-### B. `src/components/mayla/ProfileTab.tsx`
-Adicionar `editField` para os 3 InfoRows de endereço:
-
-- **CEP** — `<Input maxLength={9}>` ligado a `form.cep`, com formatação simples `12345-678`.
-- **Endereço (linha)** — três `<Input>` empilhados no `editField`: `endereco` (rua), `numero`, `complemento`, `bairro`, todos ligados a `form.*`.
-- **Cidade** — dois inputs: `cidade` e `estado` (UF, maxLength=2 uppercase).
-
-A função `save()` já inclui esses campos no `payload` (linha 281: `endereco: form.endereco` está presente — confirmar que os demais também são gravados; se faltar algum, completar o update).
-
-Sem mudanças em banco, sem nova dependência.
-
-## Fora de escopo
-- Autocompletar CEP via ViaCEP (já existe no `HealthSurvey`, mas adicionar aqui seria expansão).
-- Mexer no `PointsOnboardingTour` em si.
-
-## Arquivos tocados
-- `src/components/mayla/FirstStepsCard.tsx`
-- `src/components/mayla/ProfileTab.tsx`
+Detalhes técnicos:
+- Arquivos previstos: `src/components/mayla/FirstStepsCard.tsx` e `src/components/mayla/PointsOnboardingTour.tsx`.
+- Sem alteração de banco de dados.
+- Sem mexer em autenticação ou fluxo principal do app.
