@@ -79,6 +79,34 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [lastMeasurement, setLastMeasurement] = useState<{ heart_rate: number | null; measured_at: string } | null>(null);
 
+  // Tour progress for the always-visible "Como ganhar pontos" chip / continue card
+  const [tourProgress, setTourProgress] = useState<{ completed: boolean; currentStep: number; total: number }>({
+    completed: false, currentStep: 0, total: 5,
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles")
+      .select("points_tour_completed,points_tour_current_step")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setTourProgress({
+            completed: !!(data as any).points_tour_completed,
+            currentStep: Number((data as any).points_tour_current_step || 0),
+            total: 5,
+          });
+        }
+      });
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { completed: boolean; currentStep: number; total: number };
+      if (detail) setTourProgress(detail);
+    };
+    window.addEventListener(POINTS_TOUR_PROGRESS_EVENT, handler);
+    return () => window.removeEventListener(POINTS_TOUR_PROGRESS_EVENT, handler);
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     supabase.from("health_scores").select("score_general").eq("user_id", user.id).order("generated_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
@@ -88,6 +116,11 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
       if (data) setLastMeasurement(data);
     });
   }, [user]);
+
+  const openTour = () => window.dispatchEvent(new CustomEvent(POINTS_TOUR_EVENT));
+
+  const stepLabels = ["Dados pessoais", "Autoavaliação", "Medição rPPG", "Atividades e desafios", "Ranking"];
+
 
 
 
