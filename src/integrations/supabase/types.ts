@@ -1175,6 +1175,121 @@ export type Database = {
           },
         ]
       }
+      daily_challenge_assignments: {
+        Row: {
+          assigned_date: string
+          challenge_id: string
+          company_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          assigned_date?: string
+          challenge_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          assigned_date?: string
+          challenge_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_challenge_assignments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "daily_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_challenge_completions: {
+        Row: {
+          assignment_id: string
+          company_id: string
+          completed_at: string
+          id: string
+          points_awarded: number
+          user_id: string
+        }
+        Insert: {
+          assignment_id: string
+          company_id: string
+          completed_at?: string
+          id?: string
+          points_awarded?: number
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string
+          company_id?: string
+          completed_at?: string
+          id?: string
+          points_awarded?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_challenge_completions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "daily_challenge_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_challenges: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          emoji: string | null
+          id: string
+          points: number
+          sort_order: number
+          title: string
+          updated_at: string
+          validation_config: Json | null
+          validation_type: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          emoji?: string | null
+          id?: string
+          points?: number
+          sort_order?: number
+          title: string
+          updated_at?: string
+          validation_config?: Json | null
+          validation_type?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          emoji?: string | null
+          id?: string
+          points?: number
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          validation_config?: Json | null
+          validation_type?: string
+        }
+        Relationships: []
+      }
       doctor_availability: {
         Row: {
           consultation_mode: string | null
@@ -1652,6 +1767,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      levels: {
+        Row: {
+          badge_title: string | null
+          bonus_points: number
+          company_id: string | null
+          created_at: string
+          emoji: string | null
+          id: string
+          level_number: number
+          min_points: number
+          name: string
+          unlock_config: Json | null
+        }
+        Insert: {
+          badge_title?: string | null
+          bonus_points?: number
+          company_id?: string | null
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          level_number: number
+          min_points: number
+          name: string
+          unlock_config?: Json | null
+        }
+        Update: {
+          badge_title?: string | null
+          bonus_points?: number
+          company_id?: string | null
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          level_number?: number
+          min_points?: number
+          name?: string
+          unlock_config?: Json | null
+        }
+        Relationships: []
       }
       medication_logs: {
         Row: {
@@ -2199,6 +2353,39 @@ export type Database = {
           virtual_store_url?: string | null
           wellness_activities?: Json | null
           zip_code?: string | null
+        }
+        Relationships: []
+      }
+      points_ledger: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          points: number
+          source: string
+          source_id: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          points: number
+          source?: string
+          source_id?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          points?: number
+          source?: string
+          source_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -3101,6 +3288,39 @@ export type Database = {
           },
         ]
       }
+      user_level_progress: {
+        Row: {
+          badges: Json
+          company_id: string | null
+          current_level: number
+          id: string
+          reached_at: string
+          total_bonus_paid: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          badges?: Json
+          company_id?: string | null
+          current_level?: number
+          id?: string
+          reached_at?: string
+          total_bonus_paid?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          badges?: Json
+          company_id?: string | null
+          current_level?: number
+          id?: string
+          reached_at?: string
+          total_bonus_paid?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_medications: {
         Row: {
           active: boolean
@@ -3369,6 +3589,27 @@ export type Database = {
           },
         ]
       }
+      company_leaderboard: {
+        Row: {
+          company_id: string | null
+          current_level: number | null
+          full_name: string | null
+          month_points: number | null
+          rank_month: number | null
+          rank_total: number | null
+          total_points: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_program_summary: {
         Row: {
           active: boolean | null
@@ -3418,6 +3659,21 @@ export type Database = {
         Args: { _points: number; _user_id: string }
         Returns: undefined
       }
+      award_points: {
+        Args: {
+          _description?: string
+          _points: number
+          _source: string
+          _source_id?: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      check_user_level: { Args: { _user_id: string }; Returns: undefined }
+      complete_daily_challenge: {
+        Args: { _assignment_id: string }
+        Returns: Json
+      }
       current_user_affiliate_ids: { Args: never; Returns: string[] }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -3427,6 +3683,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      ensure_daily_challenge: { Args: { _company_id: string }; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_company_wellbeing_summary: {
         Args: { _company_id: string }
@@ -3439,6 +3696,17 @@ export type Database = {
           unique_participants: number
           week_start: string
           wellbeing_index: number
+        }[]
+      }
+      get_effective_levels: {
+        Args: { _company_id: string }
+        Returns: {
+          badge_title: string
+          bonus_points: number
+          emoji: string
+          level_number: number
+          min_points: number
+          name: string
         }[]
       }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
