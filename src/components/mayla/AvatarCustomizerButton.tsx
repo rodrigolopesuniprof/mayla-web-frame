@@ -34,6 +34,7 @@ export function AvatarCustomizerButton({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const initialStyle: DicebearStyle =
     (DICEBEAR_STYLES as readonly string[]).includes(currentAvatarStyle ?? "")
@@ -92,6 +93,7 @@ export function AvatarCustomizerButton({
     }
 
     onUpdated(dataUri, "dicebear", style, seed);
+    queryClient.invalidateQueries({ queryKey: ["my-avatar"] });
     setSaving(false);
     setOpen(false);
   };
