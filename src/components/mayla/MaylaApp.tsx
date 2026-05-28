@@ -35,6 +35,7 @@ export function MaylaApp() {
   const [showAssistant, setShowAssistant] = useState(false);
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [showAllArticles, setShowAllArticles] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [assistantInitialMessage, setAssistantInitialMessage] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
