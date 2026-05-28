@@ -13,8 +13,8 @@ export function ProfileCompletionGate({ onComplete }: { onComplete: () => void }
   const [loading, setLoading] = useState(true);
   const [needsCompletion, setNeedsCompletion] = useState(false);
   const [birthDate, setBirthDate] = useState("");
-  const [sex, setSex] = useState<"male" | "female" | "">("");
-  const [saving, setSaving] = useState(false);
+  const [sex, setSex] = useState<string>("");
+  const [otherText, setOtherText] = useState("");
 
   useEffect(() => {
     if (!user) return;
