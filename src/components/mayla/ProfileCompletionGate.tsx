@@ -15,6 +15,7 @@ export function ProfileCompletionGate({ onComplete }: { onComplete: () => void }
   const [birthDate, setBirthDate] = useState("");
   const [sex, setSex] = useState<string>("");
   const [otherText, setOtherText] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
