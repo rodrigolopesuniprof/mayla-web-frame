@@ -41,6 +41,7 @@ export function AdminGamification({ companyId }: Props) {
       </div>
       {tab === "rules" && <AdminPointRules companyId={companyId} />}
       {tab === "self_assessment" && <AdminSelfAssessment companyId={companyId} />}
+      {tab === "clinical_fields" && <AdminClinicalProfileFields companyId={companyId} />}
       {tab === "levels" && <AdminLevels companyId={companyId} />}
       {tab === "rewards" && <AdminRewards companyId={companyId} />}
       {tab === "public" && <AdminPublicDashboard companyId={companyId} />}
