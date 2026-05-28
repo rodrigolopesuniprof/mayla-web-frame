@@ -4,18 +4,21 @@ import { AdminLevels } from "./AdminLevels";
 import { AdminRewards } from "./AdminRewards";
 import { AdminPublicDashboard } from "./AdminPublicDashboard";
 import { AdminSelfAssessment } from "./AdminSelfAssessment";
+import { AdminClinicalProfileFields } from "./AdminClinicalProfileFields";
 
-type Tab = "rules" | "self_assessment" | "levels" | "rewards" | "public";
+type Tab = "rules" | "self_assessment" | "clinical_fields" | "levels" | "rewards" | "public";
 
 interface Props { companyId: string }
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "rules", label: "Regras de pontuação", emoji: "⚙️" },
   { id: "self_assessment", label: "Autoavaliação", emoji: "🩺" },
+  { id: "clinical_fields", label: "Perfil de Saúde", emoji: "📋" },
   { id: "levels", label: "Níveis", emoji: "🏅" },
   { id: "rewards", label: "Prêmios", emoji: "🎁" },
   { id: "public", label: "Painel público", emoji: "📺" },
 ];
+
 
 export function AdminGamification({ companyId }: Props) {
   const [tab, setTab] = useState<Tab>("rules");
