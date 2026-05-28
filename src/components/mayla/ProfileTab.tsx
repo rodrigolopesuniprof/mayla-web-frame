@@ -773,7 +773,7 @@ function Medicamentos({ userId }: { userId?: string }) {
   const [meds, setMeds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", dosage: "", frequency: "daily" });
+  const [form, setForm] = useState({ name: "", dosage: "", frequency: "daily", reminder_time: "08:00", start_date: new Date().toISOString().slice(0, 10) });
   const [saving, setSaving] = useState(false);
 
   const frequencyLabels: Record<string, string> = {
@@ -804,14 +804,16 @@ function Medicamentos({ userId }: { userId?: string }) {
       name: form.name.trim(),
       dosage: form.dosage.trim() || null,
       frequency: form.frequency,
+      reminder_time: form.reminder_time || null,
+      start_date: form.start_date || null,
     } as any);
     setSaving(false);
     if (error) {
       toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
     } else {
-      setForm({ name: "", dosage: "", frequency: "daily" });
+      setForm({ name: "", dosage: "", frequency: "daily", reminder_time: "08:00", start_date: new Date().toISOString().slice(0, 10) });
       setShowAdd(false);
-      toast({ title: "Medicamento adicionado!" });
+      toast({ title: "Medicamento adicionado!", description: "Você receberá um lembrete diário e ganhará +100 pts por adesão." });
       fetchMeds();
     }
   };
