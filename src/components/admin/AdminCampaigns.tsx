@@ -19,6 +19,8 @@ interface Campaign {
   program_id: string | null;
   title: string;
   description: string | null;
+  how_to_participate: string | null;
+  completion_criteria: string | null;
   emoji: string;
   category: string;
   bonus_points: number;
@@ -29,6 +31,7 @@ interface Campaign {
   ends_at: string;
   created_at: string;
 }
+
 
 interface Company { id: string; name: string; }
 interface Program { id: string; title: string; emoji: string; company_id: string; }
