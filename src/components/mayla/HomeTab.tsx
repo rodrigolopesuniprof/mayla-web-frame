@@ -6,6 +6,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionnaireRunner } from "./QuestionnaireRunner";
 import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
+import { GamificationStatusCard } from "./GamificationStatusCard";
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard }: {
   setTab: (id: TabId) => void;
@@ -167,19 +168,12 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             Medir →
           </button>
         </div>
-        <div className="border-t border-foreground/10 px-5 py-3 flex items-center gap-3">
-          <span className="text-base">⭐</span>
-          <span className="text-sm font-semibold text-secondary-foreground">{profilePoints.toLocaleString()} pontos</span>
-          <div className="ml-auto flex items-center gap-3">
-            {onOpenLeaderboard && (
-              <button onClick={onOpenLeaderboard} className="text-sm text-accent font-medium cursor-pointer bg-transparent border-none p-0">
-                🏆 Ranking →
-              </button>
-            )}
-            <span className="text-sm text-accent font-medium cursor-pointer" onClick={() => setTab("campanhas")}>Ver missões →</span>
-          </div>
-        </div>
       </div>
+
+      <GamificationStatusCard
+        onOpenLeaderboard={onOpenLeaderboard}
+        onOpenChallenges={() => setTab("campanhas")}
+      />
 
       {/* Assistente Digital de Saúde Card */}
       {onOpenAssistant && (
