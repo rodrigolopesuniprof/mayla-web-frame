@@ -97,6 +97,10 @@ export function AdminMissions() {
 
   const save = async () => {
     if (!form.title || !form.tag) { toast.error("Preencha título e tag."); return; }
+    const numOrNull = (s: string) => {
+      const t = s.trim(); if (!t) return null;
+      const n = parseInt(t); return Number.isFinite(n) && n >= 0 ? n : null;
+    };
     const payload = {
       title: form.title, description: form.description || null, tag: form.tag, emoji: form.emoji,
       points: parseInt(form.points) || 0, frequency: form.frequency,
@@ -104,6 +108,12 @@ export function AdminMissions() {
       success_message: form.success_message.trim() || null,
       success_link_url: form.success_link_url.trim() || null,
       success_link_label: form.success_link_label.trim() || null,
+      cap_per_day: numOrNull(form.cap_per_day),
+      cap_per_week: numOrNull(form.cap_per_week),
+      cap_per_month: numOrNull(form.cap_per_month),
+      cap_lifetime: numOrNull(form.cap_lifetime),
+      valid_from: form.valid_from || null,
+      valid_until: form.valid_until || null,
     };
     if (editing) {
       const { error } = await supabase.from("missions").update(payload).eq("id", editing.id);
