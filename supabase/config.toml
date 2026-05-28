@@ -8,3 +8,7 @@ verify_jwt = false
 
 [functions.invite-preview]
 verify_jwt = false
+
+[functions.invite-signup]
+verify_jwt = false
+

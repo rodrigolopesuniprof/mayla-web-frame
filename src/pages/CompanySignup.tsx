@@ -63,7 +63,7 @@ export default function CompanySignup() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!company) return;
+    if (!company || !token) return;
 
     const rawCpf = cpf.replace(/\D/g, "");
     if (rawCpf.length !== 11) {
@@ -72,63 +72,40 @@ export default function CompanySignup() {
     }
 
     setSaving(true);
-    const { data: signUpData, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, cpf: rawCpf, company_id: company.id },
-        emailRedirectTo: window.location.origin,
-      },
+    const { data, error } = await supabase.functions.invoke("invite-signup", {
+      body: { token, email, password, full_name: fullName, cpf: rawCpf },
     });
+    setSaving(false);
 
-    if (error) {
-      setSaving(false);
-      toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
+    const res = data as { ok: boolean; reason?: string; detail?: string } | null;
+
+    if (error || !res || !res.ok) {
+      const reason = res?.reason || "";
+      const map: Record<string, string> = {
+        not_found: "Link inválido.",
+        invalid_token: "Link inválido.",
+        inactive: "Este link foi desativado.",
+        expired: "Este link expirou.",
+        limit_reached: "Este link atingiu o limite de cadastros.",
+        email_in_use: "Já existe uma conta com este e-mail.",
+        weak_password: "A senha precisa ter pelo menos 6 caracteres.",
+        invalid_email: "E-mail inválido.",
+        invalid_cpf: "CPF inválido.",
+        missing_name: "Informe seu nome completo.",
+        missing_token: "Link inválido.",
+      };
+      toast({
+        title: "Erro ao cadastrar",
+        description: map[reason] || res?.detail || error?.message || "Não foi possível concluir o cadastro.",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Conta o uso do link (valida prazo/limite no servidor)
-    const newUserId = signUpData.user?.id;
-    if (newUserId && token) {
-      const { data: rpcData } = await supabase.rpc("register_via_invite_token", {
-        _token: token,
-        _user_id: newUserId,
-      });
-      const result = rpcData as { ok: boolean; reason?: string } | null;
-      if (result && !result.ok) {
-        const map: Record<string, string> = {
-          expired: "Este link expirou.",
-          limit_reached: "Este link atingiu o limite de cadastros.",
-          inactive: "Este link foi desativado.",
-          not_found: "Link inválido.",
-        };
-        setSaving(false);
-        toast({ title: "Cadastro inválido", description: map[result.reason || ""] || "Link inválido.", variant: "destructive" });
-        return;
-      }
-    }
-
-    // Gera avatar DiceBear e credita 50 pts via RPC SECURITY DEFINER
-    if (newUserId) {
-      try {
-        const url = dicebearUrl(fullName, newUserId);
-        const { data: avatarRes } = await supabase.rpc("apply_dicebear_avatar" as any, {
-          _user_id: newUserId,
-          _url: url,
-        });
-        const res = avatarRes as { ok?: boolean; points_awarded?: number } | null;
-        if (res?.ok && (res.points_awarded ?? 0) > 0) {
-          toast({ title: "Avatar criado! 🎨", description: `+${res.points_awarded} pts` });
-        }
-      } catch {
-        // silencioso: avatar é opcional, não bloqueia cadastro
-      }
-    }
-
-    setSaving(false);
     toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
     navigate("/login");
   };
+
 
   if (loading) {
     return (
