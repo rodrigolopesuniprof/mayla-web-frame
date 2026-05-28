@@ -1,53 +1,72 @@
-## Diagnóstico
+## Contexto
 
-O usuário tem **5050 pts** acumulados (e outro tem 500 pts), mas continua como "Iniciante" porque a linha em `user_level_progress` nunca foi criada — o `current_level` está `NULL`.
+Duas telas diferentes têm "perguntas":
 
-Motivo: os pontos desses usuários vieram de um lançamento com `source = 'backfill'` (provavelmente um INSERT/UPDATE direto ou via importação), e não pela função `add_points_to_profile`, que é a única que chama `check_user_level`. Ou seja: hoje a promoção de nível só roda quando o código aplicativo se lembra de chamar `add_points_to_profile`. Qualquer outra forma de incrementar `profiles.points` (RPCs específicas, scripts, backfills, ajustes manuais) deixa o nível dessincronizado.
+1. **Admin → Gamificação → Autoavaliação** (`AdminSelfAssessment`) — questionário configurável de 8 perguntas (vale +200 pts). **Já existe e é editável.**
+2. **App do colaborador → Perfil → "Auto avaliação"** (`ProfileTab`, mostrado no print) — campos clínicos fixos (Peso, Altura, Hipertensão, Diabetes, Família, Endereço, etc.) com colunas tipadas em `profile_health_data`. **Hoje não é editável pelo admin.**
 
-A função `check_user_level` em si está correta — ela cria a linha em `user_level_progress`, percorre todos os níveis atingidos, paga o bônus e atualiza `profiles.level`. O problema é só o gatilho.
+O print é a tela #2.
 
-## Solução
+## Bug do teclado (causa)
 
-1. **Trigger automática em `profiles`** — sempre que `points` for alterado (por qualquer caminho: RPC, backfill, ajuste manual, importação), executar `check_user_level(NEW.user_id)`. Assim a promoção fica garantida, independente de quem mexeu nos pontos.
+Em `src/components/mayla/ProfileTab.tsx`, `InfoRow` e `ToggleField` estão declarados **dentro** da função `HealthSection` (linhas 287 e 294). A cada tecla, o `setForm` re-renderiza o pai; como `InfoRow` é redefinido a cada render, React cria um **componente novo** com a mesma assinatura, desmonta o `<Input>` antigo e monta um novo — o foco é perdido e o teclado fecha no Android.
 
-2. **Backfill imediato** — rodar `check_user_level` para todos os usuários que já têm pontos suficientes para subir de nível mas ainda estão no nível 1 (ou sem linha em `user_level_progress`). Isso resolve o caso do usuário Rodrigo (500 pts → Engajado) e do outro com 5050 pts (que deve pular vários níveis e receber os bônus acumulados).
+## O que vou fazer
 
-3. **Notificação visual** — como `user_level_progress` já está no Realtime e o `LevelUpNotifier` já está montado, assim que o backfill rodar o usuário verá o modal de "subiu de nível" automaticamente na próxima sessão / reload.
+### 1. Corrigir o teclado (frontend puro)
 
-## Detalhes técnicos
+- Mover `InfoRow` e `ToggleField` para **fora** do componente `HealthSection` (módulo-level), recebendo `editing`, `editField`, `value` por props.
+- Garantir que cada `<Input numérico>` use `inputMode="decimal"` / `"numeric"` e `key` estável.
+- Resultado: a instância do `<input>` é preservada entre keystrokes, foco se mantém, teclado para de fechar.
 
-Migração única:
+### 2. Tornar o "Perfil de Saúde" admin-editável
 
-```sql
--- 1) Trigger de sincronização
-CREATE OR REPLACE FUNCTION public.trg_sync_user_level()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-BEGIN
-  IF TG_OP = 'INSERT' OR NEW.points IS DISTINCT FROM OLD.points THEN
-    PERFORM public.check_user_level(NEW.user_id);
-  END IF;
-  RETURN NEW;
-END $$;
+Como as colunas (`peso`, `has_hypertension`, etc.) são tipadas, o admin **não cria/remove perguntas**, mas controla **visibilidade, rótulo e ordem** de cada campo já existente.
 
-CREATE TRIGGER profiles_sync_level
-AFTER INSERT OR UPDATE OF points ON public.profiles
-FOR EACH ROW EXECUTE FUNCTION public.trg_sync_user_level();
+**Banco** — nova tabela `clinical_profile_field_config`:
 
--- 2) Backfill: roda para todo mundo que tem pontos
-DO $$
-DECLARE r record;
-BEGIN
-  FOR r IN SELECT user_id FROM public.profiles WHERE points > 0 LOOP
-    PERFORM public.check_user_level(r.user_id);
-  END LOOP;
-END $$;
+```text
+- company_id (uuid, nullable → fallback global)
+- field_key (text)  ex: 'peso', 'has_hypertension', 'lives_with_infant'
+- label (text)
+- section ('saude' | 'endereco' | 'familia')
+- sort_order (int)
+- visible (boolean)
+- UNIQUE (company_id, field_key)
 ```
 
-Observações:
-- A trigger é idempotente: `check_user_level` só promove se `min_points <= points` e `level_number > current_level`, então atualizações que não cruzam threshold são no-op.
-- O bônus de nível é creditado via `UPDATE profiles SET points = points + bonus`, o que dispara a trigger de novo — porém na segunda chamada não há novo nível a alcançar, então não há loop.
-- Nenhuma mudança em UI ou no front-end é necessária. O `LevelUpNotifier` já escuta `user_level_progress` em tempo real e exibirá o modal celebrativo automaticamente.
+RLS: leitura para `authenticated`; escrita só para `admin`/`company_admin` da empresa. GRANT + policies completas.
 
-## Arquivo
+Seed: inserir uma linha global (`company_id = NULL`) para cada um dos ~16 campos atuais, com os rótulos hoje hardcoded.
 
-- nova migração SQL em `supabase/migrations/`
+Função `get_effective_clinical_fields(_company_id uuid)` análoga a `get_effective_levels`: retorna config da empresa se existir, senão a global.
+
+**Admin UI** — nova aba **"Perfil de Saúde"** dentro de `AdminGamification` (próximo a "Autoavaliação"):
+- Lista os campos agrupados por seção.
+- Para cada um: switch de visível, input de rótulo, drag/ordem.
+- Botão "Personalizar para empresa" (clona o global) — mesmo padrão de `AdminSelfAssessment`.
+
+**App do colaborador** — `ProfileTab` passa a:
+- Carregar config via `get_effective_clinical_fields(companyId)`.
+- Renderizar dinamicamente: pula campos com `visible = false`, usa `label` do admin, respeita `sort_order`.
+- Mantém o mapeamento `field_key → editor` (toggle, número, select) no frontend, já que cada campo tem widget específico.
+
+### 3. Fora de escopo (não vou mexer)
+
+- Tags por resposta (descartado pelo usuário).
+- Adicionar/remover colunas no schema clínico — só visibilidade/rótulo.
+- A Autoavaliação configurável (`AdminSelfAssessment`) já existe e não precisa de mudança.
+
+## Arquivos afetados
+
+- `src/components/mayla/ProfileTab.tsx` — extrair `InfoRow`/`ToggleField`, render dinâmico.
+- `src/components/admin/AdminClinicalProfileFields.tsx` — **novo**.
+- `src/components/admin/AdminGamification.tsx` — adicionar aba.
+- `supabase/migrations/<timestamp>_clinical_profile_field_config.sql` — tabela + GRANT + RLS + função + seed.
+- `src/integrations/supabase/types.ts` — regenerado automaticamente.
+
+## Validação
+
+- Abrir Perfil no mobile, editar Peso/Altura → teclado não fecha mais entre dígitos.
+- No admin: desligar "Bolsa Família" → some no app do colaborador da mesma empresa.
+- Renomear "Hipertensão" para "Pressão alta" → reflete no app.
