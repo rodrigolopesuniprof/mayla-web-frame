@@ -3627,6 +3627,8 @@ export type Database = {
       }
       company_leaderboard: {
         Row: {
+          avatar_type: string | null
+          avatar_url: string | null
           company_id: string | null
           current_level: number | null
           full_name: string | null
@@ -3698,6 +3700,10 @@ export type Database = {
       add_points_to_profile: {
         Args: { _points: number; _user_id: string }
         Returns: undefined
+      }
+      apply_dicebear_avatar: {
+        Args: { _url: string; _user_id: string }
+        Returns: Json
       }
       award_points: {
         Args: {

@@ -25,6 +25,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   const { user } = useAuth();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [profilePoints, setProfilePoints] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarType, setAvatarType] = useState<string | null>(null);
 
   // Questionnaire state
   const [latestQuestionnaire, setLatestQuestionnaire] = useState<{ id: string; title: string } | null>(null);
@@ -33,10 +35,12 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("full_name, points").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    supabase.from("profiles").select("full_name, points, avatar_url, avatar_type").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setProfileName(data.full_name);
         setProfilePoints(data.points);
+        setAvatarUrl((data as any).avatar_url || null);
+        setAvatarType((data as any).avatar_type || null);
       }
     });
     fetchLatestQuestionnaire();
@@ -120,7 +124,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             opacity: 0.09, zIndex: 0
           }} />
         <div className="relative z-[1]"><BrandBadge height={38} /></div>
-        <Avatar />
+        <Avatar initials={firstName.slice(0, 2).toUpperCase()} avatarUrl={avatarUrl} avatarType={avatarType} />
       </div>
 
       {/* Greeting */}

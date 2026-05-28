@@ -3,16 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeaderboard, pointsFor, rankFor, goalFor, type LeaderboardPeriod, type LeaderboardRow } from "@/hooks/useLeaderboard";
 import { DailyChallengeCard } from "./DailyChallengeCard";
+import { Avatar } from "./MaylaIcons";
+import { getInitials as initials, hasCustomAvatar } from "@/lib/avatar";
 
 interface Props { onBack: () => void; }
-
-function initials(name?: string | null) {
-  if (!name) return "—";
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (first + last).toUpperCase() || "—";
-}
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -165,14 +159,23 @@ export function LeaderboardScreen({ onBack }: Props) {
                   return (
                     <div key={r.user_id} className={`flex flex-col items-center ${isFirst ? "-mt-2" : ""}`}>
                       <div className="relative">
-                        <div
-                          className={`rounded-full flex items-center justify-center font-display font-semibold ${
-                            isFirst ? "bg-primary text-primary-foreground text-xl" : "bg-secondary text-secondary-foreground text-base"
-                          }`}
-                          style={{ width: size, height: size }}
-                        >
-                          {initials(r.full_name)}
-                        </div>
+                        {hasCustomAvatar(r.avatar_url, r.avatar_type) ? (
+                          <Avatar
+                            initials={initials(r.full_name)}
+                            size={size}
+                            avatarUrl={r.avatar_url}
+                            avatarType={r.avatar_type}
+                          />
+                        ) : (
+                          <div
+                            className={`rounded-full flex items-center justify-center font-display font-semibold ${
+                              isFirst ? "bg-primary text-primary-foreground text-xl" : "bg-secondary text-secondary-foreground text-base"
+                            }`}
+                            style={{ width: size, height: size }}
+                          >
+                            {initials(r.full_name)}
+                          </div>
+                        )}
                         <div className="absolute -top-1 -right-1 text-xl">{medal}</div>
                       </div>
                       <div className="mt-2 text-sm font-semibold text-foreground text-center truncate w-full px-1">
@@ -202,9 +205,13 @@ export function LeaderboardScreen({ onBack }: Props) {
                     <div className="w-6 text-center text-sm font-medium text-muted-foreground">
                       {rankFor(r, period)}
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-display font-semibold">
-                      {initials(r.full_name)}
-                    </div>
+                    {hasCustomAvatar(r.avatar_url, r.avatar_type) ? (
+                      <Avatar initials={initials(r.full_name)} size={36} avatarUrl={r.avatar_url} avatarType={r.avatar_type} />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-display font-semibold">
+                        {initials(r.full_name)}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{r.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">
@@ -228,9 +235,13 @@ export function LeaderboardScreen({ onBack }: Props) {
                 <div className="w-6 text-center text-sm font-bold text-primary">
                   {rankFor(myRow, period)}
                 </div>
-                <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-display font-semibold">
-                  {initials(myRow.full_name)}
-                </div>
+                {hasCustomAvatar(myRow.avatar_url, myRow.avatar_type) ? (
+                  <Avatar initials={initials(myRow.full_name)} size={36} avatarUrl={myRow.avatar_url} avatarType={myRow.avatar_type} />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-display font-semibold">
+                    {initials(myRow.full_name)}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground">Você</div>
                   <div className="text-xs text-muted-foreground">

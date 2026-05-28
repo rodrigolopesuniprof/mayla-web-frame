@@ -78,17 +78,37 @@ export function BrandBadge({ height = 36, white = false }: { height?: number; wh
   );
 }
 
-export function Avatar({ initials = "MA", size = 38 }: { initials?: string; size?: number }) {
+export function Avatar({
+  initials = "MA",
+  size = 38,
+  avatarUrl,
+  avatarType,
+}: {
+  initials?: string;
+  size?: number;
+  avatarUrl?: string | null;
+  avatarType?: string | null;
+}) {
+  const hasImage = !!avatarUrl && avatarType && avatarType !== "initials";
+  if (hasImage) {
+    return (
+      <img
+        src={avatarUrl!}
+        alt={initials}
+        className="shrink-0 rounded-full object-cover bg-muted"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   return (
     <div
-      className="flex items-center justify-center shrink-0 font-semibold"
+      className="flex items-center justify-center shrink-0 font-semibold text-primary-foreground"
       style={{
         width: size,
         height: size,
         borderRadius: "50%",
         background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-peach)))",
         fontSize: size * 0.38,
-        color: "#fff",
       }}
     >
       {initials}

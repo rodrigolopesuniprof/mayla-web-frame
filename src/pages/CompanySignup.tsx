@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { dicebearUrl } from "@/lib/avatar";
 
 interface CompanyInfo {
   id: string;
@@ -104,6 +105,23 @@ export default function CompanySignup() {
         setSaving(false);
         toast({ title: "Cadastro inválido", description: map[result.reason || ""] || "Link inválido.", variant: "destructive" });
         return;
+      }
+    }
+
+    // Gera avatar DiceBear e credita 50 pts via RPC SECURITY DEFINER
+    if (newUserId) {
+      try {
+        const url = dicebearUrl(fullName, newUserId);
+        const { data: avatarRes } = await supabase.rpc("apply_dicebear_avatar" as any, {
+          _user_id: newUserId,
+          _url: url,
+        });
+        const res = avatarRes as { ok?: boolean; points_awarded?: number } | null;
+        if (res?.ok && (res.points_awarded ?? 0) > 0) {
+          toast({ title: "Avatar criado! 🎨", description: `+${res.points_awarded} pts` });
+        }
+      } catch {
+        // silencioso: avatar é opcional, não bloqueia cadastro
       }
     }
 
