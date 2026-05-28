@@ -392,10 +392,37 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
       {/* Address */}
       <div className="bg-card rounded-2xl border border-border p-4">
         <p className="text-[10px] font-semibold text-muted-foreground tracking-[.1em] uppercase mb-2">Endereço</p>
-        {(() => { const f = fieldOf("cep", "CEP"); return f.visible && <InfoRow editing={editing} label={f.label} value={health.cep || "—"} />; })()}
-        {(() => { const f = fieldOf("endereco", "Endereço"); return f.visible && <InfoRow editing={editing} label={f.label} value={addressLine || "—"} />; })()}
-        {(() => { const f = fieldOf("cidade", "Cidade"); return f.visible && <InfoRow editing={editing} label={f.label} value={cityLine || "—"} />; })()}
+        {(() => { const f = fieldOf("cep", "CEP"); return f.visible && (
+          <InfoRow editing={editing} label={f.label} value={health.cep || "—"}
+            editField={<Input inputMode="numeric" maxLength={9} className="w-28 h-8 text-xs" value={form?.cep ?? ""} onChange={(e) => setForm({ ...form!, cep: e.target.value })} placeholder="00000-000" />}
+          />
+        ); })()}
+        {(() => { const f = fieldOf("endereco", "Endereço"); return f.visible && (
+          <InfoRow editing={editing} label={f.label} value={addressLine || "—"}
+            editField={
+              <div className="flex flex-col gap-1.5 w-[60%]">
+                <Input className="h-8 text-xs" value={form?.endereco ?? ""} onChange={(e) => setForm({ ...form!, endereco: e.target.value })} placeholder="Rua / Logradouro" />
+                <div className="flex gap-1.5">
+                  <Input className="h-8 text-xs w-20" value={form?.numero ?? ""} onChange={(e) => setForm({ ...form!, numero: e.target.value })} placeholder="Nº" />
+                  <Input className="h-8 text-xs flex-1" value={form?.complemento ?? ""} onChange={(e) => setForm({ ...form!, complemento: e.target.value })} placeholder="Compl." />
+                </div>
+                <Input className="h-8 text-xs" value={form?.bairro ?? ""} onChange={(e) => setForm({ ...form!, bairro: e.target.value })} placeholder="Bairro" />
+              </div>
+            }
+          />
+        ); })()}
+        {(() => { const f = fieldOf("cidade", "Cidade"); return f.visible && (
+          <InfoRow editing={editing} label={f.label} value={cityLine || "—"}
+            editField={
+              <div className="flex gap-1.5">
+                <Input className="h-8 text-xs w-36" value={form?.cidade ?? ""} onChange={(e) => setForm({ ...form!, cidade: e.target.value })} placeholder="Cidade" />
+                <Input className="h-8 text-xs w-14 uppercase" maxLength={2} value={form?.estado ?? ""} onChange={(e) => setForm({ ...form!, estado: e.target.value.toUpperCase() })} placeholder="UF" />
+              </div>
+            }
+          />
+        ); })()}
       </div>
+
 
       {/* Family */}
       <div className="bg-card rounded-2xl border border-border p-4">

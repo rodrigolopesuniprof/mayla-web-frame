@@ -104,6 +104,12 @@ export function FirstStepsCard() {
       description: "Bons ganhos pela frente. Continue cuidando da sua saúde!",
       duration: 5000,
     });
+    // Silence the recurring PointsOnboardingTour popup permanently
+    supabase
+      .from("profiles")
+      .update({ points_tour_completed: true, points_tour_dismissed_at: null })
+      .eq("user_id", user.id)
+      .then(() => {});
     const t = setTimeout(() => {
       markFirstStep(user.id, "dismissed");
       setDismissed(true);
@@ -111,6 +117,7 @@ export function FirstStepsCard() {
     }, 1800);
     return () => clearTimeout(t);
   }, [allDone, dismissed, user]);
+
 
   if (!loaded || !user || dismissed) return null;
 
