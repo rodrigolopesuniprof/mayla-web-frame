@@ -159,14 +159,23 @@ export function LeaderboardScreen({ onBack }: Props) {
                   return (
                     <div key={r.user_id} className={`flex flex-col items-center ${isFirst ? "-mt-2" : ""}`}>
                       <div className="relative">
-                        <div
-                          className={`rounded-full flex items-center justify-center font-display font-semibold ${
-                            isFirst ? "bg-primary text-primary-foreground text-xl" : "bg-secondary text-secondary-foreground text-base"
-                          }`}
-                          style={{ width: size, height: size }}
-                        >
-                          {initials(r.full_name)}
-                        </div>
+                        {hasCustomAvatar(r.avatar_url, r.avatar_type) ? (
+                          <Avatar
+                            initials={initials(r.full_name)}
+                            size={size}
+                            avatarUrl={r.avatar_url}
+                            avatarType={r.avatar_type}
+                          />
+                        ) : (
+                          <div
+                            className={`rounded-full flex items-center justify-center font-display font-semibold ${
+                              isFirst ? "bg-primary text-primary-foreground text-xl" : "bg-secondary text-secondary-foreground text-base"
+                            }`}
+                            style={{ width: size, height: size }}
+                          >
+                            {initials(r.full_name)}
+                          </div>
+                        )}
                         <div className="absolute -top-1 -right-1 text-xl">{medal}</div>
                       </div>
                       <div className="mt-2 text-sm font-semibold text-foreground text-center truncate w-full px-1">
