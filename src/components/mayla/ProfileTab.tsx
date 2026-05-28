@@ -247,6 +247,20 @@ function AutoAvaliacao({ userId }: { userId?: string }) {
       });
   }, [userId]);
 
+  // Load admin-managed field config (company override or global default)
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data: prof } = await supabase.from("profiles").select("company_id").eq("user_id", userId).maybeSingle();
+      const cid = (prof as any)?.company_id ?? null;
+      const { data } = await supabase.rpc("get_effective_clinical_fields" as any, { _company_id: cid });
+      const map = new Map<string, FieldCfg>();
+      ((data as any[]) || []).forEach((f) => map.set(f.field_key, f));
+      setFieldsCfg(map);
+    })();
+  }, [userId]);
+
+
   const handleSave = async () => {
     if (!userId || !form) return;
     setSaving(true);
