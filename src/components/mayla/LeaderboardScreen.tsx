@@ -58,7 +58,7 @@ export function LeaderboardScreen({ onBack }: Props) {
       {/* Period segmented control */}
       <div className="px-5 pt-2">
         <div className="flex gap-1 p-1 bg-card rounded-full border border-border">
-          {(["week", "month", "year"] as LeaderboardPeriod[]).map((p) => (
+          {(["week", "month", "year", "total"] as LeaderboardPeriod[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
