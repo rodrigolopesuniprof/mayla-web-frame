@@ -102,7 +102,7 @@ export default function CompanySignup() {
       return;
     }
 
-    toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
+    toast({ title: "Conta criada!", description: "Faça login para continuar." });
     navigate("/login");
   };
 
