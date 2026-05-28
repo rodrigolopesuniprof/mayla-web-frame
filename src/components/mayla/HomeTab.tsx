@@ -175,6 +175,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         </div>
       </div>
 
+      <MedicationReminderCard />
+
       <GamificationStatusCard
         onOpenLeaderboard={onOpenLeaderboard}
         onOpenChallenges={() => setTab("campanhas")}
