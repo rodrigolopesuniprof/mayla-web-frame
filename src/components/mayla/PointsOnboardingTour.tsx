@@ -124,7 +124,9 @@ export function PointsOnboardingTour({
       return;
     }
     if (force || !completed) {
-      setTimeout(() => setShow(true), force ? 0 : 600);
+      setTimeout(() => {
+        if (!completedRef.current) setShow(true);
+      }, force ? 0 : 600);
     }
   };
 
@@ -229,7 +231,9 @@ export function PointsOnboardingTour({
       position: "top-center",
     });
     // Reopen popup at next step
-    setTimeout(() => setShow(true), 1200);
+    setTimeout(() => {
+      if (!completedRef.current) setShow(true);
+    }, 1200);
   };
 
   const dismiss = async () => {
