@@ -24,6 +24,14 @@ interface Rule {
 
 interface Props { companyId: string }
 
+const ONBOARDING_KEYS = [
+  "profile_complete",
+  "self_assessment",
+  "rppg_measurement",
+  "daily_challenge",
+  "weekly_checkin",
+] as const;
+
 const numOrNull = (v: string) => {
   const t = v.trim();
   if (t === "") return null;
@@ -42,13 +50,14 @@ export function AdminPointRules({ companyId }: Props) {
       .from("point_rules" as any)
       .select("*")
       .eq("company_id", companyId)
-      .not("event_key", "in", "(mission_complete,self_assessment)")
+      .neq("event_key", "mission_complete")
       .order("label");
     setRules((data as any) || []);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [companyId]);
+
 
   const update = (id: string, patch: Partial<Rule>) => {
     setRules(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
@@ -81,8 +90,76 @@ export function AdminPointRules({ companyId }: Props) {
 
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
+  const onboardingRules = ONBOARDING_KEYS
+    .map(k => rules.find(r => r.event_key === k))
+    .filter((r): r is Rule => !!r);
+  const otherRules = rules.filter(r => !ONBOARDING_KEYS.includes(r.event_key as any));
+
+  const renderRule = (r: Rule, stepIndex?: number) => (
+    <Card key={r.id} className={stepIndex !== undefined ? "border-primary/40 bg-primary/5" : undefined}>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl">{r.emoji || "•"}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {stepIndex !== undefined && (
+                <span className="text-[10px] font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                  Etapa {stepIndex + 1}
+                </span>
+              )}
+              <div className="font-semibold text-foreground">{r.label}</div>
+              <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{r.event_key}</code>
+            </div>
+            {r.description && <div className="text-xs text-muted-foreground mt-0.5">{r.description}</div>}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{r.active ? "Ativo" : "Inativo"}</span>
+            <Switch checked={r.active} onCheckedChange={(v) => update(r.id, { active: v })} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+          <div>
+            <label className="text-[11px] text-muted-foreground">Pontos</label>
+            <Input type="number" min={0} value={r.points} onChange={e => update(r.id, { points: Number(e.target.value) || 0 })} />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground">Máx/dia</label>
+            <Input type="number" min={0} value={r.cap_per_day ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_per_day: numOrNull(e.target.value) })} />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground">Máx/semana</label>
+            <Input type="number" min={0} value={r.cap_per_week ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_per_week: numOrNull(e.target.value) })} />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground">Máx/mês</label>
+            <Input type="number" min={0} value={r.cap_per_month ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_per_month: numOrNull(e.target.value) })} />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground">Máx total (lifetime)</label>
+            <Input type="number" min={0} value={r.cap_lifetime ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_lifetime: numOrNull(e.target.value) })} />
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" disabled={saving === r.id} onClick={() => save(r)}>{saving === r.id ? "Salvando..." : "Salvar"}</Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[11px] text-muted-foreground">Válido a partir de</label>
+            <Input type="datetime-local" value={r.valid_from ? r.valid_from.slice(0, 16) : ""} onChange={e => update(r.id, { valid_from: e.target.value || null })} />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground">Válido até</label>
+            <Input type="datetime-local" value={r.valid_until ? r.valid_until.slice(0, 16) : ""} onChange={e => update(r.id, { valid_until: e.target.value || null })} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Cada evento abaixo concede pontos quando o colaborador o realiza. Defina pontos, limites por janela de tempo e validade.
@@ -91,65 +168,37 @@ export function AdminPointRules({ companyId }: Props) {
         <Button variant="outline" size="sm" onClick={restoreDefaults}>Restaurar padrões</Button>
       </div>
 
-      <div className="grid gap-3">
-        {rules.map(r => (
-          <Card key={r.id}>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">{r.emoji || "•"}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="font-semibold text-foreground">{r.label}</div>
-                    <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{r.event_key}</code>
-                  </div>
-                  {r.description && <div className="text-xs text-muted-foreground mt-0.5">{r.description}</div>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{r.active ? "Ativo" : "Inativo"}</span>
-                  <Switch checked={r.active} onCheckedChange={(v) => update(r.id, { active: v })} />
-                </div>
-              </div>
+      {onboardingRules.length > 0 && (
+        <section className="space-y-3">
+          <div className="border-l-4 border-primary pl-3">
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              🚀 Onboarding — Primeiros Passos
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Estas 5 regras controlam a sequência do tour de boas-vindas. Cada conclusão dispara o popup
+              "🎉 +X pontos!" e avança automaticamente para a próxima etapa.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {onboardingRules.map((r, i) => renderRule(r, i))}
+          </div>
+        </section>
+      )}
 
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Pontos</label>
-                  <Input type="number" min={0} value={r.points} onChange={e => update(r.id, { points: Number(e.target.value) || 0 })} />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Máx/dia</label>
-                  <Input type="number" min={0} value={r.cap_per_day ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_per_day: numOrNull(e.target.value) })} />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Máx/semana</label>
-                  <Input type="number" min={0} value={r.cap_per_week ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_per_week: numOrNull(e.target.value) })} />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Máx/mês</label>
-                  <Input type="number" min={0} value={r.cap_per_month ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_per_month: numOrNull(e.target.value) })} />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Máx total (lifetime)</label>
-                  <Input type="number" min={0} value={r.cap_lifetime ?? ""} placeholder="∞" onChange={e => update(r.id, { cap_lifetime: numOrNull(e.target.value) })} />
-                </div>
-                <div className="flex justify-end">
-                  <Button size="sm" disabled={saving === r.id} onClick={() => save(r)}>{saving === r.id ? "Salvando..." : "Salvar"}</Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Válido a partir de</label>
-                  <Input type="datetime-local" value={r.valid_from ? r.valid_from.slice(0, 16) : ""} onChange={e => update(r.id, { valid_from: e.target.value || null })} />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Válido até</label>
-                  <Input type="datetime-local" value={r.valid_until ? r.valid_until.slice(0, 16) : ""} onChange={e => update(r.id, { valid_until: e.target.value || null })} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {otherRules.length > 0 && (
+        <section className="space-y-3">
+          <div className="border-l-4 border-muted-foreground/30 pl-3">
+            <h3 className="text-base font-bold text-foreground">Outras regras</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Eventos avulsos (medicação, vínculos, avatar, pesquisas, etc.) que pontuam fora do fluxo de onboarding.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {otherRules.map(r => renderRule(r))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
+
