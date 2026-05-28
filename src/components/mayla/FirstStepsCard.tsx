@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { POINTS_TOUR_EVENT } from "./PointsOnboardingTour";
+import { FIRST_STEPS_REFRESH_EVENT, hasFirstStep } from "@/lib/first-steps";
 
-const STEPS: { emoji: string; title: string; sources: string[] }[] = [
-  { emoji: "📋", title: "Complete seus dados pessoais", sources: ["profile_complete"] },
-  { emoji: "🩺", title: "Faça sua autoavaliação", sources: ["self_assessment"] },
-  { emoji: "📷", title: "Faça uma medição rPPG", sources: ["rppg_measurement", "vitals_measurement"] },
-  { emoji: "🎯", title: "Participe de uma campanha ou missão", sources: ["mission_complete", "daily_challenge", "weekly_checkin"] },
-  { emoji: "🏆", title: "Veja sua posição no ranking", sources: ["tour_step_ranking"] },
+const STEPS = [
+  { emoji: "📋", title: "Complete seus dados pessoais" },
+  { emoji: "🩺", title: "Faça sua autoavaliação" },
+  { emoji: "📷", title: "Faça uma medição rPPG" },
+  { emoji: "👀", title: "Veja as campanhas disponíveis" },
+  { emoji: "🏆", title: "Veja sua posição no ranking" },
 ];
 
 export function FirstStepsCard() {
@@ -16,16 +17,32 @@ export function FirstStepsCard() {
   const [done, setDone] = useState<boolean[]>(STEPS.map(() => false));
   const [loaded, setLoaded] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("points_ledger")
-      .select("source")
-      .eq("user_id", user.id);
-    const sources = new Set((data || []).map((r: any) => r.source));
-    setDone(STEPS.map((s) => s.sources.some((src) => sources.has(src))));
+    const [
+      { data: profile },
+      { data: assess },
+      { data: rppg },
+      { data: ledger },
+    ] = await Promise.all([
+      supabase.from("profiles").select("birth_date, biological_sex").eq("user_id", user.id).maybeSingle(),
+      supabase.from("self_assessment_responses" as any).select("id").eq("user_id", user.id).limit(1),
+      supabase.from("health_measurements").select("id").eq("user_id", user.id).limit(1),
+      supabase.from("points_ledger").select("source").eq("user_id", user.id),
+    ]);
+
+    const sources = new Set((ledger || []).map((r: any) => r.source));
+    const profileComplete = !!((profile as any)?.birth_date && (profile as any)?.biological_sex);
+    const assessmentDone = (assess?.length ?? 0) > 0 || sources.has("self_assessment");
+    const rppgDone = (rppg?.length ?? 0) > 0 || sources.has("rppg_measurement") || sources.has("vitals_measurement");
+    const campaignsViewed =
+      hasFirstStep(user.id, "campaigns-viewed") ||
+      sources.has("mission_complete") || sources.has("daily_challenge") || sources.has("weekly_checkin");
+    const rankingViewed = hasFirstStep(user.id, "ranking-viewed") || sources.has("tour_step_ranking");
+
+    setDone([profileComplete, assessmentDone, rppgDone, campaignsViewed, rankingViewed]);
     setLoaded(true);
-  };
+  }, [user]);
 
   useEffect(() => {
     load();
@@ -38,16 +55,19 @@ export function FirstStepsCard() {
         () => load(),
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    const onRefresh = () => load();
+    window.addEventListener(FIRST_STEPS_REFRESH_EVENT, onRefresh);
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener(FIRST_STEPS_REFRESH_EVENT, onRefresh);
+    };
+  }, [user, load]);
 
   if (!loaded || !user) return null;
   const completedCount = done.filter(Boolean).length;
   if (completedCount === STEPS.length) return null;
 
   const reopenTour = async () => {
-    // Reset completed flag so the popup tour re-opens at the next pending step
     await supabase
       .from("profiles")
       .update({ points_tour_completed: false, points_tour_dismissed_at: null })
