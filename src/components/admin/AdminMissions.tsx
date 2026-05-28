@@ -26,7 +26,14 @@ interface Mission {
   success_message: string | null;
   success_link_url: string | null;
   success_link_label: string | null;
+  cap_per_day: number | null;
+  cap_per_week: number | null;
+  cap_per_month: number | null;
+  cap_lifetime: number | null;
+  valid_from: string | null;
+  valid_until: string | null;
 }
+
 
 const FREQUENCIES = [
   { value: "daily", label: "Diária" },
@@ -51,7 +58,10 @@ export function AdminMissions() {
     title: "", description: "", tag: "saude", emoji: "🎯",
     points: "50", frequency: "monthly", validation_type: "self_report", priority: "0",
     success_message: "", success_link_url: "", success_link_label: "",
+    cap_per_day: "", cap_per_week: "", cap_per_month: "", cap_lifetime: "",
+    valid_from: "", valid_until: "",
   });
+
 
   useEffect(() => { load(); }, []);
 
@@ -62,7 +72,7 @@ export function AdminMissions() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0", success_message: "", success_link_url: "", success_link_label: "" });
+    setForm({ title: "", description: "", tag: "saude", emoji: "🎯", points: "50", frequency: "monthly", validation_type: "self_report", priority: "0", success_message: "", success_link_url: "", success_link_label: "", cap_per_day: "", cap_per_week: "", cap_per_month: "", cap_lifetime: "", valid_from: "", valid_until: "" });
     setShowForm(true);
   };
 
@@ -75,12 +85,22 @@ export function AdminMissions() {
       success_message: m.success_message || "",
       success_link_url: m.success_link_url || "",
       success_link_label: m.success_link_label || "",
+      cap_per_day: m.cap_per_day != null ? String(m.cap_per_day) : "",
+      cap_per_week: m.cap_per_week != null ? String(m.cap_per_week) : "",
+      cap_per_month: m.cap_per_month != null ? String(m.cap_per_month) : "",
+      cap_lifetime: m.cap_lifetime != null ? String(m.cap_lifetime) : "",
+      valid_from: m.valid_from ? m.valid_from.slice(0, 16) : "",
+      valid_until: m.valid_until ? m.valid_until.slice(0, 16) : "",
     });
     setShowForm(true);
   };
 
   const save = async () => {
     if (!form.title || !form.tag) { toast.error("Preencha título e tag."); return; }
+    const numOrNull = (s: string) => {
+      const t = s.trim(); if (!t) return null;
+      const n = parseInt(t); return Number.isFinite(n) && n >= 0 ? n : null;
+    };
     const payload = {
       title: form.title, description: form.description || null, tag: form.tag, emoji: form.emoji,
       points: parseInt(form.points) || 0, frequency: form.frequency,
@@ -88,6 +108,12 @@ export function AdminMissions() {
       success_message: form.success_message.trim() || null,
       success_link_url: form.success_link_url.trim() || null,
       success_link_label: form.success_link_label.trim() || null,
+      cap_per_day: numOrNull(form.cap_per_day),
+      cap_per_week: numOrNull(form.cap_per_week),
+      cap_per_month: numOrNull(form.cap_per_month),
+      cap_lifetime: numOrNull(form.cap_lifetime),
+      valid_from: form.valid_from || null,
+      valid_until: form.valid_until || null,
     };
     if (editing) {
       const { error } = await supabase.from("missions").update(payload).eq("id", editing.id);
@@ -200,6 +226,43 @@ export function AdminMissions() {
             <div className="space-y-1">
               <Label>Prioridade (maior = aparece primeiro)</Label>
               <Input type="number" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} />
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">⚖️ Limites de pontuação (opcional)</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Quantas vezes esta missão pode pontuar para o mesmo colaborador. Deixe em branco para ilimitado.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx/dia</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_per_day} onChange={e => setForm(f => ({ ...f, cap_per_day: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx/semana</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_per_week} onChange={e => setForm(f => ({ ...f, cap_per_week: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx/mês</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_per_month} onChange={e => setForm(f => ({ ...f, cap_per_month: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Máx total (lifetime)</Label>
+                  <Input type="number" min={0} placeholder="∞" value={form.cap_lifetime} onChange={e => setForm(f => ({ ...f, cap_lifetime: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Válido a partir de</Label>
+                  <Input type="datetime-local" value={form.valid_from} onChange={e => setForm(f => ({ ...f, valid_from: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Válido até</Label>
+                  <Input type="datetime-local" value={form.valid_until} onChange={e => setForm(f => ({ ...f, valid_until: e.target.value }))} />
+                </div>
+              </div>
             </div>
 
             <div className="border-t border-border pt-4 space-y-3">

@@ -1929,6 +1929,10 @@ export type Database = {
       missions: {
         Row: {
           active: boolean | null
+          cap_lifetime: number | null
+          cap_per_day: number | null
+          cap_per_month: number | null
+          cap_per_week: number | null
           created_at: string | null
           description: string | null
           emoji: string | null
@@ -1942,10 +1946,16 @@ export type Database = {
           success_message: string | null
           tag: string
           title: string
+          valid_from: string | null
+          valid_until: string | null
           validation_type: string | null
         }
         Insert: {
           active?: boolean | null
+          cap_lifetime?: number | null
+          cap_per_day?: number | null
+          cap_per_month?: number | null
+          cap_per_week?: number | null
           created_at?: string | null
           description?: string | null
           emoji?: string | null
@@ -1959,10 +1969,16 @@ export type Database = {
           success_message?: string | null
           tag: string
           title: string
+          valid_from?: string | null
+          valid_until?: string | null
           validation_type?: string | null
         }
         Update: {
           active?: boolean | null
+          cap_lifetime?: number | null
+          cap_per_day?: number | null
+          cap_per_month?: number | null
+          cap_per_week?: number | null
           created_at?: string | null
           description?: string | null
           emoji?: string | null
@@ -1976,6 +1992,8 @@ export type Database = {
           success_message?: string | null
           tag?: string
           title?: string
+          valid_from?: string | null
+          valid_until?: string | null
           validation_type?: string | null
         }
         Relationships: [
@@ -3949,6 +3967,10 @@ export type Database = {
             }
             Returns: Json
           }
+      award_mission_event: {
+        Args: { _mission_id: string; _user_id: string }
+        Returns: Json
+      }
       award_points: {
         Args: {
           _description?: string

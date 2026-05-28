@@ -1,34 +1,32 @@
-# 2ª onda — Unificar pontuação via `award_event`
+## Mover regra de pontos da missão para dentro de cada Missão
 
-Migrar todos os triggers/RPCs antigos para consultarem `point_rules` (via `award_event`), garantindo que pontos, caps, ativo/inativo e validade configurados no admin valham para 100% das fontes.
+Hoje, "Missão concluída" aparece como uma regra única em **Regras de Pontos** (com pontos base, caps de dia/semana/mês/total, validade, ativo/inativo). Isso é confuso porque cada missão já tem seus próprios pontos no admin de Missões — e o cap global se aplica a todas as missões juntas, o que raramente é o desejado.
 
-## Migration única
+### Mudança
 
-Reescrever as 5 funções existentes para delegar a `public.award_event`:
+**1. Admin → Missões (`AdminMissions.tsx`)**
+No formulário de cada missão, adicionar uma seção "Regras de pontuação" com:
+- Ativo/Inativo (já existe via `active`)
+- Pontos (já existe)
+- Máx/dia, Máx/semana, Máx/mês, Máx total (lifetime)
+- Válido a partir de / Válido até
 
-1. **`add_points_on_mission_complete`** → chamar `award_event(_user_id, 'mission_complete', mission_id)`. Como a missão tem pontos próprios (`missions.points`), `award_event` recebe um novo parâmetro opcional `_override_points` ou — alternativa mais limpa — manter `award_points` para missões mas adicionar checagem de `point_rules.active` para o evento `mission_complete` (kill switch global).
-2. **`complete_daily_challenge`** → substituir `award_points(...,'daily_challenge',...)` por `award_event(...,'daily_challenge',...)`. Pontos do desafio (`daily_challenges.points`) seguem o mesmo padrão da missão (override).
-3. **`award_medication_points`** → trocar lógica direta por `award_event(...,'medication_adherence',...)`.
-4. **`award_esf_link_points`** → trocar `+500` hardcoded por `award_event(...,'esf_link',...)`.
-5. **`award_support_team_link_points`** → trocar `+500` hardcoded por `award_event(...,'support_team_link',...)`.
+Esses campos passam a viver na própria tabela `missions` (novas colunas: `cap_per_day`, `cap_per_week`, `cap_per_month`, `cap_lifetime`, `valid_from`, `valid_until`).
 
-## Ajuste em `award_event`
+**2. Admin → Regras de Pontos (`AdminPointRules.tsx`)**
+Esconder a linha `mission_complete` do listing (filtro client-side). A regra continua no banco apenas como fallback técnico, mas o admin não vê mais — evita duplicidade de UI.
 
-Adicionar parâmetro opcional `_override_points integer DEFAULT NULL`:
-- Se `_override_points` IS NOT NULL → usa esse valor (caso missões/desafios com pontos próprios)
-- Senão → usa `point_rules.points`
-- `active`, validade e caps continuam aplicáveis em ambos os casos
-- Quando `active = false` → retorna `{ok:false, reason:'inactive'}` e nada é creditado (kill switch funciona pra todos)
+**3. Engine (`award_event`)**
+Quando `_event_key = 'mission_complete'` e `_source_id` for o id da missão, usar caps/validade/active da **missão** em vez do `point_rules`. Para qualquer outro evento, comportamento atual permanece.
 
-## Survey/Questionário
+Implementação: nova função `award_mission_event(_user_id, _mission_id)` chamada pelo trigger `add_points_on_mission_complete`, que:
+- lê `missions.active`, `points`, `valid_from`, `valid_until`, caps
+- valida caps consultando `points_ledger` por `source='mission_complete' AND source_id=_mission_id`
+- credita via `award_points` se passar
 
-Buscar se há call site de pontos em `HealthSurvey.tsx`/`QuestionnaireRunner.tsx`. Se houver hardcoded, refatorar para `award_event(..., 'survey_complete')`. Se não houver, apenas documentar que o evento existe nas regras para uso futuro.
+O trigger deixa de chamar `award_event('mission_complete', …)` e chama `award_mission_event` direto.
 
-## Validação
-
-- Após a migration, confirmar que `point_rules` tem as 11 entradas seedadas para empresas existentes (rodar `seed_default_point_rules` para `company_id IN (SELECT id FROM companies)` onde faltar).
-- Testar: desativar `mission_complete` no admin → completar missão → nenhum ponto creditado e nada no `points_ledger`.
-
-## Fora de escopo
-- Sem mudança em billing, Meddit, Jitsi, auth.
-- Sem mudança de UI (toasts permanecem como estão; pontos exibidos vêm do retorno da RPC quando aplicável).
+### Fora de escopo
+- Outras regras (rPPG, vitals, daily challenge, ESF, etc.) continuam em **Regras de Pontos**.
+- Sem mudança de UI fora do form de missão e do listing de regras.
+- Sem migração de dados (caps ficam NULL = ilimitado, como hoje).
