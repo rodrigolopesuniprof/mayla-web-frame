@@ -124,7 +124,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
             opacity: 0.09, zIndex: 0
           }} />
         <div className="relative z-[1]"><BrandBadge height={38} /></div>
-        <Avatar />
+        <Avatar initials={firstName.slice(0, 2).toUpperCase()} avatarUrl={avatarUrl} avatarType={avatarType} />
       </div>
 
       {/* Greeting */}
