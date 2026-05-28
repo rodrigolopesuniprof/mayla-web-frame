@@ -9,11 +9,8 @@ interface Props {
   onOpenFull: () => void;
 }
 
-function initials(name?: string | null) {
-  if (!name) return "—";
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "—";
-}
+import { Avatar } from "./MaylaIcons";
+import { getInitials as initials, hasCustomAvatar } from "@/lib/avatar";
 
 export function RankingQuickView({ open, onOpenChange, onOpenFull }: Props) {
   const { user } = useAuth();
