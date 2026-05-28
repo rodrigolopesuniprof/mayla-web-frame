@@ -18,6 +18,10 @@ export function RankingQuickView({ open, onOpenChange, onOpenFull }: Props) {
   const { user } = useAuth();
   const { rows, loading } = useLeaderboard("week", 10);
 
+  useEffect(() => {
+    if (open && user?.id) markFirstStep(user.id, "ranking-viewed");
+  }, [open, user?.id]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl overflow-y-auto bg-background border-border">
