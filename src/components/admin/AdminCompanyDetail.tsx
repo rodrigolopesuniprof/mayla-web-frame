@@ -11,6 +11,7 @@ import { AdminSupportTeams } from "./AdminSupportTeams";
 import { AdminIntegrations } from "./AdminIntegrations";
 import { AdminMagazine } from "./AdminMagazine";
 import { AdminBilling } from "./AdminBilling";
+import { AdminGamification } from "./AdminGamification";
 import { ArrowLeft } from "lucide-react";
 
 interface Company {
@@ -143,6 +144,10 @@ export function AdminCompanyDetail({ companyId, onBack }: Props) {
 
         {activeSection === "programas" && (
           <AdminPrograms companyId={company.id} />
+        )}
+
+        {activeSection === "gamificacao" && (
+          <AdminGamification companyId={company.id} />
         )}
 
         {activeSection === "servicos-medicos" && (
