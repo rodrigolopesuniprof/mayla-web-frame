@@ -109,7 +109,9 @@ export function FirstStepsCard() {
       .from("profiles")
       .update({ points_tour_completed: true, points_tour_dismissed_at: null })
       .eq("user_id", user.id)
-      .then(() => {});
+      .then(() => {
+        window.dispatchEvent(new Event(POINTS_TOUR_COMPLETED_EVENT));
+      });
     const t = setTimeout(() => {
       markFirstStep(user.id, "dismissed");
       setDismissed(true);
