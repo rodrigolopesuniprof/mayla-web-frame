@@ -91,20 +91,23 @@ export function AdminCampaigns() {
     setEditing(null);
     setLinkedMissions([]);
     setAllMissions([]);
-    setForm({ title: "", description: "", emoji: "🏆", category: "challenge", bonus_points: "0", badge_name: "", badge_emoji: "", company_id: companies[0]?.id || "", program_id: "", starts_at: "", ends_at: "" });
+    setForm({ title: "", description: "", how_to_participate: "", completion_criteria: "", emoji: "🏆", category: "challenge", bonus_points: "0", badge_name: "", badge_emoji: "", company_id: companies[0]?.id || "", program_id: "", starts_at: "", ends_at: "" });
     setShowForm(true);
   };
 
   const openEdit = (c: Campaign) => {
     setEditing(c);
     setForm({
-      title: c.title, description: c.description || "", emoji: c.emoji, category: c.category,
+      title: c.title, description: c.description || "",
+      how_to_participate: c.how_to_participate || "", completion_criteria: c.completion_criteria || "",
+      emoji: c.emoji, category: c.category,
       bonus_points: String(c.bonus_points), badge_name: c.badge_name || "", badge_emoji: c.badge_emoji || "",
       company_id: c.company_id, program_id: c.program_id || "", starts_at: c.starts_at, ends_at: c.ends_at,
     });
     setShowForm(true);
     loadCampaignMissions(c.id);
   };
+
 
   const save = async () => {
     if (!form.title || !form.company_id || !form.starts_at || !form.ends_at) {
