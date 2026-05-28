@@ -96,6 +96,7 @@ export default function Admin() {
     { id: "empresas", label: "🏢 Empresas" },
     { id: "assistente", label: "👩‍⚕️ Assistente" },
     { id: "magazine-global", label: "📰 Magazine Global" },
+    { id: "branding", label: "🎨 Marca/Banner" },
   ];
 
   const handleNewCompany = async () => {
