@@ -85,7 +85,7 @@ export function ReadyPlayerMeButton({ userId, currentAvatarType, pointsAwarded, 
           <div className="flex-1 min-h-0">
             <iframe
               title="Ready Player Me"
-              src="https://readyplayer.me/avatar?frameApi&lang=pt"
+              src="https://demo.readyplayer.me/avatar?frameApi&lang=pt"
               allow="camera *; microphone *; clipboard-write"
               className="w-full h-full rounded-lg border-0 bg-muted"
             />
