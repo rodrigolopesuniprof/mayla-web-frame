@@ -224,6 +224,12 @@ export default function Subscribe() {
             ? "Pague para criar sua conta automaticamente."
             : "Escaneie ou copie o código.",
         });
+      } else if (out?.status === "pending") {
+        toast({
+          title: "Pagamento em processamento",
+          description: out?.message ?? "A confirmação chega em instantes. Sua conta já foi criada — faça login para continuar.",
+        });
+        setTimeout(() => { window.location.href = "/login"; }, 2500);
       } else {
         toast({ title: "Pagamento aprovado!", description: "Sua conta está ativa. Faça login para continuar." });
         setTimeout(() => { window.location.href = "/login"; }, 1500);
