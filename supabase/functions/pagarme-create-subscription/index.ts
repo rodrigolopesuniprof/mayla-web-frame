@@ -60,20 +60,44 @@ Deno.serve(async (req) => {
     // Carrega plano + assignment (preço efetivo)
     const { data: plan } = await admin
       .from("subscription_plans").select("*").eq("id", body.plan_id).single();
-    if (!plan) return json({ error: "Plan not found" }, 404);
+    if (!plan) {
+      console.error("plan_not_found", body.plan_id);
+      return json({ ok: false, error: "plan_not_found", message: "Plano não encontrado." });
+    }
 
     const { data: assignment } = await admin
       .from("company_plan_assignments").select("custom_price_cents, active")
       .eq("company_id", body.company_id).eq("plan_id", body.plan_id).maybeSingle();
-    if (!assignment?.active) return json({ error: "Plan not assigned to company" }, 400);
+    if (!assignment?.active) {
+      console.error("plan_not_assigned", body.company_id, body.plan_id);
+      return json({ ok: false, error: "plan_not_assigned", message: "Plano não disponível para esta empresa." });
+    }
 
     const priceCents = assignment.custom_price_cents ?? plan.price_cents;
     if (!priceCents || priceCents <= 0) {
-      return json({ error: "Invalid plan price" }, 400);
+      console.error("invalid_plan_price", priceCents);
+      return json({ ok: false, error: "invalid_plan_price", message: "Preço do plano inválido." });
+    }
+
+    // Para cartão, billing_address e telefone são obrigatórios (anti-fraude)
+    if (body.payment_method === "credit_card") {
+      if (!body.customer?.phone) {
+        return json({ ok: false, error: "missing_phone", message: "Telefone é obrigatório para pagamento com cartão." });
+      }
+      const ba = body.billing_address;
+      if (!ba?.zip_code || !ba?.street || !ba?.number || !ba?.neighborhood || !ba?.city || !ba?.state) {
+        return json({ ok: false, error: "missing_address", message: "Endereço de cobrança completo é obrigatório." });
+      }
     }
 
     // Carrega credenciais da empresa
-    const creds = await getCompanyCredentials(admin, body.company_id);
+    let creds;
+    try {
+      creds = await getCompanyCredentials(admin, body.company_id);
+    } catch (e) {
+      console.error("credentials_error", (e as Error).message);
+      return json({ ok: false, error: "credentials_error", message: (e as Error).message });
+    }
 
     // Resolve afiliado (split)
     let affiliate: { id: string; commission_percent: number; pagarme_recipient_id: string | null } | null = null;
@@ -88,7 +112,7 @@ Deno.serve(async (req) => {
     // Para usuário NOVO: validar senha antes de qualquer coisa, mas NÃO criar conta ainda
     const isNewAccount = !body.user_id;
     if (isNewAccount && (!body.password || body.password.length < 6)) {
-      return json({ error: "Password required for new account (min 6 chars)" }, 400);
+      return json({ ok: false, error: "weak_password", message: "Senha deve ter ao menos 6 caracteres." });
     }
 
     // Se já existe usuário com o mesmo email, recupera o id para vincular a subscription
@@ -101,7 +125,17 @@ Deno.serve(async (req) => {
       if (found) existingUserId = found.id;
     }
 
-    // Cria customer no Pagar.me
+    // Monta endereço para Pagar.me (formato v5)
+    const pagarmeAddress = body.billing_address ? {
+      line_1: `${body.billing_address.number}, ${body.billing_address.street}, ${body.billing_address.neighborhood}`,
+      line_2: body.billing_address.complement ?? "",
+      zip_code: body.billing_address.zip_code.replace(/\D/g, ""),
+      city: body.billing_address.city,
+      state: body.billing_address.state,
+      country: body.billing_address.country ?? "BR",
+    } : undefined;
+
+    // Cria customer no Pagar.me (com endereço + telefone — chave para anti-fraude)
     const customerRes = await pagarmeFetch(creds.apiKey, "/customers", {
       method: "POST",
       body: JSON.stringify({
@@ -110,13 +144,22 @@ Deno.serve(async (req) => {
         document: body.customer.document.replace(/\D/g, ""),
         document_type: "CPF",
         type: "individual",
+        ...(pagarmeAddress ? { address: pagarmeAddress } : {}),
         phones: body.customer.phone
           ? { mobile_phone: parsePhone(body.customer.phone) }
           : undefined,
       }),
     });
     const customer = await customerRes.json();
-    if (!customerRes.ok) return json({ error: "pagarme customer", details: customer }, 502);
+    if (!customerRes.ok) {
+      console.error("pagarme_customer_error", customer);
+      return json({
+        ok: false,
+        error: "pagarme_customer",
+        message: customer?.message ?? "Falha ao criar cliente no Pagar.me",
+        details: customer,
+      });
+    }
 
     // Build split rules (se houver afiliado)
     let splitRules: unknown[] | undefined;
