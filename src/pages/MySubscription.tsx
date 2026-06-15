@@ -39,14 +39,20 @@ export default function MySubscription() {
   }, [user]);
 
   async function handleCancel() {
-    if (!confirm("Tem certeza que deseja cancelar sua assinatura?")) return;
+    const ok = confirm(
+      "Tem certeza que deseja cancelar?\n\nVocê continua com acesso até a data da próxima cobrança. Após isso, sua assinatura será encerrada."
+    );
+    if (!ok) return;
     setCanceling(true);
     try {
       const { error } = await supabase.functions.invoke("pagarme-cancel-subscription", {
         body: { subscription_id: access.subscription.id },
       });
       if (error) throw error;
-      toast({ title: "Assinatura cancelada" });
+      toast({
+        title: "Cancelamento agendado",
+        description: "Você mantém acesso até o fim do período já pago.",
+      });
       window.location.reload();
     } catch (e: any) {
       toast({ title: "Erro ao cancelar", description: e.message, variant: "destructive" });
