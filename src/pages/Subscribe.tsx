@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { lookupCep, formatCep } from "@/lib/viacep";
 
 interface Plan {
   id: string; name: string; description: string | null;
@@ -32,12 +34,25 @@ export default function Subscribe() {
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{ qr_code: string; qr_code_url: string; expires_at: string } | null>(null);
 
-  // Form
+  // Dados pessoais
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [document, setDocument] = useState("");
   const [phone, setPhone] = useState("");
+
+  // Endereço de cobrança (obrigatório para cartão — anti-fraude)
+  const [zipCode, setZipCode] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [complement, setComplement] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [cepLoading, setCepLoading] = useState(false);
+  const numberInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Cartão
   const [cardNumber, setCardNumber] = useState("");
   const [cardHolder, setCardHolder] = useState("");
   const [cardExp, setCardExp] = useState(""); // MM/YY
@@ -62,17 +77,35 @@ export default function Subscribe() {
         if (found) setSelected(found);
       }
     })();
-  }, [slug]);
+  }, [slug, lockedPlanId]);
+
+  async function handleCepLookup(value: string) {
+    const clean = value.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    setCepLoading(true);
+    const result = await lookupCep(clean);
+    setCepLoading(false);
+    if (!result) {
+      toast({ title: "CEP não encontrado", description: "Preencha o endereço manualmente.", variant: "destructive" });
+      return;
+    }
+    setStreet(result.street);
+    setNeighborhood(result.neighborhood);
+    setCity(result.city);
+    setState(result.state);
+    // foca em "número" se houver algo a preencher
+    setTimeout(() => numberInputRef.current?.focus(), 50);
+  }
 
   async function tokenizeCard(): Promise<string> {
-    // Tokenização via API pública Pagar.me v5 — usa Public Key
-    // Para simplificar, fazemos via endpoint genérico card-tokens.
     const [mm, yy] = cardExp.split("/").map((s) => s.trim());
-    // A public key de cada empresa deveria ser exposta; por ora assumimos que vem do backend
-    // Para não vazar, nossa edge function poderia expor a public key. Implementação simplificada:
     const pubKeyRes = await supabase.functions.invoke("pagarme-public-key", { body: { company_id: company.id } });
     const pk = (pubKeyRes.data as any)?.public_key;
     if (!pk) throw new Error("Public key não configurada");
+
+    const cleanCpf = document.replace(/\D/g, "");
+    const cleanZip = zipCode.replace(/\D/g, "");
+
     const res = await fetch(`https://api.pagar.me/core/v5/tokens?appId=${pk}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -81,9 +114,18 @@ export default function Subscribe() {
         card: {
           number: cardNumber.replace(/\s/g, ""),
           holder_name: cardHolder,
+          holder_document: cleanCpf, // chave do anti-fraude
           exp_month: Number(mm),
           exp_year: Number("20" + yy),
           cvv: cardCvv,
+          billing_address: {
+            line_1: `${number}, ${street}, ${neighborhood}`,
+            line_2: complement || "",
+            zip_code: cleanZip,
+            city,
+            state,
+            country: "BR",
+          },
         },
       }),
     });
@@ -92,10 +134,34 @@ export default function Subscribe() {
     return out.id;
   }
 
+  function validateForm(): string | null {
+    if (!name.trim()) return "Informe seu nome completo.";
+    if (!email.trim() || !email.includes("@")) return "Email inválido.";
+    if (!password || password.length < 6) return "Senha deve ter ao menos 6 caracteres.";
+    if (document.replace(/\D/g, "").length !== 11) return "CPF inválido.";
+    if (phone.replace(/\D/g, "").length < 10) return "Telefone inválido (com DDD).";
+
+    if (method === "credit_card") {
+      if (zipCode.replace(/\D/g, "").length !== 8) return "CEP inválido.";
+      if (!street.trim()) return "Informe a rua.";
+      if (!number.trim()) return "Informe o número.";
+      if (!neighborhood.trim()) return "Informe o bairro.";
+      if (!city.trim()) return "Informe a cidade.";
+      if (state.length !== 2) return "Informe a UF (2 letras).";
+      if (!cardNumber.replace(/\s/g, "")) return "Informe o número do cartão.";
+      if (!cardHolder.trim()) return "Informe o nome no cartão.";
+      if (!/^\d{2}\/\d{2}$/.test(cardExp)) return "Validade inválida (MM/AA).";
+      if (cardCvv.length < 3) return "CVV inválido.";
+    }
+    return null;
+  }
+
   async function submit() {
     if (!selected) return;
-    if (!name || !email || !document || !password) {
-      toast({ title: "Preencha todos os dados", variant: "destructive" }); return;
+    const validationError = validateForm();
+    if (validationError) {
+      toast({ title: "Verifique os dados", description: validationError, variant: "destructive" });
+      return;
     }
     setLoading(true);
     try {
@@ -103,26 +169,53 @@ export default function Subscribe() {
       if (method === "credit_card") {
         card_token = await tokenizeCard();
       }
+
+      const billing_address = method === "credit_card" ? {
+        zip_code: zipCode.replace(/\D/g, ""),
+        street,
+        number,
+        complement: complement || undefined,
+        neighborhood,
+        city,
+        state,
+        country: "BR",
+      } : undefined;
+
       const { data, error } = await supabase.functions.invoke("pagarme-create-subscription", {
         body: {
           company_id: company.id,
           plan_id: selected.id,
           payment_method: method,
           customer: { name, email, document, phone },
+          billing_address,
           card_token,
           referral_code: referralCode,
           password,
         },
       });
-      const out = (data as any) ?? {};
-      // Erro de pagamento recusado (cartão) — função retorna 402 com error: "payment_failed"
-      if (error || out?.error) {
+
+      let out: any = (data as any) ?? {};
+
+      // Defesa em profundidade: se SDK lançou erro HTTP, tentar extrair body real
+      if (error && (error as any).context) {
+        try {
+          const ctx = (error as any).context;
+          if (typeof ctx.json === "function") out = await ctx.json();
+          else if (typeof ctx.text === "function") {
+            const t = await ctx.text();
+            try { out = JSON.parse(t); } catch { out = { message: t }; }
+          }
+        } catch { /* mantém out vazio */ }
+      }
+
+      if (out?.ok === false || out?.error || (error && !out?.message)) {
         const msg = out?.message
-          ?? (out?.error === "payment_failed" ? "Pagamento não autorizado pela operadora." : null)
+          ?? (out?.error === "payment_failed" ? "Cartão recusado pela operadora." : null)
           ?? error?.message
           ?? "Falha ao processar pagamento";
         throw new Error(msg);
       }
+
       if (out?.pix) {
         setPixData(out.pix);
         toast({
@@ -196,10 +289,10 @@ export default function Subscribe() {
             <div><Label>Nome completo</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
             <div><Label>Senha (mín 6)</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-            <div><Label>CPF</Label><Input value={document} onChange={(e) => setDocument(e.target.value)} /></div>
+            <div><Label>CPF</Label><Input value={document} onChange={(e) => setDocument(e.target.value)} placeholder="000.000.000-00" /></div>
             <div><Label>Celular</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 91234-5678" /></div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               {selected.payment_methods.includes("credit_card") && (
                 <Button type="button" variant={method === "credit_card" ? "default" : "outline"} size="sm" onClick={() => setMethod("credit_card")}>Cartão</Button>
               )}
@@ -209,17 +302,53 @@ export default function Subscribe() {
             </div>
 
             {method === "credit_card" && (
-              <div className="space-y-2">
-                <div><Label>Número do cartão</Label><Input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} /></div>
-                <div><Label>Nome no cartão</Label><Input value={cardHolder} onChange={(e) => setCardHolder(e.target.value)} /></div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label>Validade (MM/AA)</Label><Input value={cardExp} onChange={(e) => setCardExp(e.target.value)} placeholder="12/28" /></div>
-                  <div><Label>CVV</Label><Input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} /></div>
+              <>
+                <div className="pt-3 border-t mt-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Endereço de cobrança</p>
+                  <div>
+                    <Label>CEP</Label>
+                    <div className="relative">
+                      <Input
+                        value={zipCode}
+                        onChange={(e) => {
+                          const v = formatCep(e.target.value);
+                          setZipCode(v);
+                          if (v.replace(/\D/g, "").length === 8) handleCepLookup(v);
+                        }}
+                        onBlur={(e) => handleCepLookup(e.target.value)}
+                        placeholder="00000-000"
+                        maxLength={9}
+                      />
+                      {cepLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    <div className="col-span-2"><Label>Rua</Label><Input value={street} onChange={(e) => setStreet(e.target.value)} /></div>
+                    <div><Label>Número</Label><Input ref={numberInputRef} value={number} onChange={(e) => setNumber(e.target.value)} /></div>
+                  </div>
+                  <div className="mt-2"><Label>Complemento</Label><Input value={complement} onChange={(e) => setComplement(e.target.value)} placeholder="opcional" /></div>
+                  <div className="mt-2"><Label>Bairro</Label><Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} /></div>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    <div className="col-span-2"><Label>Cidade</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
+                    <div><Label>UF</Label><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))} maxLength={2} /></div>
+                  </div>
                 </div>
-              </div>
+
+                <div className="pt-3 border-t mt-2 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Dados do cartão</p>
+                  <div><Label>Número do cartão</Label><Input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} /></div>
+                  <div><Label>Nome no cartão</Label><Input value={cardHolder} onChange={(e) => setCardHolder(e.target.value)} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>Validade (MM/AA)</Label><Input value={cardExp} onChange={(e) => setCardExp(e.target.value)} placeholder="12/28" /></div>
+                    <div><Label>CVV</Label><Input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} /></div>
+                  </div>
+                </div>
+              </>
             )}
 
-            <Button onClick={submit} disabled={loading} className="w-full">
+            <Button onClick={submit} disabled={loading} className="w-full mt-3">
               {loading ? "Processando..." : method === "credit_card" ? "Assinar" : "Gerar PIX"}
             </Button>
             {referralCode && <p className="text-xs text-center text-muted-foreground">Indicação: {referralCode}</p>}
