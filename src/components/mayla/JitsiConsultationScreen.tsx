@@ -131,22 +131,35 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
 
     setupSharesListener();
 
-    // Subscribe to realtime inserts on report_shares
-    const channel = supabase
-      .channel(`shares-${consultation.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "report_shares" },
-        (payload: any) => {
-          const newShare = payload.new;
-          if (newShare?.token && new Date(newShare.expires_at) > new Date()) {
-            setSharedToken(newShare.token);
+    // Subscribe to realtime inserts on report_shares — escopado ao paciente desta consulta
+    const setupChannel = async () => {
+      const { data: consultData } = await supabase
+        .from("consultations").select("user_id").eq("id", consultation.id).single();
+      const patientUserId = consultData?.user_id;
+      if (!patientUserId) return null;
+      return supabase
+        .channel(`shares-${consultation.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "report_shares",
+            filter: `user_id=eq.${patientUserId}`,
+          },
+          (payload: any) => {
+            const newShare = payload.new;
+            if (newShare?.token && new Date(newShare.expires_at) > new Date()) {
+              setSharedToken(newShare.token);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    };
+    let channelRef: any = null;
+    setupChannel().then((c) => { channelRef = c; });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { if (channelRef) supabase.removeChannel(channelRef); };
   }, [isProfessional, consultation.id]);
 
   const startTimer = useCallback(() => {

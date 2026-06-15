@@ -4197,6 +4197,7 @@ export type Database = {
       }
       ensure_daily_challenge: { Args: { _company_id: string }; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
+      get_company_id_strict: { Args: { _user_id: string }; Returns: string }
       get_company_wellbeing_summary: {
         Args: { _company_id: string }
         Returns: {
