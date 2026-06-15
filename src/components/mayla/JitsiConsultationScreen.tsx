@@ -159,7 +159,7 @@ export function JitsiConsultationScreen({ consultation, onLeave, isProfessional,
     let channelRef: any = null;
     setupChannel().then((c) => { channelRef = c; });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { if (channelRef) supabase.removeChannel(channelRef); };
   }, [isProfessional, consultation.id]);
 
   const startTimer = useCallback(() => {
