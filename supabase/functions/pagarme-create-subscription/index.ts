@@ -15,6 +15,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface BillingAddress {
+  zip_code: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  country?: string;
+}
+
 interface Body {
   company_id: string;
   plan_id: string;
@@ -25,6 +36,7 @@ interface Body {
     document: string; // CPF
     phone?: string;
   };
+  billing_address?: BillingAddress;
   card_token?: string; // tokenizado no front com pagarme.js
   referral_code?: string;
   user_id?: string; // se já cadastrado, usar user_id; senão criar conta após confirmação
