@@ -1,79 +1,76 @@
-# Corrigir falso "pagamento recusado" quando charge está pendente
+# Cancelamento e inadimplência — webhook + UX
 
-## Causa raiz
+## 1. Configurar webhook no painel Pagar.me (passo manual do usuário)
 
-Em `supabase/functions/pagarme-create-subscription/index.ts` (fluxo cartão):
+Para a empresa Mayla (e cada futura empresa com Pagar.me), no painel:
 
-- Polling de apenas **6 segundos** (4 × 1.5s).
-- Se `chargeStatus !== "paid"` ao final, o código:
-  - faz `DELETE /subscriptions/{id}` no Pagar.me,
-  - retorna `payment_failed` com mensagem "Cartão recusado",
-  - não cria a conta local.
+- **Menu Desenvolvedores → Webhooks → Adicionar endpoint**
+- **URL:** `https://ymexlslqsdflgkcvwjoz.supabase.co/functions/v1/pagarme-webhook`
+- **Eventos a marcar** (essenciais para cancelamento/inadimplência):
+  - `charge.paid`
+  - `charge.payment_failed`
+  - `charge.refunded`
+  - `subscription.created`
+  - `subscription.canceled`
+  - `invoice.created`
+  - `invoice.paid`
+  - `invoice.payment_failed`
+- **Segredo do webhook (opcional, recomendado):** gerar uma chave e salvar em **Admin → Empresas → Mayla → Pagar.me → Webhook secret** (coluna `company_payment_credentials.webhook_secret` que já existe). Se preenchido, a edge function valida HMAC.
 
-Mas `pending` / `processing` não são recusa — significam que o adquirente ainda está respondendo. Como vimos no log, `chargeId: undefined`, ou seja, a charge nem tinha sido criada ainda na primeira leitura. O Pagar.me efetivamente autorizou depois, mas nós já tínhamos cancelado/errado.
+Te entrego esse trecho como instrução escrita após implementar — não há como configurar pelo código nosso lado.
 
-## Mudanças
+## 2. Webhook (`supabase/functions/pagarme-webhook/index.ts`) — completar eventos
 
-### 1. `supabase/functions/pagarme-create-subscription/index.ts` — fluxo cartão
+Acrescentar / ajustar:
 
-**Aumentar e diferenciar estados:**
+| Evento | Ação |
+|---|---|
+| `invoice.created` | Insere `subscription_invoices` com `status='pending'`, vinculando pelo `subscription_id` da Pagar.me → assim quando vier `charge.paid` da renovação, casa pelo `pagarme_charge_id` (já tratado). |
+| `invoice.payment_failed` / `charge.payment_failed` | invoice → `failed`, sub → `past_due` (já existente, mas garantir lookup também por `pagarme_subscription_id` quando charge.id não casar). Dispara e-mail "Pagamento recusado". |
+| `charge.paid` numa sub `past_due` | Reativa sub → `active` e atualiza `current_period_end`. Hoje o código já promove para `active`, só precisa garantir que funciona vindo de `past_due`. |
+| `subscription.canceled` | Já existente. Acrescentar disparo de e-mail "Assinatura cancelada". |
+| `charge.refunded` | invoice → `refunded`, sub → `canceled`. |
 
-- Polling: até **12 tentativas × 2s = 24s** (margem segura sem estourar timeout da edge function).
-- Estados terminais de falha: `failed`, `refused`, `canceled`, `chargedback`. Apenas estes acionam o caminho de erro.
-- `pending` / `processing` / charge ausente → **NÃO** é falha.
+## 3. Cancelamento pelo usuário (fim do ciclo)
 
-**Novo fluxo de decisão depois do polling:**
+### Edge function nova: `pagarme-cancel-subscription`
 
-```
-if chargeStatus in [failed, refused, canceled, chargedback]:
-    cancela subscription no Pagar.me
-    retorna { ok:false, error:"payment_failed", message: <motivo real> }
+- Recebe `{ subscription_id }`, valida que `auth.uid()` é o dono.
+- Chama `DELETE /subscriptions/{pagarme_subscription_id}?cancel_pending_invoices=false` no Pagar.me. Isso instrui o gateway a não emitir mais cobranças e cancelar ao fim do ciclo.
+- Marca local: `cancel_at_period_end = true` (nova coluna boolean) e `canceled_at = now()`. **NÃO** muda `status` ainda — sub continua `active` até `current_period_end`.
+- Quando chegar o evento `subscription.canceled` do Pagar.me, o webhook seta `status='canceled'` (já implementado) e dispara e-mail.
 
-else if chargeStatus == "paid":
-    cria usuário (se novo) + grava subscription com status="active"
-    grava invoice "paid"
-    retorna { ok:true, status:"active" }
+### UI: aba "Assinatura" no Perfil
 
-else:  # pending / processing / charge ainda não emitida
-    NÃO cancela a subscription
-    cria usuário (se novo) + grava subscription com status="pending"
-    grava invoice "pending"
-    retorna { ok:true, status:"pending", message:"Pagamento em confirmação..." }
-```
+Pequeno bloco mostrando: plano, próxima cobrança, status, e botão "Cancelar assinatura" com confirmação. Se já estiver em `cancel_at_period_end`, mostrar aviso "Sua assinatura encerra em DD/MM/AAAA" e botão "Reativar" (chama Pagar.me para recriar — fora deste escopo, fica para depois).
 
-O webhook `charge.paid` / `charge.payment_failed` (já existente) é quem finaliza:
-- `charge.paid` → muda subscription para `active` e invoice para `paid`.
-- `charge.payment_failed` → muda para `past_due`/`canceled` conforme a regra atual do webhook.
+## 4. Schema
 
-**Persistência dos campos billing_*** (já implementada) permanece em ambos caminhos (active/pending).
+Migration adicionando à `subscriptions`:
+- `cancel_at_period_end boolean DEFAULT false`
+- (já existe `canceled_at`)
 
-### 2. `src/pages/Subscribe.tsx`
+Adicionando a `subscription_invoices`:
+- valor `refunded` ao status (string livre hoje, só documentação).
 
-Tratar a nova resposta `ok:true, status:"pending"`:
+## 5. E-mails automáticos
 
-- Toast informativo (`toast.success` ou `toast`): "Pagamento em processamento. Você receberá a confirmação em instantes." 
-- Redirecionar para a tela de boas-vindas/dashboard normalmente — a UI já deve refletir o status `pending` (login funciona porque a conta foi criada).
-- Continuar mostrando erro apenas quando `ok:false`.
+Reusar a infra de e-mail transacional já existente (escrita em planos anteriores). Dois templates novos disparados pelo próprio webhook:
 
-### 3. Mensagem de erro real (quando for falha de verdade)
+- **`subscription-payment-failed`** — quando charge falha. CTA "atualizar cartão" (link para `/perfil/assinatura`).
+- **`subscription-canceled`** — quando vem `subscription.canceled`. Confirmação + convite a reassinar.
 
-Manter a extração já presente:
-```
-firstCharge?.last_transaction?.acquirer_message
-?? gateway_response?.errors?.[0]?.message
-?? refuse_reason
-?? "Pagamento não autorizado pela operadora"
-```
-Mas só usar essa mensagem quando o status for realmente terminal de falha.
+Se a infra de e-mail transacional ainda não estiver montada neste projeto, o plano inclui criar o helper mínimo de envio (usando Lovable Cloud Email). Identificar isso no momento da implementação e ajustar.
 
-## Fora de escopo
+## 6. Fora de escopo agora
 
-- Webhook (`pagarme-webhook`) — já existe e trata `charge.paid` para ativar; nenhuma mudança necessária se ele já procura subscription pelo `pagarme_subscription_id`. Verificar apenas que ele atualiza `status` de `pending` → `active`. Se não atualizar, ajustar nesta mesma alteração.
-- PIX, RLS, schema, afiliados.
+- Reativação automática após cancelamento (botão "Reativar" só mostra mensagem manual).
+- Dunning customizado (Pagar.me já faz retentativas próprias).
+- Telas administrativas de inadimplência (admin já pode filtrar `subscriptions` por status no Supabase).
 
 ## Validação
 
-1. Refazer assinatura com cartão real.
-2. Caso a charge confirme em <24s: resposta `ok:true, status:"active"`, conta criada, sub ativa.
-3. Caso demore mais: resposta `ok:true, status:"pending"`, conta criada, sub `pending`, e o webhook a promove para `active` quando o Pagar.me confirmar.
-4. Caso o adquirente realmente recuse: resposta `ok:false` com a mensagem real do adquirente (não mais um falso negativo).
+1. Configurar webhook no painel.
+2. Cancelar uma sub teste pelo botão → checar `cancel_at_period_end=true`, e-mail "cancelada" depois do evento.
+3. Forçar falha de cobrança (cartão de teste recusado) → sub vira `past_due` na hora, usuário perde acesso, recebe e-mail "pagamento recusado".
+4. Pagar novamente → sub volta a `active`.

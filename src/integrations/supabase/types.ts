@@ -3602,6 +3602,7 @@ export type Database = {
           billing_state: string | null
           billing_street: string | null
           billing_zip_code: string | null
+          cancel_at_period_end: boolean
           canceled_at: string | null
           card_brand: string | null
           card_last4: string | null
@@ -3630,6 +3631,7 @@ export type Database = {
           billing_state?: string | null
           billing_street?: string | null
           billing_zip_code?: string | null
+          cancel_at_period_end?: boolean
           canceled_at?: string | null
           card_brand?: string | null
           card_last4?: string | null
@@ -3658,6 +3660,7 @@ export type Database = {
           billing_state?: string | null
           billing_street?: string | null
           billing_zip_code?: string | null
+          cancel_at_period_end?: boolean
           canceled_at?: string | null
           card_brand?: string | null
           card_last4?: string | null

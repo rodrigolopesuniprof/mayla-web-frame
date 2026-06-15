@@ -39,14 +39,20 @@ export default function MySubscription() {
   }, [user]);
 
   async function handleCancel() {
-    if (!confirm("Tem certeza que deseja cancelar sua assinatura?")) return;
+    const ok = confirm(
+      "Tem certeza que deseja cancelar?\n\nVocê continua com acesso até a data da próxima cobrança. Após isso, sua assinatura será encerrada."
+    );
+    if (!ok) return;
     setCanceling(true);
     try {
       const { error } = await supabase.functions.invoke("pagarme-cancel-subscription", {
         body: { subscription_id: access.subscription.id },
       });
       if (error) throw error;
-      toast({ title: "Assinatura cancelada" });
+      toast({
+        title: "Cancelamento agendado",
+        description: "Você mantém acesso até o fim do período já pago.",
+      });
       window.location.reload();
     } catch (e: any) {
       toast({ title: "Erro ao cancelar", description: e.message, variant: "destructive" });
@@ -104,11 +110,19 @@ export default function MySubscription() {
             <div><strong>Forma de pagamento:</strong> {sub.payment_method}</div>
             {sub.current_period_end && (
               <div>
-                <strong>Próxima cobrança:</strong>{" "}
+                <strong>{sub.cancel_at_period_end ? "Acesso encerra em:" : "Próxima cobrança:"}</strong>{" "}
                 {new Date(sub.current_period_end).toLocaleDateString("pt-BR")}
               </div>
             )}
-            {access.hasAccess && (
+            {sub.cancel_at_period_end && (
+              <div className="mt-3 rounded-md bg-muted p-3 text-sm">
+                <p className="font-medium">Cancelamento agendado</p>
+                <p className="text-muted-foreground">
+                  Sua assinatura foi cancelada e não será renovada. Você continua com acesso completo até a data acima.
+                </p>
+              </div>
+            )}
+            {access.hasAccess && !sub.cancel_at_period_end && (
               <Button variant="destructive" size="sm" className="mt-3" onClick={handleCancel} disabled={canceling}>
                 {canceling ? "Cancelando..." : "Cancelar assinatura"}
               </Button>
