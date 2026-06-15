@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   try {
     const body = (await req.json()) as Body;
     if (!body.company_id || !body.plan_id || !body.payment_method || !body.customer?.email) {
-      return json({ error: "Missing fields" }, 400);
+      return json({ ok: false, error: "missing_fields", message: "Dados obrigatórios ausentes." });
     }
 
     const admin = createClient(
