@@ -81,7 +81,9 @@ const App = () => (
                 path="/afiliado"
                 element={
                   <ProtectedRoute>
-                    <AffiliatePortal />
+                    <AccessGate>
+                      <AffiliatePortal />
+                    </AccessGate>
                   </ProtectedRoute>
                 }
               />
