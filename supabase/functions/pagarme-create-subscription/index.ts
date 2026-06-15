@@ -15,6 +15,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface BillingAddress {
+  zip_code: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  country?: string;
+}
+
 interface Body {
   company_id: string;
   plan_id: string;
@@ -25,6 +36,7 @@ interface Body {
     document: string; // CPF
     phone?: string;
   };
+  billing_address?: BillingAddress;
   card_token?: string; // tokenizado no front com pagarme.js
   referral_code?: string;
   user_id?: string; // se já cadastrado, usar user_id; senão criar conta após confirmação
@@ -37,7 +49,7 @@ Deno.serve(async (req) => {
   try {
     const body = (await req.json()) as Body;
     if (!body.company_id || !body.plan_id || !body.payment_method || !body.customer?.email) {
-      return json({ error: "Missing fields" }, 400);
+      return json({ ok: false, error: "missing_fields", message: "Dados obrigatórios ausentes." });
     }
 
     const admin = createClient(
@@ -48,20 +60,44 @@ Deno.serve(async (req) => {
     // Carrega plano + assignment (preço efetivo)
     const { data: plan } = await admin
       .from("subscription_plans").select("*").eq("id", body.plan_id).single();
-    if (!plan) return json({ error: "Plan not found" }, 404);
+    if (!plan) {
+      console.error("plan_not_found", body.plan_id);
+      return json({ ok: false, error: "plan_not_found", message: "Plano não encontrado." });
+    }
 
     const { data: assignment } = await admin
       .from("company_plan_assignments").select("custom_price_cents, active")
       .eq("company_id", body.company_id).eq("plan_id", body.plan_id).maybeSingle();
-    if (!assignment?.active) return json({ error: "Plan not assigned to company" }, 400);
+    if (!assignment?.active) {
+      console.error("plan_not_assigned", body.company_id, body.plan_id);
+      return json({ ok: false, error: "plan_not_assigned", message: "Plano não disponível para esta empresa." });
+    }
 
     const priceCents = assignment.custom_price_cents ?? plan.price_cents;
     if (!priceCents || priceCents <= 0) {
-      return json({ error: "Invalid plan price" }, 400);
+      console.error("invalid_plan_price", priceCents);
+      return json({ ok: false, error: "invalid_plan_price", message: "Preço do plano inválido." });
+    }
+
+    // Para cartão, billing_address e telefone são obrigatórios (anti-fraude)
+    if (body.payment_method === "credit_card") {
+      if (!body.customer?.phone) {
+        return json({ ok: false, error: "missing_phone", message: "Telefone é obrigatório para pagamento com cartão." });
+      }
+      const ba = body.billing_address;
+      if (!ba?.zip_code || !ba?.street || !ba?.number || !ba?.neighborhood || !ba?.city || !ba?.state) {
+        return json({ ok: false, error: "missing_address", message: "Endereço de cobrança completo é obrigatório." });
+      }
     }
 
     // Carrega credenciais da empresa
-    const creds = await getCompanyCredentials(admin, body.company_id);
+    let creds;
+    try {
+      creds = await getCompanyCredentials(admin, body.company_id);
+    } catch (e) {
+      console.error("credentials_error", (e as Error).message);
+      return json({ ok: false, error: "credentials_error", message: (e as Error).message });
+    }
 
     // Resolve afiliado (split)
     let affiliate: { id: string; commission_percent: number; pagarme_recipient_id: string | null } | null = null;
@@ -76,7 +112,7 @@ Deno.serve(async (req) => {
     // Para usuário NOVO: validar senha antes de qualquer coisa, mas NÃO criar conta ainda
     const isNewAccount = !body.user_id;
     if (isNewAccount && (!body.password || body.password.length < 6)) {
-      return json({ error: "Password required for new account (min 6 chars)" }, 400);
+      return json({ ok: false, error: "weak_password", message: "Senha deve ter ao menos 6 caracteres." });
     }
 
     // Se já existe usuário com o mesmo email, recupera o id para vincular a subscription
@@ -89,7 +125,17 @@ Deno.serve(async (req) => {
       if (found) existingUserId = found.id;
     }
 
-    // Cria customer no Pagar.me
+    // Monta endereço para Pagar.me (formato v5)
+    const pagarmeAddress = body.billing_address ? {
+      line_1: `${body.billing_address.number}, ${body.billing_address.street}, ${body.billing_address.neighborhood}`,
+      line_2: body.billing_address.complement ?? "",
+      zip_code: body.billing_address.zip_code.replace(/\D/g, ""),
+      city: body.billing_address.city,
+      state: body.billing_address.state,
+      country: body.billing_address.country ?? "BR",
+    } : undefined;
+
+    // Cria customer no Pagar.me (com endereço + telefone — chave para anti-fraude)
     const customerRes = await pagarmeFetch(creds.apiKey, "/customers", {
       method: "POST",
       body: JSON.stringify({
@@ -98,13 +144,22 @@ Deno.serve(async (req) => {
         document: body.customer.document.replace(/\D/g, ""),
         document_type: "CPF",
         type: "individual",
+        ...(pagarmeAddress ? { address: pagarmeAddress } : {}),
         phones: body.customer.phone
           ? { mobile_phone: parsePhone(body.customer.phone) }
           : undefined,
       }),
     });
     const customer = await customerRes.json();
-    if (!customerRes.ok) return json({ error: "pagarme customer", details: customer }, 502);
+    if (!customerRes.ok) {
+      console.error("pagarme_customer_error", customer);
+      return json({
+        ok: false,
+        error: "pagarme_customer",
+        message: customer?.message ?? "Falha ao criar cliente no Pagar.me",
+        details: customer,
+      });
+    }
 
     // Build split rules (se houver afiliado)
     let splitRules: unknown[] | undefined;
@@ -130,14 +185,18 @@ Deno.serve(async (req) => {
     // CARTÃO DE CRÉDITO — cria sub, faz polling, só cria user se charge "paid"
     // ============================================================
     if (body.payment_method === "credit_card") {
-      if (!body.card_token) return json({ error: "card_token required" }, 400);
+      if (!body.card_token) {
+        return json({ ok: false, error: "missing_card_token", message: "Token do cartão não gerado." });
+      }
 
       // Payload corrigido: SEM minimum_price (gerava "billing value required" no ciclo).
       // pricing_scheme.price já define o valor unitário fixo do item.
+      // card.billing_address aumenta MUITO a chance de passar pelo anti-fraude.
       const subPayload: Record<string, unknown> = {
         customer_id: customer.id,
         payment_method: "credit_card",
         card_token: body.card_token,
+        ...(pagarmeAddress ? { card: { billing_address: pagarmeAddress } } : {}),
         interval: plan.billing_interval === "yearly" ? "year" : "month",
         interval_count: 1,
         billing_type: "prepaid",
@@ -163,7 +222,15 @@ Deno.serve(async (req) => {
         body: JSON.stringify(subPayload),
       });
       const sub = await subRes.json();
-      if (!subRes.ok) return json({ error: "pagarme subscription", details: sub }, 502);
+      if (!subRes.ok) {
+        console.error("pagarme_subscription_error", sub);
+        return json({
+          ok: false,
+          error: "pagarme_subscription",
+          message: sub?.message ?? "Falha ao criar assinatura no Pagar.me",
+          details: sub,
+        });
+      }
 
       // POLLING da 1ª charge — até 4 tentativas de 1.5s
       let firstCharge: any = null;
@@ -195,12 +262,14 @@ Deno.serve(async (req) => {
           firstCharge?.last_transaction?.gateway_response?.errors?.[0]?.message ??
           firstCharge?.last_transaction?.refuse_reason ??
           "Pagamento não autorizado pela operadora";
+        console.error("payment_failed", { chargeStatus, failureReason, chargeId: firstCharge?.id });
         return json({
+          ok: false,
           error: "payment_failed",
-          message: failureReason,
+          message: `Cartão recusado: ${failureReason}. Verifique os dados ou tente outro cartão.`,
           charge_status: chargeStatus,
           pagarme_charge_id: firstCharge?.id ?? null,
-        }, 402);
+        });
       }
 
       // Charge paga: criar usuário (se for novo) e gravar subscription local
@@ -219,11 +288,12 @@ Deno.serve(async (req) => {
         if (createErr || !created.user) {
           // Conta não criada mas pagamento OK: registrar para investigação manual
           console.error("createUser failed after paid charge", createErr);
-          return json({ error: "account_creation_failed", details: createErr?.message }, 500);
+          return json({ ok: false, error: "account_creation_failed", message: createErr?.message ?? "Falha ao criar conta após pagamento" }, 500);
         }
         userId = created.user.id;
       }
 
+      const ba = body.billing_address;
       const { data: insertedSub } = await admin
         .from("subscriptions").insert({
           user_id: userId,
@@ -238,6 +308,15 @@ Deno.serve(async (req) => {
           current_period_end: sub.current_cycle?.end_at ?? null,
           card_brand: sub.card?.brand ?? null,
           card_last4: sub.card?.last_four_digits ?? null,
+          customer_phone: body.customer.phone ?? null,
+          billing_zip_code: ba?.zip_code ?? null,
+          billing_street: ba?.street ?? null,
+          billing_number: ba?.number ?? null,
+          billing_complement: ba?.complement ?? null,
+          billing_neighborhood: ba?.neighborhood ?? null,
+          billing_city: ba?.city ?? null,
+          billing_state: ba?.state ?? null,
+          billing_country: ba?.country ?? "BR",
         }).select("id").single();
 
       if (insertedSub && firstCharge?.id) {
@@ -250,6 +329,8 @@ Deno.serve(async (req) => {
           paid_at: new Date().toISOString(),
         });
       }
+
+
 
       return json({
         ok: true,
@@ -285,11 +366,19 @@ Deno.serve(async (req) => {
       body: JSON.stringify(pixOrderPayload),
     });
     const order = await chargeRes.json();
-    if (!chargeRes.ok) return json({ error: "pagarme pix order", details: order }, 502);
+    if (!chargeRes.ok) {
+      console.error("pagarme_pix_order_error", order);
+      return json({ ok: false, error: "pagarme_pix_order", message: order?.message ?? "Falha ao gerar PIX", details: order });
+    }
 
     const charge = order.charges?.[0];
     const tx = charge?.last_transaction;
-    if (!charge?.id) return json({ error: "no_charge_returned", details: order }, 502);
+    if (!charge?.id) {
+      console.error("no_charge_returned", order);
+      return json({ ok: false, error: "no_charge_returned", message: "Pagar.me não retornou cobrança", details: order });
+    }
+
+    const ba = body.billing_address;
 
     if (existingUserId) {
       // Usuário já existe: insere subscription local em pending; webhook ativa.
@@ -302,6 +391,15 @@ Deno.serve(async (req) => {
           pagarme_customer_id: customer.id,
           status: "pending",
           payment_method: "pix",
+          customer_phone: body.customer.phone ?? null,
+          billing_zip_code: ba?.zip_code ?? null,
+          billing_street: ba?.street ?? null,
+          billing_number: ba?.number ?? null,
+          billing_complement: ba?.complement ?? null,
+          billing_neighborhood: ba?.neighborhood ?? null,
+          billing_city: ba?.city ?? null,
+          billing_state: ba?.state ?? null,
+          billing_country: ba?.country ?? "BR",
         }).select("id").single();
 
       await admin.from("subscription_invoices").insert({
@@ -337,6 +435,15 @@ Deno.serve(async (req) => {
       affiliate_id: affiliate?.id ?? null,
       payment_method: "pix",
       amount_cents: priceCents,
+      customer_phone: body.customer.phone ?? null,
+      billing_zip_code: ba?.zip_code ?? null,
+      billing_street: ba?.street ?? null,
+      billing_number: ba?.number ?? null,
+      billing_complement: ba?.complement ?? null,
+      billing_neighborhood: ba?.neighborhood ?? null,
+      billing_city: ba?.city ?? null,
+      billing_state: ba?.state ?? null,
+      billing_country: ba?.country ?? "BR",
     });
 
     return json({
@@ -347,8 +454,8 @@ Deno.serve(async (req) => {
       message: "Aguardando confirmação do pagamento PIX. Sua conta será criada automaticamente após a confirmação.",
     });
   } catch (e) {
-    console.error("create-subscription error", e);
-    return json({ error: (e as Error).message }, 500);
+    console.error("create-subscription unexpected error", e);
+    return json({ ok: false, error: "internal_error", message: (e as Error).message }, 500);
   }
 });
 

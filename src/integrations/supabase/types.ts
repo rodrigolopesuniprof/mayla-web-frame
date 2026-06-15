@@ -2458,9 +2458,18 @@ export type Database = {
         Row: {
           affiliate_id: string | null
           amount_cents: number
+          billing_city: string | null
+          billing_complement: string | null
+          billing_country: string | null
+          billing_neighborhood: string | null
+          billing_number: string | null
+          billing_state: string | null
+          billing_street: string | null
+          billing_zip_code: string | null
           company_id: string
           cpf: string
           created_at: string
+          customer_phone: string | null
           email: string
           expires_at: string
           full_name: string
@@ -2477,9 +2486,18 @@ export type Database = {
         Insert: {
           affiliate_id?: string | null
           amount_cents: number
+          billing_city?: string | null
+          billing_complement?: string | null
+          billing_country?: string | null
+          billing_neighborhood?: string | null
+          billing_number?: string | null
+          billing_state?: string | null
+          billing_street?: string | null
+          billing_zip_code?: string | null
           company_id: string
           cpf: string
           created_at?: string
+          customer_phone?: string | null
           email: string
           expires_at?: string
           full_name: string
@@ -2496,9 +2514,18 @@ export type Database = {
         Update: {
           affiliate_id?: string | null
           amount_cents?: number
+          billing_city?: string | null
+          billing_complement?: string | null
+          billing_country?: string | null
+          billing_neighborhood?: string | null
+          billing_number?: string | null
+          billing_state?: string | null
+          billing_street?: string | null
+          billing_zip_code?: string | null
           company_id?: string
           cpf?: string
           created_at?: string
+          customer_phone?: string | null
           email?: string
           expires_at?: string
           full_name?: string
@@ -3567,6 +3594,14 @@ export type Database = {
       subscriptions: {
         Row: {
           affiliate_id: string | null
+          billing_city: string | null
+          billing_complement: string | null
+          billing_country: string | null
+          billing_neighborhood: string | null
+          billing_number: string | null
+          billing_state: string | null
+          billing_street: string | null
+          billing_zip_code: string | null
           canceled_at: string | null
           card_brand: string | null
           card_last4: string | null
@@ -3574,6 +3609,7 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          customer_phone: string | null
           id: string
           metadata: Json | null
           pagarme_customer_id: string | null
@@ -3586,6 +3622,14 @@ export type Database = {
         }
         Insert: {
           affiliate_id?: string | null
+          billing_city?: string | null
+          billing_complement?: string | null
+          billing_country?: string | null
+          billing_neighborhood?: string | null
+          billing_number?: string | null
+          billing_state?: string | null
+          billing_street?: string | null
+          billing_zip_code?: string | null
           canceled_at?: string | null
           card_brand?: string | null
           card_last4?: string | null
@@ -3593,6 +3637,7 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          customer_phone?: string | null
           id?: string
           metadata?: Json | null
           pagarme_customer_id?: string | null
@@ -3605,6 +3650,14 @@ export type Database = {
         }
         Update: {
           affiliate_id?: string | null
+          billing_city?: string | null
+          billing_complement?: string | null
+          billing_country?: string | null
+          billing_neighborhood?: string | null
+          billing_number?: string | null
+          billing_state?: string | null
+          billing_street?: string | null
+          billing_zip_code?: string | null
           canceled_at?: string | null
           card_brand?: string | null
           card_last4?: string | null
@@ -3612,6 +3665,7 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          customer_phone?: string | null
           id?: string
           metadata?: Json | null
           pagarme_customer_id?: string | null
