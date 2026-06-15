@@ -78,6 +78,68 @@ async function handleEvent(admin: any, type: string, obj: any) {
   if (type === "charge.paid" || type === "order.paid") {
     const charge = obj.charges?.[0] ?? obj;
     if (!charge?.id) return;
+
+    // 1) Pode ser uma cobrança PIX de cadastro pendente — criar conta agora
+    const { data: pending } = await admin
+      .from("pending_signups")
+      .select("*")
+      .eq("pagarme_charge_id", charge.id)
+      .is("processed_at", null)
+      .maybeSingle();
+
+    if (pending) {
+      // Cria auth.users
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email: pending.email,
+        password: pending.password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: pending.full_name,
+          cpf: pending.cpf,
+          company_id: pending.company_id,
+        },
+      });
+      if (createErr || !created?.user) {
+        console.error("pending_signup createUser failed", createErr);
+        return;
+      }
+      const newUserId = created.user.id;
+
+      const periodEnd = new Date();
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+      const { data: insertedSub } = await admin
+        .from("subscriptions").insert({
+          user_id: newUserId,
+          company_id: pending.company_id,
+          plan_id: pending.plan_id,
+          affiliate_id: pending.affiliate_id,
+          pagarme_customer_id: pending.pagarme_customer_id,
+          pagarme_subscription_id: pending.pagarme_subscription_id,
+          status: "active",
+          payment_method: pending.payment_method,
+          current_period_start: new Date().toISOString(),
+          current_period_end: periodEnd.toISOString(),
+        }).select("id").single();
+
+      if (insertedSub) {
+        await admin.from("subscription_invoices").insert({
+          subscription_id: insertedSub.id,
+          pagarme_charge_id: charge.id,
+          amount_cents: pending.amount_cents,
+          status: "paid",
+          payment_method: pending.payment_method,
+          paid_at: new Date().toISOString(),
+        });
+      }
+
+      await admin.from("pending_signups")
+        .update({ processed_at: new Date().toISOString(), user_id: newUserId })
+        .eq("id", pending.id);
+      return;
+    }
+
+    // 2) Fluxo normal: invoice já existe (usuário já tinha conta)
     const { data: invoice } = await admin
       .from("subscription_invoices").select("id, subscription_id, amount_cents")
       .eq("pagarme_charge_id", charge.id).maybeSingle();
@@ -119,11 +181,26 @@ async function handleEvent(admin: any, type: string, obj: any) {
     return;
   }
 
-  if (type === "charge.payment_failed") {
+  if (type === "charge.payment_failed" || type === "charge.refused") {
     const charge = obj.charges?.[0] ?? obj;
+    const reason = charge.last_transaction?.acquirer_message
+      ?? charge.last_transaction?.refuse_reason
+      ?? null;
+
+    // Atualiza invoice (se existir)
     await admin.from("subscription_invoices")
-      .update({ status: "failed", failure_reason: charge.last_transaction?.acquirer_message ?? null })
+      .update({ status: "failed", failure_reason: reason })
       .eq("pagarme_charge_id", charge.id);
+
+    // Atualiza subscription correspondente para past_due (bloqueia acesso)
+    const { data: invoice } = await admin
+      .from("subscription_invoices").select("subscription_id")
+      .eq("pagarme_charge_id", charge.id).maybeSingle();
+    if (invoice?.subscription_id) {
+      await admin.from("subscriptions")
+        .update({ status: "past_due" })
+        .eq("id", invoice.subscription_id);
+    }
     return;
   }
 
