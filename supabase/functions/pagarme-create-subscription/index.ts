@@ -185,14 +185,18 @@ Deno.serve(async (req) => {
     // CARTÃO DE CRÉDITO — cria sub, faz polling, só cria user se charge "paid"
     // ============================================================
     if (body.payment_method === "credit_card") {
-      if (!body.card_token) return json({ error: "card_token required" }, 400);
+      if (!body.card_token) {
+        return json({ ok: false, error: "missing_card_token", message: "Token do cartão não gerado." });
+      }
 
       // Payload corrigido: SEM minimum_price (gerava "billing value required" no ciclo).
       // pricing_scheme.price já define o valor unitário fixo do item.
+      // card.billing_address aumenta MUITO a chance de passar pelo anti-fraude.
       const subPayload: Record<string, unknown> = {
         customer_id: customer.id,
         payment_method: "credit_card",
         card_token: body.card_token,
+        ...(pagarmeAddress ? { card: { billing_address: pagarmeAddress } } : {}),
         interval: plan.billing_interval === "yearly" ? "year" : "month",
         interval_count: 1,
         billing_type: "prepaid",
@@ -218,7 +222,15 @@ Deno.serve(async (req) => {
         body: JSON.stringify(subPayload),
       });
       const sub = await subRes.json();
-      if (!subRes.ok) return json({ error: "pagarme subscription", details: sub }, 502);
+      if (!subRes.ok) {
+        console.error("pagarme_subscription_error", sub);
+        return json({
+          ok: false,
+          error: "pagarme_subscription",
+          message: sub?.message ?? "Falha ao criar assinatura no Pagar.me",
+          details: sub,
+        });
+      }
 
       // POLLING da 1ª charge — até 4 tentativas de 1.5s
       let firstCharge: any = null;
@@ -250,12 +262,14 @@ Deno.serve(async (req) => {
           firstCharge?.last_transaction?.gateway_response?.errors?.[0]?.message ??
           firstCharge?.last_transaction?.refuse_reason ??
           "Pagamento não autorizado pela operadora";
+        console.error("payment_failed", { chargeStatus, failureReason, chargeId: firstCharge?.id });
         return json({
+          ok: false,
           error: "payment_failed",
-          message: failureReason,
+          message: `Cartão recusado: ${failureReason}. Verifique os dados ou tente outro cartão.`,
           charge_status: chargeStatus,
           pagarme_charge_id: firstCharge?.id ?? null,
-        }, 402);
+        });
       }
 
       // Charge paga: criar usuário (se for novo) e gravar subscription local
@@ -274,11 +288,12 @@ Deno.serve(async (req) => {
         if (createErr || !created.user) {
           // Conta não criada mas pagamento OK: registrar para investigação manual
           console.error("createUser failed after paid charge", createErr);
-          return json({ error: "account_creation_failed", details: createErr?.message }, 500);
+          return json({ ok: false, error: "account_creation_failed", message: createErr?.message ?? "Falha ao criar conta após pagamento" }, 500);
         }
         userId = created.user.id;
       }
 
+      const ba = body.billing_address;
       const { data: insertedSub } = await admin
         .from("subscriptions").insert({
           user_id: userId,
@@ -293,6 +308,15 @@ Deno.serve(async (req) => {
           current_period_end: sub.current_cycle?.end_at ?? null,
           card_brand: sub.card?.brand ?? null,
           card_last4: sub.card?.last_four_digits ?? null,
+          customer_phone: body.customer.phone ?? null,
+          billing_zip_code: ba?.zip_code ?? null,
+          billing_street: ba?.street ?? null,
+          billing_number: ba?.number ?? null,
+          billing_complement: ba?.complement ?? null,
+          billing_neighborhood: ba?.neighborhood ?? null,
+          billing_city: ba?.city ?? null,
+          billing_state: ba?.state ?? null,
+          billing_country: ba?.country ?? "BR",
         }).select("id").single();
 
       if (insertedSub && firstCharge?.id) {
@@ -305,6 +329,8 @@ Deno.serve(async (req) => {
           paid_at: new Date().toISOString(),
         });
       }
+
+
 
       return json({
         ok: true,
