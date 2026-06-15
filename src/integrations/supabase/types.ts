@@ -2454,6 +2454,66 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_signups: {
+        Row: {
+          affiliate_id: string | null
+          amount_cents: number
+          company_id: string
+          cpf: string
+          created_at: string
+          email: string
+          expires_at: string
+          full_name: string
+          id: string
+          pagarme_charge_id: string
+          pagarme_customer_id: string
+          pagarme_subscription_id: string | null
+          password: string
+          payment_method: string
+          plan_id: string
+          processed_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          affiliate_id?: string | null
+          amount_cents: number
+          company_id: string
+          cpf: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          full_name: string
+          id?: string
+          pagarme_charge_id: string
+          pagarme_customer_id: string
+          pagarme_subscription_id?: string | null
+          password: string
+          payment_method: string
+          plan_id: string
+          processed_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          affiliate_id?: string | null
+          amount_cents?: number
+          company_id?: string
+          cpf?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          full_name?: string
+          id?: string
+          pagarme_charge_id?: string
+          pagarme_customer_id?: string
+          pagarme_subscription_id?: string | null
+          password?: string
+          payment_method?: string
+          plan_id?: string
+          processed_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       point_rules: {
         Row: {
           active: boolean

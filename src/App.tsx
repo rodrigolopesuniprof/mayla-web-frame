@@ -53,9 +53,11 @@ const App = () => (
                 path="/relatorio"
                 element={
                   <ProtectedRoute>
-                    <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>Carregando...</div>}>
-                      <HealthReport />
-                    </Suspense>
+                    <AccessGate>
+                      <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>Carregando...</div>}>
+                        <HealthReport />
+                      </Suspense>
+                    </AccessGate>
                   </ProtectedRoute>
                 }
               />
@@ -79,7 +81,9 @@ const App = () => (
                 path="/afiliado"
                 element={
                   <ProtectedRoute>
-                    <AffiliatePortal />
+                    <AccessGate>
+                      <AffiliatePortal />
+                    </AccessGate>
                   </ProtectedRoute>
                 }
               />

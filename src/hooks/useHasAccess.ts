@@ -51,13 +51,23 @@ export function useHasAccess(): AccessState {
         .maybeSingle();
 
       let requiresPayment = false;
+      let credFound = false;
       if (profile?.company_id) {
         const { data: cred } = await supabase
           .from("company_payment_credentials")
           .select("require_paid_subscription")
           .eq("company_id", profile.company_id)
           .maybeSingle();
-        requiresPayment = !!cred?.require_paid_subscription;
+        if (cred) {
+          credFound = true;
+          requiresPayment = !!cred.require_paid_subscription;
+        }
+      }
+
+      // FAIL-CLOSED: se o usuário tem (ou já teve) qualquer subscription, exige assinatura ativa,
+      // mesmo que a empresa não tenha credenciais Pagar.me configuradas ou flag não seja encontrada.
+      if (!credFound && sub) {
+        requiresPayment = true;
       }
 
       const status = sub?.status;

@@ -114,17 +114,29 @@ export default function Subscribe() {
           password,
         },
       });
-      if (error) throw new Error(error.message);
-      const out = data as any;
+      const out = (data as any) ?? {};
+      // Erro de pagamento recusado (cartão) — função retorna 402 com error: "payment_failed"
+      if (error || out?.error) {
+        const msg = out?.message
+          ?? (out?.error === "payment_failed" ? "Pagamento não autorizado pela operadora." : null)
+          ?? error?.message
+          ?? "Falha ao processar pagamento";
+        throw new Error(msg);
+      }
       if (out?.pix) {
         setPixData(out.pix);
-        toast({ title: "PIX gerado!", description: "Escaneie ou copie o código." });
+        toast({
+          title: "PIX gerado!",
+          description: out.pending
+            ? "Pague para criar sua conta automaticamente."
+            : "Escaneie ou copie o código.",
+        });
       } else {
-        toast({ title: "Assinatura criada!", description: "Você já pode acessar a plataforma." });
+        toast({ title: "Pagamento aprovado!", description: "Sua conta está ativa. Faça login para continuar." });
         setTimeout(() => { window.location.href = "/login"; }, 1500);
       }
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast({ title: "Erro no pagamento", description: e.message, variant: "destructive" });
     } finally { setLoading(false); }
   }
 
