@@ -366,11 +366,19 @@ Deno.serve(async (req) => {
       body: JSON.stringify(pixOrderPayload),
     });
     const order = await chargeRes.json();
-    if (!chargeRes.ok) return json({ error: "pagarme pix order", details: order }, 502);
+    if (!chargeRes.ok) {
+      console.error("pagarme_pix_order_error", order);
+      return json({ ok: false, error: "pagarme_pix_order", message: order?.message ?? "Falha ao gerar PIX", details: order });
+    }
 
     const charge = order.charges?.[0];
     const tx = charge?.last_transaction;
-    if (!charge?.id) return json({ error: "no_charge_returned", details: order }, 502);
+    if (!charge?.id) {
+      console.error("no_charge_returned", order);
+      return json({ ok: false, error: "no_charge_returned", message: "Pagar.me não retornou cobrança", details: order });
+    }
+
+    const ba = body.billing_address;
 
     if (existingUserId) {
       // Usuário já existe: insere subscription local em pending; webhook ativa.
@@ -383,6 +391,15 @@ Deno.serve(async (req) => {
           pagarme_customer_id: customer.id,
           status: "pending",
           payment_method: "pix",
+          customer_phone: body.customer.phone ?? null,
+          billing_zip_code: ba?.zip_code ?? null,
+          billing_street: ba?.street ?? null,
+          billing_number: ba?.number ?? null,
+          billing_complement: ba?.complement ?? null,
+          billing_neighborhood: ba?.neighborhood ?? null,
+          billing_city: ba?.city ?? null,
+          billing_state: ba?.state ?? null,
+          billing_country: ba?.country ?? "BR",
         }).select("id").single();
 
       await admin.from("subscription_invoices").insert({
@@ -418,6 +435,15 @@ Deno.serve(async (req) => {
       affiliate_id: affiliate?.id ?? null,
       payment_method: "pix",
       amount_cents: priceCents,
+      customer_phone: body.customer.phone ?? null,
+      billing_zip_code: ba?.zip_code ?? null,
+      billing_street: ba?.street ?? null,
+      billing_number: ba?.number ?? null,
+      billing_complement: ba?.complement ?? null,
+      billing_neighborhood: ba?.neighborhood ?? null,
+      billing_city: ba?.city ?? null,
+      billing_state: ba?.state ?? null,
+      billing_country: ba?.country ?? "BR",
     });
 
     return json({
@@ -428,8 +454,8 @@ Deno.serve(async (req) => {
       message: "Aguardando confirmação do pagamento PIX. Sua conta será criada automaticamente após a confirmação.",
     });
   } catch (e) {
-    console.error("create-subscription error", e);
-    return json({ error: (e as Error).message }, 500);
+    console.error("create-subscription unexpected error", e);
+    return json({ ok: false, error: "internal_error", message: (e as Error).message }, 500);
   }
 });
 
