@@ -232,11 +232,14 @@ Deno.serve(async (req) => {
         });
       }
 
-      // POLLING da 1ª charge — até 4 tentativas de 1.5s
+      // POLLING da 1ª charge — até 12 tentativas de 2s (24s)
+      // Apenas estados terminais decidem o resultado. "pending"/"processing"/charge ainda
+      // não emitida NÃO são tratados como falha — caem no caminho assíncrono (webhook finaliza).
+      const TERMINAL_FAIL = ["failed", "refused", "canceled", "chargedback"];
       let firstCharge: any = null;
       let chargeStatus = "pending";
-      for (let attempt = 0; attempt < 4; attempt++) {
-        await new Promise((r) => setTimeout(r, 1500));
+      for (let attempt = 0; attempt < 12; attempt++) {
+        await new Promise((r) => setTimeout(r, 2000));
         const cycleRes = await pagarmeFetch(
           creds.apiKey,
           `/subscriptions/${sub.id}/charges?size=1&page=1`,
@@ -246,14 +249,14 @@ Deno.serve(async (req) => {
           const cycleData = await cycleRes.json();
           firstCharge = cycleData?.data?.[0] ?? null;
           chargeStatus = String(firstCharge?.status ?? "pending");
-          if (["paid", "failed", "refused", "canceled", "chargedback"].includes(chargeStatus)) break;
+          if (chargeStatus === "paid" || TERMINAL_FAIL.includes(chargeStatus)) break;
         } else {
           await cycleRes.text();
         }
       }
 
-      // Se a charge falhou ou foi recusada → cancela a sub e retorna erro SEM criar conta
-      if (chargeStatus !== "paid") {
+      // CASO 1 — Recusa terminal: cancela sub e retorna erro SEM criar conta
+      if (TERMINAL_FAIL.includes(chargeStatus)) {
         try {
           await pagarmeFetch(creds.apiKey, `/subscriptions/${sub.id}`, { method: "DELETE" });
         } catch (_) { /* best-effort */ }
@@ -272,7 +275,12 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Charge paga: criar usuário (se for novo) e gravar subscription local
+      // CASO 2 / 3 — paga OU ainda pendente: criamos conta (se nova) e gravamos sub.
+      // Se pendente, status local = "pending" e o webhook charge.paid finaliza.
+      const isPaid = chargeStatus === "paid";
+      const localSubStatus = isPaid ? "active" : "pending";
+      const localInvoiceStatus = isPaid ? "paid" : "pending";
+
       let userId = existingUserId;
       if (!userId) {
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -286,8 +294,7 @@ Deno.serve(async (req) => {
           },
         });
         if (createErr || !created.user) {
-          // Conta não criada mas pagamento OK: registrar para investigação manual
-          console.error("createUser failed after paid charge", createErr);
+          console.error("createUser failed after charge", { chargeStatus, err: createErr });
           return json({ ok: false, error: "account_creation_failed", message: createErr?.message ?? "Falha ao criar conta após pagamento" }, 500);
         }
         userId = created.user.id;
@@ -302,7 +309,7 @@ Deno.serve(async (req) => {
           affiliate_id: affiliate?.id ?? null,
           pagarme_subscription_id: sub.id,
           pagarme_customer_id: customer.id,
-          status: "active",
+          status: localSubStatus,
           payment_method: "credit_card",
           current_period_start: sub.current_cycle?.start_at ?? new Date().toISOString(),
           current_period_end: sub.current_cycle?.end_at ?? null,
@@ -324,20 +331,22 @@ Deno.serve(async (req) => {
           subscription_id: insertedSub.id,
           pagarme_charge_id: firstCharge.id,
           amount_cents: priceCents,
-          status: "paid",
+          status: localInvoiceStatus,
           payment_method: "credit_card",
-          paid_at: new Date().toISOString(),
+          paid_at: isPaid ? new Date().toISOString() : null,
         });
       }
-
-
 
       return json({
         ok: true,
         subscription_id: insertedSub?.id,
         pagarme_id: sub.id,
-        status: "active",
-        charge_id: firstCharge?.id,
+        status: localSubStatus,
+        charge_status: chargeStatus,
+        charge_id: firstCharge?.id ?? null,
+        message: isPaid
+          ? "Pagamento aprovado."
+          : "Pagamento em processamento. A confirmação chega em instantes — sua conta já foi criada.",
       });
     }
 

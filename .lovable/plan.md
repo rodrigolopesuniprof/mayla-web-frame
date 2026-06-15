@@ -1,73 +1,79 @@
-## Objetivo
+# Corrigir falso "pagamento recusado" quando charge está pendente
 
-Corrigir a recusa "0 tentativas / Falha" do Pagar.me (anti-fraude bloqueia por falta de dados mínimos) adicionando endereço de cobrança ao cadastro, com **auto-preenchimento via CEP (ViaCEP)**, e expor a mensagem real do erro em vez do genérico "non-2xx status code".
+## Causa raiz
+
+Em `supabase/functions/pagarme-create-subscription/index.ts` (fluxo cartão):
+
+- Polling de apenas **6 segundos** (4 × 1.5s).
+- Se `chargeStatus !== "paid"` ao final, o código:
+  - faz `DELETE /subscriptions/{id}` no Pagar.me,
+  - retorna `payment_failed` com mensagem "Cartão recusado",
+  - não cria a conta local.
+
+Mas `pending` / `processing` não são recusa — significam que o adquirente ainda está respondendo. Como vimos no log, `chargeId: undefined`, ou seja, a charge nem tinha sido criada ainda na primeira leitura. O Pagar.me efetivamente autorizou depois, mas nós já tínhamos cancelado/errado.
 
 ## Mudanças
 
-### 1. Schema — migração
-Novas colunas para guardar o endereço de cobrança (auditoria, suporte, reemissão):
+### 1. `supabase/functions/pagarme-create-subscription/index.ts` — fluxo cartão
 
-- **`subscriptions`**: `billing_zip_code`, `billing_street`, `billing_number`, `billing_complement`, `billing_neighborhood`, `billing_city`, `billing_state`, `billing_country` (default `"BR"`), `customer_phone`.
-- **`pending_signups`** (fluxo PIX): mesmos campos — para a conta criada pelo webhook ter endereço.
+**Aumentar e diferenciar estados:**
 
-Todas opcionais por compatibilidade com registros antigos.
+- Polling: até **12 tentativas × 2s = 24s** (margem segura sem estourar timeout da edge function).
+- Estados terminais de falha: `failed`, `refused`, `canceled`, `chargedback`. Apenas estes acionam o caminho de erro.
+- `pending` / `processing` / charge ausente → **NÃO** é falha.
 
-### 2. Frontend — auto-preenchimento por CEP (ViaCEP)
+**Novo fluxo de decisão depois do polling:**
 
-Criar `src/lib/viacep.ts`:
-```ts
-export async function lookupCep(cep: string) {
-  const clean = cep.replace(/\D/g, "");
-  if (clean.length !== 8) return null;
-  const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (data.erro) return null;
-  return {
-    street: data.logradouro ?? "",
-    neighborhood: data.bairro ?? "",
-    city: data.localidade ?? "",
-    state: data.uf ?? "",
-  };
-}
+```
+if chargeStatus in [failed, refused, canceled, chargedback]:
+    cancela subscription no Pagar.me
+    retorna { ok:false, error:"payment_failed", message: <motivo real> }
+
+else if chargeStatus == "paid":
+    cria usuário (se novo) + grava subscription com status="active"
+    grava invoice "paid"
+    retorna { ok:true, status:"active" }
+
+else:  # pending / processing / charge ainda não emitida
+    NÃO cancela a subscription
+    cria usuário (se novo) + grava subscription com status="pending"
+    grava invoice "pending"
+    retorna { ok:true, status:"pending", message:"Pagamento em confirmação..." }
 ```
 
-UX no `Subscribe.tsx`:
-- Campo **CEP** com máscara `00000-000`. No `onBlur` (ou ao completar 8 dígitos), chama `lookupCep` e **auto-preenche** Rua, Bairro, Cidade, UF — campos preenchidos ficam habilitados para edição manual.
-- Spinner pequeno no campo CEP durante a consulta.
-- Se CEP não encontrado: toast "CEP não encontrado, preencha manualmente" e libera os campos.
-- Foco automático passa para **Número** após sucesso.
+O webhook `charge.paid` / `charge.payment_failed` (já existente) é quem finaliza:
+- `charge.paid` → muda subscription para `active` e invoice para `paid`.
+- `charge.payment_failed` → muda para `past_due`/`canceled` conforme a regra atual do webhook.
 
-Campos visíveis (todos obrigatórios, exceto Complemento):
-CEP → Rua → Número → Complemento → Bairro → Cidade → UF.
-Telefone passa a ser **obrigatório** (anti-fraude exige).
-Validação com `zod` antes do submit (CEP 8 dígitos, UF 2 letras, telefone com DDD).
+**Persistência dos campos billing_*** (já implementada) permanece em ambos caminhos (active/pending).
 
-### 3. Frontend — tokenização do cartão
-No `tokenizeCard()` enviar ao Pagar.me:
-- `holder_document` = CPF (sem máscara) — **chave do anti-fraude**.
-- `billing_address` completo (line_1, line_2, zip_code, city, state, country `"BR"`).
+### 2. `src/pages/Subscribe.tsx`
 
-### 4. Backend — `pagarme-create-subscription`
-- Receber `billing_address` + `customer.phone` (obrigatórios para `credit_card`).
-- Enviar `address` completo no `POST /customers`.
-- Enviar `billing_address` na sub (`card.billing_address`).
-- Persistir os novos campos em `subscriptions` (e `pending_signups` no PIX).
-- Trocar erros de negócio previsíveis para `HTTP 200 { ok: false, error, message, details? }` — assim o `supabase.functions.invoke` para de engolir a mensagem.
-- `console.error` antes de cada retorno de erro.
+Tratar a nova resposta `ok:true, status:"pending"`:
 
-### 5. Frontend — exibir mensagem real
-- Tratar `out.ok === false` e mostrar `out.message` no toast.
-- Defesa em profundidade: se vier `FunctionsHttpError`, ler `error.context.json()` para extrair a mensagem real.
-- Mensagens específicas: "Cartão recusado pela operadora — verifique os dados ou tente outro cartão".
+- Toast informativo (`toast.success` ou `toast`): "Pagamento em processamento. Você receberá a confirmação em instantes." 
+- Redirecionar para a tela de boas-vindas/dashboard normalmente — a UI já deve refletir o status `pending` (login funciona porque a conta foi criada).
+- Continuar mostrando erro apenas quando `ok:false`.
+
+### 3. Mensagem de erro real (quando for falha de verdade)
+
+Manter a extração já presente:
+```
+firstCharge?.last_transaction?.acquirer_message
+?? gateway_response?.errors?.[0]?.message
+?? refuse_reason
+?? "Pagamento não autorizado pela operadora"
+```
+Mas só usar essa mensagem quando o status for realmente terminal de falha.
 
 ## Fora de escopo
-- Não mexer em webhook, RLS, lógica de afiliado/split.
-- Fluxo PIX só ganha os campos novos; resto inalterado.
+
+- Webhook (`pagarme-webhook`) — já existe e trata `charge.paid` para ativar; nenhuma mudança necessária se ele já procura subscription pelo `pagarme_subscription_id`. Verificar apenas que ele atualiza `status` de `pending` → `active`. Se não atualizar, ajustar nesta mesma alteração.
+- PIX, RLS, schema, afiliados.
 
 ## Validação
 
-1. Após o deploy: refaz cadastro com cartão real + CEP + endereço completo + telefone.
-2. Se ainda recusar, o painel mostrará `tentativas ≥ 1` e o motivo real da adquirente (ex.: "Cartão sem limite"), ou os logs da edge function trarão a resposta exata do Pagar.me.
-
-Posso prosseguir?
+1. Refazer assinatura com cartão real.
+2. Caso a charge confirme em <24s: resposta `ok:true, status:"active"`, conta criada, sub ativa.
+3. Caso demore mais: resposta `ok:true, status:"pending"`, conta criada, sub `pending`, e o webhook a promove para `active` quando o Pagar.me confirmar.
+4. Caso o adquirente realmente recuse: resposta `ok:false` com a mensagem real do adquirente (não mais um falso negativo).
