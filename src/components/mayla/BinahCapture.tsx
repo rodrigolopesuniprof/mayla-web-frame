@@ -145,7 +145,29 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     // Shen.ai: SDK manages its own camera; just attach to canvas
     if (isShenai) {
       try {
-        await initializeShenai(canvasId);
+        // Fetch demographics so Shen.ai can compute clinical metrics (BP, risks, etc.)
+        let userProfile: { age?: number; gender?: "male" | "female" | "other"; height?: number; weight?: number } | undefined;
+        if (user) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("birth_date, biological_sex")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (prof) {
+            const up: any = {};
+            if (prof.birth_date) {
+              const dob = new Date(prof.birth_date);
+              const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 3600 * 1000));
+              if (age > 0 && age < 120) up.age = age;
+            }
+            const s = (prof.biological_sex || "").toLowerCase();
+            if (s.startsWith("m")) up.gender = "male";
+            else if (s.startsWith("f")) up.gender = "female";
+            else if (s) up.gender = "other";
+            if (Object.keys(up).length) userProfile = up;
+          }
+        }
+        await initializeShenai(canvasId, userProfile);
       } catch (err: any) {
         console.error("Shen.ai init error:", err);
         setPhase("error");
@@ -170,7 +192,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       console.error("Camera error:", err);
       setPhase("error");
     }
-  }, [initialize, initializeShenai, isShenai]);
+  }, [initialize, initializeShenai, isShenai, user]);
 
 
   const handleStartMeasurement = async () => {

@@ -72,17 +72,32 @@ export function UserVitalsFullPanel({ userId, userName }: Props) {
         {measurements.map((m) => {
           const expanded = expandedId === m.id;
           const flat = flattenMeasurementPayload(m.measurement_data);
+          const sourceLabel = m.source === "shenai" ? "Shen.ai" : m.source === "vitals_premium" ? "Binah" : (m.source || "—");
+          const sourceColor = m.source === "shenai" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
           return (
             <Card key={m.id}>
               <CardHeader className="py-3 cursor-pointer" onClick={() => setExpandedId(expanded ? null : m.id)}>
-                <CardTitle className="text-sm flex items-center justify-between">
-                  <span>{new Date(m.measured_at).toLocaleString("pt-BR")}</span>
+                <CardTitle className="text-sm flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <span>{new Date(m.measured_at).toLocaleString("pt-BR")}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${sourceColor}`}>{sourceLabel}</span>
+                  </span>
                   <span className="text-xs text-muted-foreground font-normal">
-                    {m.source || "—"} · {Object.keys(flat).length} indicadores · {expanded ? "▲" : "▼"}
+                    {Object.keys(flat).length} indicadores · {expanded ? "▲" : "▼"}
                   </span>
                 </CardTitle>
               </CardHeader>
-              {expanded && <CardContent><IndicatorGrid indicators={indicators} flat={flat} /></CardContent>}
+              {expanded && (
+                <CardContent>
+                  <IndicatorGrid indicators={indicators} flat={flat} />
+                  <details className="mt-3">
+                    <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Ver JSON bruto</summary>
+                    <pre className="mt-2 text-[10px] bg-muted/40 rounded-lg p-3 overflow-auto max-h-64">
+                      {JSON.stringify(m.measurement_data, null, 2)}
+                    </pre>
+                  </details>
+                </CardContent>
+              )}
             </Card>
           );
         })}

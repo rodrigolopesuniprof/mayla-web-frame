@@ -104,6 +104,7 @@ export function flattenMeasurementPayload(payload: any): Record<string, number |
     cholesterol_total_mg_dl: "cholesterol_total_mg_dl",
     triglycerides_mg_dl: "triglycerides_mg_dl",
     bmi_kg_m2: "bmi_kg_m2",
+    bmi_kg_per_m2: "bmi_kg_m2",
     weight_kg: "weight_kg",
     height_cm: "height_cm",
     age_years: "age_years",
