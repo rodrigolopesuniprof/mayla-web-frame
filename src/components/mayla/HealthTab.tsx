@@ -30,13 +30,10 @@ interface Measurement {
 export function HealthTab() {
   const { user } = useAuth();
   const { company, companyId } = useCompany();
-  const [showRppg, setShowRppg] = useState(false);
-  const [showBinah, setShowBinah] = useState(false);
+  const { sources, reload: reloadSources } = useVitalsSources(companyId);
+  const [activeSource, setActiveSource] = useState<VitalsSource | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [binahEnabled, setBinahEnabled] = useState(false);
-  const [binahLimit, setBinahLimit] = useState(3);
-  const [binahUsedThisMonth, setBinahUsedThisMonth] = useState(0);
 
   const fetchMeasurements = async () => {
     if (!user) return;
@@ -50,56 +47,33 @@ export function HealthTab() {
     setLoading(false);
   };
 
-  // Check if Binah is enabled for this municipality
-  const fetchBinahStatus = async () => {
-    if (!companyId || !user) return;
-    const { data: feat } = await supabase
-      .from("company_features")
-      .select("enabled, config")
-      .eq("company_id", companyId)
-      .eq("feature_key", "binah_special_measurement")
-      .maybeSingle();
-
-    if (feat?.enabled) {
-      setBinahEnabled(true);
-      setBinahLimit((feat.config as any)?.monthly_limit ?? 3);
-
-      // Count this month's usage
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count } = await supabase
-        .from("special_measurements")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("measured_at", monthStart);
-      setBinahUsedThisMonth(count ?? 0);
-    }
-  };
-
   useEffect(() => {
     fetchMeasurements();
-    fetchBinahStatus();
-  }, [user, companyId]);
+  }, [user]);
 
-  if (showBinah) {
+  if (activeSource) {
+    if (activeSource.id === "basic_rppg") {
+      return (
+        <RppgCapture
+          onClose={() => setActiveSource(null)}
+          onComplete={() => { fetchMeasurements(); reloadSources(); }}
+        />
+      );
+    }
+    const providerOverride = activeSource.id === "premium_shenai" ? "shenai" : "binah";
     return (
       <BinahCapture
-        onClose={() => setShowBinah(false)}
-        onComplete={() => { fetchBinahStatus(); fetchMeasurements(); }}
+        onClose={() => setActiveSource(null)}
+        onComplete={() => { fetchMeasurements(); reloadSources(); }}
         municipalityId={null}
         companyId={companyId ?? null}
+        providerOverride={providerOverride}
+        displayName={activeSource.displayName}
+        sourceKey={activeSource.featureKey}
       />
     );
   }
 
-  if (showRppg) {
-    return (
-      <RppgCapture
-        onClose={() => setShowRppg(false)}
-        onComplete={fetchMeasurements}
-      />
-    );
-  }
 
   const latest = measurements[0] || null;
 
