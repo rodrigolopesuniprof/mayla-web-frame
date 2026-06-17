@@ -6,6 +6,7 @@ import { WellbeingCheckin } from "@/components/corporate/WellbeingCheckin";
 import { RppgCapture } from "./RppgCapture";
 import { BinahCapture } from "./BinahCapture";
 import { TopBar } from "./TopBar";
+import { useVitalsSources, type VitalsSource } from "@/hooks/useVitalsSources";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
