@@ -142,14 +142,6 @@ export function FirstStepsCard() {
             {completedCount}/{STEPS.length} concluídos · ganhe pontos de bônus
           </div>
         </div>
-        {!allDone && (
-          <button
-            onClick={reopenTour}
-            className="text-xs font-semibold text-primary bg-transparent border-none cursor-pointer hover:underline"
-          >
-            Continuar →
-          </button>
-        )}
       </div>
 
       <div className="h-1.5 bg-border rounded-full overflow-hidden mb-3">
