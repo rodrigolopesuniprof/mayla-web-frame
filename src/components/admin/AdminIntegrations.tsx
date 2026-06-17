@@ -297,87 +297,123 @@ export function AdminIntegrations({ companyId }: Props) {
 
           {binah.enabled && (
             <div className="space-y-3 pl-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Nome do Provedor</Label>
-                  <Input
-                    value={binah.config.provider_name}
-                    onChange={e => updateBinahConfig("provider_name", e.target.value)}
-                    placeholder="Ex: Binah, Provedor X"
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Tipo de Integração</Label>
-                  <Select
-                    value={binah.config.integration_type}
-                    onValueChange={v => updateBinahConfig("integration_type", v)}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sdk_local">SDK Local (browser)</SelectItem>
-                      <SelectItem value="api_remota">API Remota</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Provedor</Label>
+                <Select
+                  value={binah.config.provider}
+                  onValueChange={(v) => {
+                    const provider = (v === "shenai" ? "shenai" : "binah") as "binah" | "shenai";
+                    setBinah(prev => ({
+                      ...prev,
+                      config: {
+                        ...prev.config,
+                        provider,
+                        provider_name: provider === "shenai" ? "Shen.ai" : "Binah",
+                      },
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="binah">Binah</SelectItem>
+                    <SelectItem value="shenai">Shen.ai</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {binah.config.integration_type === "sdk_local" && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs">License Key do SDK</Label>
-                  <div className="relative">
-                    <Input
-                      type={showBinahKey ? "text" : "password"}
-                      value={binah.config.license_key}
-                      onChange={e => updateBinahConfig("license_key", e.target.value)}
-                      placeholder="Chave de licença do SDK"
-                      className="h-8 text-sm font-mono pr-9"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowBinahKey(!showBinahKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
-                    >
-                      {showBinahKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+              {binah.config.provider === "shenai" ? (
+                <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
+                  <p>🔐 Chave de API gerenciada globalmente pelo Lovable Cloud (<code>SHENAI_API_KEY</code>).</p>
+                  <p>Esta empresa usará o SDK do Shen.ai com interface nativa.</p>
                 </div>
-              )}
-
-              {binah.config.integration_type === "api_remota" && (
+              ) : (
                 <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">URL Base da API</Label>
-                    <Input
-                      value={binah.config.base_url}
-                      onChange={e => updateBinahConfig("base_url", e.target.value)}
-                      placeholder="https://api.provedor.com"
-                      className="h-8 text-sm font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">API Key</Label>
-                    <div className="relative">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nome do Provedor</Label>
                       <Input
-                        type={showBinahKey ? "text" : "password"}
-                        value={binah.config.api_key}
-                        onChange={e => updateBinahConfig("api_key", e.target.value)}
-                        placeholder="Chave de acesso da API"
-                        className="h-8 text-sm font-mono pr-9"
+                        value={binah.config.provider_name}
+                        onChange={e => updateBinahConfig("provider_name", e.target.value)}
+                        placeholder="Ex: Binah, Provedor X"
+                        className="h-8 text-sm"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowBinahKey(!showBinahKey)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Tipo de Integração</Label>
+                      <Select
+                        value={binah.config.integration_type}
+                        onValueChange={v => updateBinahConfig("integration_type", v)}
                       >
-                        {showBinahKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sdk_local">SDK Local (browser)</SelectItem>
+                          <SelectItem value="api_remota">API Remota</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
+
+                  {binah.config.integration_type === "sdk_local" && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">License Key do SDK</Label>
+                      <div className="relative">
+                        <Input
+                          type={showBinahKey ? "text" : "password"}
+                          value={binah.config.license_key}
+                          onChange={e => updateBinahConfig("license_key", e.target.value)}
+                          placeholder="Chave de licença do SDK"
+                          className="h-8 text-sm font-mono pr-9"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowBinahKey(!showBinahKey)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
+                        >
+                          {showBinahKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {binah.config.integration_type === "api_remota" && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">URL Base da API</Label>
+                        <Input
+                          value={binah.config.base_url}
+                          onChange={e => updateBinahConfig("base_url", e.target.value)}
+                          placeholder="https://api.provedor.com"
+                          className="h-8 text-sm font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">API Key</Label>
+                        <div className="relative">
+                          <Input
+                            type={showBinahKey ? "text" : "password"}
+                            value={binah.config.api_key}
+                            onChange={e => updateBinahConfig("api_key", e.target.value)}
+                            placeholder="Chave de acesso da API"
+                            className="h-8 text-sm font-mono pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowBinahKey(!showBinahKey)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
+                          >
+                            {showBinahKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
+
 
               <div className="flex items-center gap-3">
                 <Label className="text-sm text-muted-foreground whitespace-nowrap">Limite mensal:</Label>
