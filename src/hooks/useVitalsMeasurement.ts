@@ -118,6 +118,7 @@ export function useVitalsMeasurement(
   const [errorMessage, setErrorMessage] = useState("");
   const [isSDKAvailable, setIsSDKAvailable] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [wasmProgress, setWasmProgress] = useState(0);
   const [providerConfig, setProviderConfig] = useState<VitalsProviderConfig | null>(null);
 
   const sessionRef = useRef<any>(null);
