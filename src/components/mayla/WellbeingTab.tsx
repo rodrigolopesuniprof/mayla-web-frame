@@ -261,7 +261,7 @@ export function WellbeingTab() {
                       {format(new Date(m.measured_at), "dd MMM yyyy · HH:mm", { locale: ptBR })}
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
-                      {m.source === "rppg_native" ? "📸 Câmera rPPG" : "📱 App"}
+                      {m.source === "rppg_native" ? "📸 Medição por câmera" : "📱 App"}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
