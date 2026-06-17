@@ -293,20 +293,36 @@ export function useVitalsMeasurement(
     setPartialVitals(null);
     setFinalResults(null); setRawResults(null);
     setErrorMessage("");
+    setWasmProgress(0);
 
-    if (!crossOriginIsolated) {
-      console.warn("[Shen.ai] crossOriginIsolated=false — SDK pode falhar (precisa de SharedArrayBuffer). Tentando assim mesmo.");
+    // Pre-flight environment check (avoids the SDK preload display rendering its own
+    // browser-incompatibility screen inside the canvas).
+    const reasons: string[] = [];
+    if (typeof WebAssembly === "undefined") reasons.push("wasm");
+    if (typeof SharedArrayBuffer === "undefined" || !(self as any).crossOriginIsolated) reasons.push("isolation");
+    if (!navigator.mediaDevices?.getUserMedia) reasons.push("camera");
+    try {
+      if (!document.createElement("canvas").getContext("webgl2")) reasons.push("webgl2");
+    } catch { reasons.push("webgl2"); }
+    if (reasons.length) {
+      console.warn("[Vitals] unsupported environment:", reasons);
+      setStatus("unsupported");
+      return;
     }
 
     try {
       const { data: cfg, error: cfgErr } = await supabase.functions.invoke("shenai-config");
       if (cfgErr || !cfg?.ok || !cfg?.api_key) {
-        throw new Error(cfg?.error || cfgErr?.message || "Falha ao obter chave do Shen.ai");
+        throw new Error(cfg?.error || cfgErr?.message || "Falha ao obter credenciais da análise avançada");
       }
 
       const mod = await import("@shenai/sdk");
       const CreateShenaiSDK: any = (mod as any).default;
-      const sdk = await CreateShenaiSDK({ hidePreloadDisplayLogo: true });
+      const sdk = await CreateShenaiSDK({
+        enablePreloadDisplay: false,
+        enableErrorReporting: false,
+        onWasmLoadingProgress: (p: number) => setWasmProgress(Math.round((p || 0) * 100)),
+      });
       shenaiSdkRef.current = sdk;
 
       const risksFactors: any = {};
@@ -331,35 +347,43 @@ export function useVitalsMeasurement(
             precisionMode: sdk.PrecisionMode?.RELAXED ?? sdk.PrecisionMode?.STRICT,
             cameraMode: sdk.CameraMode?.FACING_USER,
             onboardingMode: sdk.OnboardingMode?.HIDDEN,
-            showUserInterface: true,
+            // Whitelabel — no third-party UI, no vendor branding visible to the user.
+            showUserInterface: false,
             showFacePositioningOverlay: true,
-            showFaceMask: true,
-            showBloodFlow: true,
-            showSignalQualityIndicator: true,
-            showSignalTile: true,
+            showFaceMask: false,
+            showBloodFlow: false,
+            showSignalQualityIndicator: false,
+            showSignalTile: false,
             showVisualWarnings: true,
             showStartStopButton: false,
+            showInfoButton: false,
+            showDisclaimer: false,
             enableHealthRisks: true,
             saveHealthRisksFactors: true,
             enableSummaryScreen: false,
             showResultsFinishButton: false,
             showHealthIndicesFinishButton: false,
-            hideShenaiLogo: false,
+            hideShenaiLogo: true,
             language: "pt",
+            uiFlowScreens: [],
             risksFactors: Object.keys(risksFactors).length ? risksFactors : undefined,
+            onCameraError: () => {
+              setErrorMessage("Não foi possível acessar a câmera.");
+              setStatus("error");
+            },
           },
           (result: any) => {
             const ok = result === sdk.InitializationResult?.OK || result === 0;
             if (ok) resolve();
-            else if (result === sdk.InitializationResult?.INVALID_API_KEY) reject(new Error("API key Shen.ai inválida"));
-            else if (result === sdk.InitializationResult?.CONNECTION_ERROR) reject(new Error("Sem conexão com Shen.ai"));
-            else reject(new Error("Erro interno do SDK Shen.ai"));
+            else if (result === sdk.InitializationResult?.INVALID_API_KEY) reject(new Error("Credenciais da análise avançada inválidas"));
+            else if (result === sdk.InitializationResult?.CONNECTION_ERROR) reject(new Error("Sem conexão para validar a análise avançada"));
+            else reject(new Error("Erro interno ao iniciar a análise avançada"));
           },
         );
       });
 
       sdk.attachToCanvas(`#${canvasId}`, true);
-      sdk.setOperatingMode?.(sdk.OperatingMode?.MEASURE ?? 1);
+      sdk.setOperatingMode?.(sdk.OperatingMode?.POSITIONING ?? 0);
 
       shenaiPollRef.current = setInterval(() => {
         const s = shenaiSdkRef.current;
@@ -399,14 +423,14 @@ export function useVitalsMeasurement(
             }
           }
         } catch (e) {
-          console.warn("[Shen.ai poll]", e);
+          console.warn("[Vitals poll]", e);
         }
       }, 1000);
 
       setStatus("ready");
     } catch (err: any) {
-      console.error("[Shen.ai] Init error:", err);
-      setErrorMessage(err?.message || "Erro ao inicializar o SDK Shen.ai");
+      console.error("[Vitals] Init error:", err);
+      setErrorMessage(err?.message || "Erro ao iniciar a análise avançada");
       setStatus("error");
     }
   }, []);
