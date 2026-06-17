@@ -406,7 +406,22 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       return;
     }
 
-    // SDK local
+    // Shen.ai
+    if (shenaiSdkRef.current) {
+      try {
+        setStatus("measuring");
+        setPartialVitals(null);
+        setFinalResults(null);
+        shenaiSdkRef.current.startMeasurement();
+      } catch (err: any) {
+        console.error("[Shen.ai] Start error:", err);
+        setErrorMessage(err?.message || "Erro ao iniciar medição");
+        setStatus("error");
+      }
+      return;
+    }
+
+    // SDK local (Binah)
     if (!sessionRef.current) {
       setErrorMessage("Sessão não inicializada");
       setStatus("error");
@@ -430,6 +445,9 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       clearInterval(demoTimerRef.current);
       demoTimerRef.current = null;
     }
+    if (shenaiSdkRef.current) {
+      try { shenaiSdkRef.current.stopMeasurement(); } catch (err) { console.warn("[Shen.ai] Stop error:", err); }
+    }
     if (sessionRef.current) {
       try { sessionRef.current.stop(); } catch (err) { console.warn("[Vitals SDK] Stop error:", err); }
     }
@@ -440,6 +458,15 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     if (demoTimerRef.current) {
       clearInterval(demoTimerRef.current);
       demoTimerRef.current = null;
+    }
+    if (shenaiPollRef.current) {
+      clearInterval(shenaiPollRef.current);
+      shenaiPollRef.current = null;
+    }
+    if (shenaiSdkRef.current) {
+      try { shenaiSdkRef.current.deinitialize(); } catch (err) { console.warn("[Shen.ai] Deinit error:", err); }
+      try { shenaiSdkRef.current.destroyRuntime?.(); } catch {}
+      shenaiSdkRef.current = null;
     }
     if (sessionRef.current) {
       try { sessionRef.current.terminate(); } catch (err) { console.warn("[Vitals SDK] Terminate error:", err); }
@@ -461,11 +488,14 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     isSDKAvailable,
     isDemoMode,
     providerName,
+    provider,
     initialize,
+    initializeShenai,
     startMeasurement,
     stopMeasurement,
     cleanup,
   };
+
 }
 
 // Re-export old name for backward compatibility
