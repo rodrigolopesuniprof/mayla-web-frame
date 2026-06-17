@@ -5,7 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { useVitalsMeasurement, ImageValidity, type VitalSigns } from "@/hooks/useVitalsMeasurement";
 import { useVisibleIndicators, flattenMeasurementPayload, categoryLabel } from "@/hooks/useVisibleIndicators";
 import { Progress } from "@/components/ui/progress";
-import { HelpCircle, X } from "lucide-react";
+import { HelpCircle, X, MonitorOff } from "lucide-react";
 
 interface BinahCaptureProps {
   onClose: () => void;
@@ -18,9 +18,11 @@ interface BinahCaptureProps {
   displayName?: string;
   /** Logical source identifier saved with the measurement (e.g. vitals_premium_binah). */
   sourceKey?: string;
+  /** When the environment doesn't support the advanced analysis, offer a fallback to basic rPPG. */
+  onFallbackToBasic?: () => void;
 }
 
-type CapturePhase = "consent" | "camera" | "measuring" | "result" | "error";
+type CapturePhase = "consent" | "camera" | "ready" | "measuring" | "result" | "error" | "unsupported";
 
 interface MappedResult {
   heart_rate?: number;
