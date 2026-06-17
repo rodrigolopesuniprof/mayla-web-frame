@@ -5,17 +5,11 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Plug, TestTube2 } from "lucide-react";
 
 interface Props {
   companyId: string;
-}
-
-interface IntegrationConfig {
-  enabled: boolean;
-  config: Record<string, any>;
 }
 
 const FEATURE_KEYS = {
@@ -28,27 +22,17 @@ const FEATURE_KEYS = {
   consultaExternos: "consulta_medicos_externos",
 } as const;
 
-interface VitalsSourceConfig {
+interface VitalsSourceState {
   enabled: boolean;
   display_name: string;
   monthly_limit?: number;
   license_key?: string;
 }
 
-const DEFAULT_VITALS_BASIC: VitalsSourceConfig = {
-  enabled: true,
-  display_name: "Medir sinais vitais",
-};
-const DEFAULT_VITALS_BINAH: VitalsSourceConfig = {
-  enabled: false,
-  display_name: "Avaliação Completa de Saúde",
-  monthly_limit: 3,
-  license_key: "",
-};
-const DEFAULT_VITALS_SHENAI: VitalsSourceConfig = {
-  enabled: false,
-  display_name: "Análise Avançada de Saúde",
-  monthly_limit: 3,
+const DEFAULTS: Record<"basic" | "binah" | "shenai", VitalsSourceState> = {
+  basic: { enabled: true, display_name: "Medir sinais vitais" },
+  binah: { enabled: false, display_name: "Avaliação Completa de Saúde", monthly_limit: 3, license_key: "" },
+  shenai: { enabled: false, display_name: "Análise Avançada de Saúde", monthly_limit: 3 },
 };
 
 const DEFAULT_PRONTUARIO_CONFIG = {
@@ -58,15 +42,20 @@ const DEFAULT_PRONTUARIO_CONFIG = {
 };
 
 export function AdminIntegrations({ companyId }: Props) {
-  const [binah, setBinah] = useState<IntegrationConfig>({ enabled: false, config: { ...DEFAULT_BINAH_CONFIG } });
-  const [prontuario, setProntuario] = useState<IntegrationConfig>({ enabled: false, config: { ...DEFAULT_PRONTUARIO_CONFIG } });
+  const [basic, setBasic] = useState<VitalsSourceState>({ ...DEFAULTS.basic });
+  const [binah, setBinah] = useState<VitalsSourceState>({ ...DEFAULTS.binah });
+  const [shenai, setShenai] = useState<VitalsSourceState>({ ...DEFAULTS.shenai });
+
+  const [prontuario, setProntuario] = useState<{ enabled: boolean; config: Record<string, any> }>({
+    enabled: false,
+    config: { ...DEFAULT_PRONTUARIO_CONFIG },
+  });
   const [consultaEnabled, setConsultaEnabled] = useState(false);
   const [consultaInternosEnabled, setConsultaInternosEnabled] = useState(false);
   const [consultaExternosEnabled, setConsultaExternosEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showBinahKey, setShowBinahKey] = useState(false);
   const [showProntuarioKey, setShowProntuarioKey] = useState(false);
-  const [testingBinah, setTestingBinah] = useState(false);
   const [testingProntuario, setTestingProntuario] = useState(false);
 
   const loadFeatures = useCallback(async () => {
@@ -74,26 +63,40 @@ export function AdminIntegrations({ companyId }: Props) {
       .from("company_features")
       .select("feature_key, enabled, config")
       .eq("company_id", companyId)
-      .in("feature_key", [FEATURE_KEYS.binah, FEATURE_KEYS.prontuario, FEATURE_KEYS.consulta, FEATURE_KEYS.consultaInternos, FEATURE_KEYS.consultaExternos]);
+      .in("feature_key", [
+        FEATURE_KEYS.vitalsBasic,
+        FEATURE_KEYS.vitalsBinah,
+        FEATURE_KEYS.vitalsShenai,
+        FEATURE_KEYS.prontuario,
+        FEATURE_KEYS.consulta,
+        FEATURE_KEYS.consultaInternos,
+        FEATURE_KEYS.consultaExternos,
+      ]);
 
     if (data) {
       for (const f of data) {
         const cfg = (f.config as Record<string, any>) || {};
-        if (f.feature_key === FEATURE_KEYS.binah) {
-          setBinah({
-            enabled: f.enabled ?? false,
-            config: {
-              provider: cfg.provider === "shenai" ? "shenai" : "binah",
-              provider_name: cfg.provider_name || (cfg.provider === "shenai" ? "Shen.ai" : "Binah"),
-              integration_type: cfg.integration_type || "sdk_local",
-              license_key: cfg.license_key || "",
-              base_url: cfg.base_url || "",
-              api_key: cfg.api_key || "",
-              monthly_limit: cfg.monthly_limit ?? 3,
-            },
+        if (f.feature_key === FEATURE_KEYS.vitalsBasic) {
+          setBasic({
+            enabled: f.enabled ?? true,
+            display_name: cfg.display_name || DEFAULTS.basic.display_name,
           });
         }
-
+        if (f.feature_key === FEATURE_KEYS.vitalsBinah) {
+          setBinah({
+            enabled: f.enabled ?? false,
+            display_name: cfg.display_name || DEFAULTS.binah.display_name,
+            monthly_limit: cfg.monthly_limit ?? 3,
+            license_key: cfg.license_key || "",
+          });
+        }
+        if (f.feature_key === FEATURE_KEYS.vitalsShenai) {
+          setShenai({
+            enabled: f.enabled ?? false,
+            display_name: cfg.display_name || DEFAULTS.shenai.display_name,
+            monthly_limit: cfg.monthly_limit ?? 3,
+          });
+        }
         if (f.feature_key === FEATURE_KEYS.prontuario) {
           setProntuario({
             enabled: f.enabled ?? false,
@@ -104,15 +107,9 @@ export function AdminIntegrations({ companyId }: Props) {
             },
           });
         }
-        if (f.feature_key === FEATURE_KEYS.consulta) {
-          setConsultaEnabled(f.enabled ?? false);
-        }
-        if (f.feature_key === FEATURE_KEYS.consultaInternos) {
-          setConsultaInternosEnabled(f.enabled ?? false);
-        }
-        if (f.feature_key === FEATURE_KEYS.consultaExternos) {
-          setConsultaExternosEnabled(f.enabled ?? false);
-        }
+        if (f.feature_key === FEATURE_KEYS.consulta) setConsultaEnabled(f.enabled ?? false);
+        if (f.feature_key === FEATURE_KEYS.consultaInternos) setConsultaInternosEnabled(f.enabled ?? false);
+        if (f.feature_key === FEATURE_KEYS.consultaExternos) setConsultaExternosEnabled(f.enabled ?? false);
       }
     }
     setLoading(false);
@@ -132,41 +129,64 @@ export function AdminIntegrations({ companyId }: Props) {
     return true;
   };
 
-  // --- Binah handlers ---
+  // ── Vitals: Basic (rPPG interno) ──
+  const handleBasicToggle = async (val: boolean) => {
+    setBasic(prev => ({ ...prev, enabled: val }));
+    const ok = await saveFeature(FEATURE_KEYS.vitalsBasic, val, {
+      display_name: basic.display_name,
+      points_reward: 50,
+    });
+    if (!ok) setBasic(prev => ({ ...prev, enabled: !val }));
+  };
+  const handleBasicSave = async () => {
+    const ok = await saveFeature(FEATURE_KEYS.vitalsBasic, basic.enabled, {
+      display_name: basic.display_name,
+      points_reward: 50,
+    });
+    if (ok) toast({ title: "Configurações salvas!" });
+  };
+
+  // ── Vitals: Binah ──
   const handleBinahToggle = async (val: boolean) => {
     setBinah(prev => ({ ...prev, enabled: val }));
-    const ok = await saveFeature(FEATURE_KEYS.binah, val, binah.config);
+    const ok = await saveFeature(FEATURE_KEYS.vitalsBinah, val, {
+      display_name: binah.display_name,
+      monthly_limit: binah.monthly_limit ?? 3,
+      license_key: binah.license_key || "",
+      points_reward: 100,
+    });
     if (!ok) setBinah(prev => ({ ...prev, enabled: !val }));
   };
-
   const handleBinahSave = async () => {
-    const ok = await saveFeature(FEATURE_KEYS.binah, binah.enabled, binah.config);
-    if (ok) toast({ title: "Configurações de medição salvas!" });
+    const ok = await saveFeature(FEATURE_KEYS.vitalsBinah, binah.enabled, {
+      display_name: binah.display_name,
+      monthly_limit: binah.monthly_limit ?? 3,
+      license_key: binah.license_key || "",
+      points_reward: 100,
+    });
+    if (ok) toast({ title: "Configurações salvas!" });
   };
 
-  const handleTestBinahConnection = async () => {
-    const { base_url, api_key } = binah.config;
-    if (!base_url || !api_key) {
-      toast({ title: "Preencha URL e API Key", variant: "destructive" });
-      return;
-    }
-    setTestingBinah(true);
-    try {
-      const resp = await fetch(`${base_url}/health`, {
-        headers: { Authorization: `Bearer ${api_key}` },
-      });
-      if (resp.ok) {
-        toast({ title: "✅ Conexão bem-sucedida!", description: "A API do provedor respondeu corretamente." });
-      } else {
-        toast({ title: "❌ Falha na conexão", description: `Status: ${resp.status}`, variant: "destructive" });
-      }
-    } catch (err: any) {
-      toast({ title: "❌ Erro de conexão", description: err.message, variant: "destructive" });
-    }
-    setTestingBinah(false);
+  // ── Vitals: Shen.ai ──
+  const handleShenaiToggle = async (val: boolean) => {
+    setShenai(prev => ({ ...prev, enabled: val }));
+    const ok = await saveFeature(FEATURE_KEYS.vitalsShenai, val, {
+      display_name: shenai.display_name,
+      monthly_limit: shenai.monthly_limit ?? 3,
+      points_reward: 100,
+    });
+    if (!ok) setShenai(prev => ({ ...prev, enabled: !val }));
+  };
+  const handleShenaiSave = async () => {
+    const ok = await saveFeature(FEATURE_KEYS.vitalsShenai, shenai.enabled, {
+      display_name: shenai.display_name,
+      monthly_limit: shenai.monthly_limit ?? 3,
+      points_reward: 100,
+    });
+    if (ok) toast({ title: "Configurações salvas!" });
   };
 
-  // --- Consulta handlers ---
+  // ── Consulta handlers ──
   const handleConsultaToggle = async (val: boolean) => {
     setConsultaEnabled(val);
     const ok = await saveFeature(FEATURE_KEYS.consulta, val, {});
@@ -174,7 +194,7 @@ export function AdminIntegrations({ companyId }: Props) {
     else toast({ title: val ? "Serviço de consulta ativado!" : "Serviço de consulta desativado" });
   };
 
-  // --- Prontuário handlers ---
+  // ── Prontuário handlers ──
   const handleProntuarioToggle = async (val: boolean) => {
     setProntuario(prev => ({ ...prev, enabled: val }));
     const ok = await saveFeature(FEATURE_KEYS.prontuario, val, prontuario.config);
@@ -199,14 +219,12 @@ export function AdminIntegrations({ companyId }: Props) {
     }
     setTestingProntuario(true);
     try {
-      // Silent save so edge function reads fresh credentials
       const saved = await handleProntuarioSave(true);
       if (!saved) {
         toast({ title: "❌ Erro ao salvar configurações antes do teste", variant: "destructive" });
         setTestingProntuario(false);
         return;
       }
-
       const { data: { session } } = await supabase.auth.getSession();
       const projId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const resp = await fetch(
@@ -226,25 +244,21 @@ export function AdminIntegrations({ companyId }: Props) {
     setTestingProntuario(false);
   };
 
-  if (loading) {
-    return <p className="text-muted-foreground py-10 text-center">Carregando integrações...</p>;
-  }
-
-  const updateBinahConfig = (key: string, value: any) => {
-    setBinah(prev => ({ ...prev, config: { ...prev.config, [key]: value } }));
-  };
-
   const updateProntuarioConfig = (key: string, value: any) => {
     setProntuario(prev => ({ ...prev, config: { ...prev.config, [key]: value } }));
   };
 
+  if (loading) {
+    return <p className="text-muted-foreground py-10 text-center">Carregando integrações...</p>;
+  }
+
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Configure os sistemas que funcionam como plug-and-play com a Mayla Saúde.
+        Configure os serviços disponíveis para os colaboradores. Cada serviço de medição ativado aparece como um card independente no app.
       </p>
 
-      {/* Consulta Service Toggle Card */}
+      {/* Consulta Service */}
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -278,7 +292,7 @@ export function AdminIntegrations({ companyId }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-foreground">Médicos externos (API parceira)</p>
-                  <p className="text-xs text-muted-foreground">Agendamento via integração com sistema parceiro (ex: Meddit)</p>
+                  <p className="text-xs text-muted-foreground">Agendamento via integração com sistema parceiro</p>
                 </div>
                 <Switch
                   checked={consultaExternosEnabled}
@@ -295,162 +309,143 @@ export function AdminIntegrations({ companyId }: Props) {
         </CardContent>
       </Card>
 
-      {/* Binah / Vitals Card */}
+      {/* Vitals: Basic (rPPG) */}
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">❤️</span>
+              <div>
+                <p className="font-medium text-foreground">Medição de Sinais Vitais — Básica</p>
+                <p className="text-xs text-muted-foreground">
+                  Câmera frontal · Freq. cardíaca, respiração e estresse · sem custo externo (motor interno rPPG)
+                </p>
+              </div>
+            </div>
+            <Switch checked={basic.enabled} onCheckedChange={handleBasicToggle} />
+          </div>
+          {basic.enabled && (
+            <div className="space-y-3 pl-10">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nome exibido ao usuário</Label>
+                <Input
+                  value={basic.display_name}
+                  onChange={e => setBasic(prev => ({ ...prev, display_name: e.target.value }))}
+                  placeholder="Ex: Medir sinais vitais"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <Button size="sm" onClick={handleBasicSave}>Salvar</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Vitals: Premium A (Binah) */}
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🔬</span>
               <div>
-                <p className="font-medium text-foreground">Medição de Sinais Vitais</p>
-                <p className="text-xs text-muted-foreground">Captura de sinais vitais por câmera (Medição Premium)</p>
+                <p className="font-medium text-foreground">Medição de Sinais Vitais — Premium A (Binah)</p>
+                <p className="text-xs text-muted-foreground">
+                  Análise ampliada via SDK Binah (PA, hemoglobina, HRV). Requer license key.
+                </p>
               </div>
             </div>
             <Switch checked={binah.enabled} onCheckedChange={handleBinahToggle} />
           </div>
-
           {binah.enabled && (
             <div className="space-y-3 pl-10">
               <div className="space-y-1.5">
-                <Label className="text-xs">Provedor</Label>
-                <Select
-                  value={binah.config.provider}
-                  onValueChange={(v) => {
-                    const provider = (v === "shenai" ? "shenai" : "binah") as "binah" | "shenai";
-                    setBinah(prev => ({
-                      ...prev,
-                      config: {
-                        ...prev.config,
-                        provider,
-                        provider_name: provider === "shenai" ? "Shen.ai" : "Binah",
-                      },
-                    }));
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="binah">Binah</SelectItem>
-                    <SelectItem value="shenai">Shen.ai</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Nome exibido ao usuário</Label>
+                <Input
+                  value={binah.display_name}
+                  onChange={e => setBinah(prev => ({ ...prev, display_name: e.target.value }))}
+                  placeholder="Ex: Avaliação Completa de Saúde"
+                  className="h-8 text-sm"
+                />
               </div>
-
-              {binah.config.provider === "shenai" ? (
-                <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
-                  <p>🔐 Chave de API gerenciada globalmente pelo Lovable Cloud (<code>SHENAI_API_KEY</code>).</p>
-                  <p>Esta empresa usará o SDK do Shen.ai com interface nativa.</p>
+              <div className="space-y-1.5">
+                <Label className="text-xs">License Key do SDK</Label>
+                <div className="relative">
+                  <Input
+                    type={showBinahKey ? "text" : "password"}
+                    value={binah.license_key || ""}
+                    onChange={e => setBinah(prev => ({ ...prev, license_key: e.target.value }))}
+                    placeholder="Chave de licença"
+                    className="h-8 text-sm font-mono pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowBinahKey(!showBinahKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
+                  >
+                    {showBinahKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Nome do Provedor</Label>
-                      <Input
-                        value={binah.config.provider_name}
-                        onChange={e => updateBinahConfig("provider_name", e.target.value)}
-                        placeholder="Ex: Binah, Provedor X"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Tipo de Integração</Label>
-                      <Select
-                        value={binah.config.integration_type}
-                        onValueChange={v => updateBinahConfig("integration_type", v)}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sdk_local">SDK Local (browser)</SelectItem>
-                          <SelectItem value="api_remota">API Remota</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {binah.config.integration_type === "sdk_local" && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">License Key do SDK</Label>
-                      <div className="relative">
-                        <Input
-                          type={showBinahKey ? "text" : "password"}
-                          value={binah.config.license_key}
-                          onChange={e => updateBinahConfig("license_key", e.target.value)}
-                          placeholder="Chave de licença do SDK"
-                          className="h-8 text-sm font-mono pr-9"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowBinahKey(!showBinahKey)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
-                        >
-                          {showBinahKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {binah.config.integration_type === "api_remota" && (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">URL Base da API</Label>
-                        <Input
-                          value={binah.config.base_url}
-                          onChange={e => updateBinahConfig("base_url", e.target.value)}
-                          placeholder="https://api.provedor.com"
-                          className="h-8 text-sm font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">API Key</Label>
-                        <div className="relative">
-                          <Input
-                            type={showBinahKey ? "text" : "password"}
-                            value={binah.config.api_key}
-                            onChange={e => updateBinahConfig("api_key", e.target.value)}
-                            placeholder="Chave de acesso da API"
-                            className="h-8 text-sm font-mono pr-9"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowBinahKey(!showBinahKey)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
-                          >
-                            {showBinahKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-
-
+              </div>
               <div className="flex items-center gap-3">
                 <Label className="text-sm text-muted-foreground whitespace-nowrap">Limite mensal:</Label>
                 <Input
                   type="number"
                   min={1}
                   max={99}
-                  value={binah.config.monthly_limit}
-                  onChange={e => updateBinahConfig("monthly_limit", parseInt(e.target.value) || 1)}
+                  value={binah.monthly_limit ?? 3}
+                  onChange={e => setBinah(prev => ({ ...prev, monthly_limit: parseInt(e.target.value) || 1 }))}
                   className="w-20 h-8 text-sm"
                 />
                 <span className="text-sm text-muted-foreground">/mês</span>
               </div>
+              <Button size="sm" onClick={handleBinahSave}>Salvar</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-              <div className="flex items-center gap-2 pt-1">
-                <Button size="sm" onClick={handleBinahSave}>Salvar configurações</Button>
-                {binah.config.integration_type === "api_remota" && (
-                  <Button size="sm" variant="outline" onClick={handleTestBinahConnection} disabled={testingBinah}>
-                    <TestTube2 className="w-4 h-4 mr-1" />
-                    {testingBinah ? "Testando..." : "Testar conexão"}
-                  </Button>
-                )}
+      {/* Vitals: Premium B (Shen.ai) */}
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🩺</span>
+              <div>
+                <p className="font-medium text-foreground">Medição de Sinais Vitais — Premium B (Shen.ai)</p>
+                <p className="text-xs text-muted-foreground">
+                  Análise avançada via SDK Shen.ai (30+ indicadores). Chave gerenciada globalmente.
+                </p>
               </div>
+            </div>
+            <Switch checked={shenai.enabled} onCheckedChange={handleShenaiToggle} />
+          </div>
+          {shenai.enabled && (
+            <div className="space-y-3 pl-10">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nome exibido ao usuário</Label>
+                <Input
+                  value={shenai.display_name}
+                  onChange={e => setShenai(prev => ({ ...prev, display_name: e.target.value }))}
+                  placeholder="Ex: Análise Avançada de Saúde"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                🔐 Chave de API gerenciada globalmente pelo Lovable Cloud (<code>SHENAI_API_KEY</code>).
+              </div>
+              <div className="flex items-center gap-3">
+                <Label className="text-sm text-muted-foreground whitespace-nowrap">Limite mensal:</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={shenai.monthly_limit ?? 3}
+                  onChange={e => setShenai(prev => ({ ...prev, monthly_limit: parseInt(e.target.value) || 1 }))}
+                  className="w-20 h-8 text-sm"
+                />
+                <span className="text-sm text-muted-foreground">/mês</span>
+              </div>
+              <Button size="sm" onClick={handleShenaiSave}>Salvar</Button>
             </div>
           )}
         </CardContent>
@@ -525,7 +520,6 @@ export function AdminIntegrations({ companyId }: Props) {
         </CardContent>
       </Card>
 
-      {/* Future placeholder */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground/50 pl-1">
         <Plug className="w-4 h-4" />
         <span>Novas integrações serão adicionadas aqui conforme disponíveis.</span>
