@@ -88,6 +88,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     isDemoMode,
     provider,
     wasmProgress,
+    unsupportedReasons,
+    sdkErrorDetail,
     initialize,
     initializeShenai,
     startMeasurement,
@@ -482,40 +484,62 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
           )}
 
           {/* Unsupported environment (e.g. preview iframe without crossOriginIsolated) */}
-          {phase === "unsupported" && (
-            <div className="text-center space-y-5 max-w-sm">
-              <div className="mx-auto w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-                <MonitorOff className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="font-display text-xl font-semibold text-foreground">
-                Análise indisponível neste navegador
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Esta análise avançada precisa de um navegador moderno em janela própria.
-                Em janelas incorporadas ou navegadores corporativos antigos ela não funciona.
-              </p>
-              <div className="space-y-2">
-                {onFallbackToBasic && (
+          {phase === "unsupported" && (() => {
+            const reasonMap: Record<string, { code: string; text: string }> = {
+              wasm: { code: "ERR_WASM", text: "Navegador sem suporte a WebAssembly." },
+              isolation: { code: "ERR_ISOLATION", text: "Janela embutida sem isolamento de origem (COOP/COEP)." },
+              camera: { code: "ERR_CAMERA", text: "Câmera bloqueada ou indisponível." },
+              webgl2: { code: "ERR_WEBGL2", text: "Aceleração gráfica WebGL2 indisponível." },
+              sdk: { code: "ERR_SDK", text: "O motor da análise recusou inicializar neste navegador." },
+            };
+            const list = (unsupportedReasons?.length ? unsupportedReasons : ["sdk"]).map(r => reasonMap[r] || reasonMap.sdk);
+            return (
+              <div className="text-center space-y-5 max-w-sm">
+                <div className="mx-auto w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+                  <MonitorOff className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-display text-xl font-semibold text-foreground">
+                  Análise indisponível neste navegador
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Esta análise avançada precisa de um navegador moderno em janela própria.
+                </p>
+                <div className="rounded-xl bg-secondary/60 px-4 py-3 text-left space-y-1.5">
+                  {list.map((r, i) => (
+                    <div key={i} className="text-xs text-foreground/80">
+                      <span className="font-mono font-semibold text-foreground">{r.code}</span>
+                      <span className="ml-2">{r.text}</span>
+                    </div>
+                  ))}
+                  {sdkErrorDetail && (
+                    <div className="pt-2 mt-2 border-t border-border/60 text-[10px] font-mono text-muted-foreground break-all">
+                      {sdkErrorDetail}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {onFallbackToBasic && (
+                    <button
+                      onClick={() => { cleanup(); onFallbackToBasic(); }}
+                      className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
+                      style={{
+                        background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))",
+                        boxShadow: "0 8px 24px rgba(232,87,74,.3)",
+                      }}
+                    >
+                      Usar Análise Básica
+                    </button>
+                  )}
                   <button
-                    onClick={() => { cleanup(); onFallbackToBasic(); }}
-                    className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
-                    style={{
-                      background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))",
-                      boxShadow: "0 8px 24px rgba(232,87,74,.3)",
-                    }}
+                    onClick={() => { cleanup(); onClose(); }}
+                    className="w-full rounded-2xl py-3 text-sm font-medium bg-secondary text-foreground"
                   >
-                    Usar Análise Básica
+                    Fechar
                   </button>
-                )}
-                <button
-                  onClick={() => { cleanup(); onClose(); }}
-                  className="w-full rounded-2xl py-3 text-sm font-medium bg-secondary text-foreground"
-                >
-                  Fechar
-                </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Measuring */}
           {phase === "measuring" && (

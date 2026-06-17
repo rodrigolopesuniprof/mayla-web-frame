@@ -59,6 +59,8 @@ export interface UseVitalsMeasurementReturn {
   providerName: string;
   provider: VitalsProvider;
   wasmProgress: number;
+  unsupportedReasons: string[];
+  sdkErrorDetail: string;
   initialize: (videoElement: HTMLVideoElement, cameraDeviceId?: string) => Promise<void>;
   initializeShenai: (canvasId: string, userProfile?: { age?: number; gender?: "male" | "female" | "other"; height?: number; weight?: number }) => Promise<void>;
   startMeasurement: () => void;
@@ -119,6 +121,8 @@ export function useVitalsMeasurement(
   const [isSDKAvailable, setIsSDKAvailable] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [wasmProgress, setWasmProgress] = useState(0);
+  const [unsupportedReasons, setUnsupportedReasons] = useState<string[]>([]);
+  const [sdkErrorDetail, setSdkErrorDetail] = useState("");
   const [providerConfig, setProviderConfig] = useState<VitalsProviderConfig | null>(null);
 
   const sessionRef = useRef<any>(null);
@@ -294,18 +298,34 @@ export function useVitalsMeasurement(
     setFinalResults(null); setRawResults(null);
     setErrorMessage("");
     setWasmProgress(0);
+    setUnsupportedReasons([]);
+    setSdkErrorDetail("");
 
-    // Pre-flight environment check (avoids the SDK preload display rendering its own
-    // browser-incompatibility screen inside the canvas).
-    const reasons: string[] = [];
-    if (typeof WebAssembly === "undefined") reasons.push("wasm");
-    if (typeof SharedArrayBuffer === "undefined" || !(self as any).crossOriginIsolated) reasons.push("isolation");
-    if (!navigator.mediaDevices?.getUserMedia) reasons.push("camera");
+    // Pre-flight environment check.
+    // Hard-block only on capabilities the SDK cannot work around: WebAssembly, camera, WebGL2.
+    // Missing SharedArrayBuffer / crossOriginIsolated is logged but we still attempt init —
+    // some Web SDK builds run without SAB; let the SDK be the source of truth.
+    const hardReasons: string[] = [];
+    const softReasons: string[] = [];
+    if (typeof WebAssembly === "undefined") hardReasons.push("wasm");
+    if (!navigator.mediaDevices?.getUserMedia) hardReasons.push("camera");
     try {
-      if (!document.createElement("canvas").getContext("webgl2")) reasons.push("webgl2");
-    } catch { reasons.push("webgl2"); }
-    if (reasons.length) {
-      console.warn("[Vitals] unsupported environment:", reasons);
+      if (!document.createElement("canvas").getContext("webgl2")) hardReasons.push("webgl2");
+    } catch { hardReasons.push("webgl2"); }
+    if (typeof SharedArrayBuffer === "undefined" || !(self as any).crossOriginIsolated) {
+      softReasons.push("isolation");
+    }
+
+    console.warn("[Vitals] env check", {
+      hardReasons,
+      softReasons,
+      isolated: (self as any).crossOriginIsolated,
+      hasSAB: typeof SharedArrayBuffer !== "undefined",
+      userAgent: navigator.userAgent,
+    });
+
+    if (hardReasons.length) {
+      setUnsupportedReasons(hardReasons);
       setStatus("unsupported");
       return;
     }
@@ -430,8 +450,23 @@ export function useVitalsMeasurement(
       setStatus("ready");
     } catch (err: any) {
       console.error("[Vitals] Init error:", err);
-      setErrorMessage(err?.message || "Erro ao iniciar a análise avançada");
-      setStatus("error");
+      const msg = err?.message || String(err) || "Erro ao iniciar a análise avançada";
+      setSdkErrorDetail(msg);
+      // If the SDK itself complains about environment capabilities, surface as unsupported
+      // with the real reason captured from the SDK instead of a generic error.
+      const envFingerprint = /SharedArrayBuffer|crossOriginIsolated|WebAssembly|WebGL|getUserMedia|isolation|threads/i;
+      if (envFingerprint.test(msg)) {
+        const reasons: string[] = [];
+        if (/SharedArrayBuffer|crossOriginIsolated|isolation|threads/i.test(msg)) reasons.push("isolation");
+        if (/WebAssembly/i.test(msg)) reasons.push("wasm");
+        if (/WebGL/i.test(msg)) reasons.push("webgl2");
+        if (/getUserMedia|camera/i.test(msg)) reasons.push("camera");
+        setUnsupportedReasons(reasons.length ? reasons : ["sdk"]);
+        setStatus("unsupported");
+      } else {
+        setErrorMessage(msg);
+        setStatus("error");
+      }
     }
   }, []);
 
@@ -608,6 +643,8 @@ export function useVitalsMeasurement(
     providerName,
     provider,
     wasmProgress,
+    unsupportedReasons,
+    sdkErrorDetail,
     initialize,
     initializeShenai,
     startMeasurement,
