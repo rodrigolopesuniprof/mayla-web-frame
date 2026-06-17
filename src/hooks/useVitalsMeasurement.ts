@@ -230,7 +230,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
 
   // ── Shen.ai SDK flow ──
 
-  const mapShenaiResults = (r: any): VitalSigns => {
+  const mapShenaiResults = (r: any, risks?: any): VitalSigns => {
     if (!r) return {};
     const stress = r.stress_index != null
       ? (r.stress_index <= 1 ? Math.round(r.stress_index * 100) : Math.round(r.stress_index))
@@ -244,23 +244,50 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
         ? { value: { systolic: r.systolic_blood_pressure_mmhg, diastolic: r.diastolic_blood_pressure_mmhg } }
         : undefined,
       cardiacWorkload: r.cardiac_workload_mmhg_per_sec != null ? { value: r.cardiac_workload_mmhg_per_sec } : undefined,
+      wellnessIndex: risks?.wellnessScore != null ? { value: Math.round(risks.wellnessScore) } : undefined,
     };
   };
 
-  const initializeShenai = useCallback(async (canvasId: string) => {
+  /** Build a comprehensive flat payload merging measurement results + health risks
+   *  so flattenMeasurementPayload (and the dynamic report) can pick up every metric. */
+  const buildShenaiPayload = (m: any, risks: any) => {
+    const out: Record<string, any> = { ...(m || {}) };
+    if (m?.bmi_kg_per_m2 != null && out.bmi_kg_m2 == null) out.bmi_kg_m2 = m.bmi_kg_per_m2;
+    if (m?.cardiac_workload_mmhg_per_sec != null && out.cardiac_workload == null) {
+      out.cardiac_workload = m.cardiac_workload_mmhg_per_sec;
+    }
+    if (m?.systolic_blood_pressure_mmhg != null && m?.diastolic_blood_pressure_mmhg != null) {
+      const sbp = m.systolic_blood_pressure_mmhg;
+      const dbp = m.diastolic_blood_pressure_mmhg;
+      if (out.mean_arterial_pressure_mmhg == null) out.mean_arterial_pressure_mmhg = Math.round(dbp + (sbp - dbp) / 3);
+      if (out.pulse_pressure_mmhg == null) out.pulse_pressure_mmhg = sbp - dbp;
+    }
+    if (risks) {
+      if (risks.wellnessScore != null) out.wellness_score = risks.wellnessScore;
+      if (risks.vascularAge != null) out.vascular_age_years = risks.vascularAge;
+      if (risks.waistToHeightRatio != null) out.waist_to_height_ratio = risks.waistToHeightRatio;
+      if (risks.hypertensionRisk != null) out.hypertension_risk = risks.hypertensionRisk;
+      if (risks.diabetesRisk != null) out.diabetic_risk = risks.diabetesRisk;
+      if (risks.cvDiseases?.overallRisk != null) out.cardiovascular_risk_score = risks.cvDiseases.overallRisk;
+      out._health_risks = risks;
+    }
+    return out;
+  };
+
+  const initializeShenai = useCallback(async (
+    canvasId: string,
+    userProfile?: { age?: number; gender?: "male" | "female" | "other"; height?: number; weight?: number },
+  ) => {
     setStatus("initializing");
     setPartialVitals(null);
     setFinalResults(null); setRawResults(null);
     setErrorMessage("");
 
     if (!crossOriginIsolated) {
-      console.warn("[Shen.ai] crossOriginIsolated=false → demo mode");
-      enterDemoMode();
-      return;
+      console.warn("[Shen.ai] crossOriginIsolated=false — SDK pode falhar (precisa de SharedArrayBuffer). Tentando assim mesmo.");
     }
 
     try {
-      // Fetch global API key from edge function
       const { data: cfg, error: cfgErr } = await supabase.functions.invoke("shenai-config");
       if (cfgErr || !cfg?.ok || !cfg?.api_key) {
         throw new Error(cfg?.error || cfgErr?.message || "Falha ao obter chave do Shen.ai");
@@ -271,6 +298,16 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       const sdk = await CreateShenaiSDK({ hidePreloadDisplayLogo: true });
       shenaiSdkRef.current = sdk;
 
+      const risksFactors: any = {};
+      if (userProfile?.age != null) risksFactors.age = userProfile.age;
+      if (userProfile?.height != null) risksFactors.bodyHeight = userProfile.height;
+      if (userProfile?.weight != null) risksFactors.bodyWeight = userProfile.weight;
+      if (userProfile?.gender && sdk.Gender) {
+        risksFactors.gender = userProfile.gender === "male" ? sdk.Gender.MALE
+          : userProfile.gender === "female" ? sdk.Gender.FEMALE
+          : sdk.Gender.OTHER;
+      }
+
       const preset = sdk.MeasurementPreset?.ONE_MINUTE_ALL_METRICS
         ?? sdk.MeasurementPreset?.ONE_MINUTE_HR_HRV_BR;
 
@@ -280,12 +317,30 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
           cfg.user_id || "",
           {
             measurementPreset: preset,
-            precisionMode: sdk.PrecisionMode?.STRICT ?? sdk.PrecisionMode?.RELAXED,
+            precisionMode: sdk.PrecisionMode?.RELAXED ?? sdk.PrecisionMode?.STRICT,
+            cameraMode: sdk.CameraMode?.FACING_USER,
+            onboardingMode: sdk.OnboardingMode?.HIDDEN,
+            showUserInterface: true,
+            showFacePositioningOverlay: true,
+            showFaceMask: true,
+            showBloodFlow: true,
+            showSignalQualityIndicator: true,
+            showSignalTile: true,
+            showVisualWarnings: true,
+            showStartStopButton: false,
+            enableHealthRisks: true,
+            saveHealthRisksFactors: true,
+            enableSummaryScreen: false,
+            showResultsFinishButton: false,
+            showHealthIndicesFinishButton: false,
+            hideShenaiLogo: false,
+            language: "pt",
+            risksFactors: Object.keys(risksFactors).length ? risksFactors : undefined,
           },
           (result: any) => {
             const ok = result === sdk.InitializationResult?.OK || result === 0;
             if (ok) resolve();
-            else if (result === sdk.InitializationResult?.INVALID_API_KEY) reject(new Error("API key inválida"));
+            else if (result === sdk.InitializationResult?.INVALID_API_KEY) reject(new Error("API key Shen.ai inválida"));
             else if (result === sdk.InitializationResult?.CONNECTION_ERROR) reject(new Error("Sem conexão com Shen.ai"));
             else reject(new Error("Erro interno do SDK Shen.ai"));
           },
@@ -295,7 +350,6 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       sdk.attachToCanvas(`#${canvasId}`, true);
       sdk.setOperatingMode?.(sdk.OperatingMode?.MEASURE ?? 1);
 
-      // Poll measurement state + realtime metrics
       shenaiPollRef.current = setInterval(() => {
         const s = shenaiSdkRef.current;
         if (!s) return;
@@ -306,15 +360,27 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
 
           if (state === s.MeasurementState?.FINISHED) {
             const final = s.getMeasurementResults();
-            setRawResults({ provider: "shenai", payload: final });
-            setFinalResults(mapShenaiResults(final));
+            let risks: any = null;
+            try { risks = s.getHealthRisks?.() ?? null; } catch {}
+            let history: any = null;
+            try { history = s.getMeasurementResultsHistory?.() ?? null; } catch {}
+            const payload = buildShenaiPayload(final, risks);
+            setRawResults({
+              provider: "shenai",
+              payload,
+              raw_measurement: final,
+              health_risks: risks,
+              history,
+              measurement_id: s.getMeasurementID?.() || null,
+            });
+            setFinalResults(mapShenaiResults(final, risks));
             setStatus("completed");
             if (shenaiPollRef.current) {
               clearInterval(shenaiPollRef.current);
               shenaiPollRef.current = null;
             }
           } else if (state === s.MeasurementState?.FAILED) {
-            setErrorMessage("Medição falhou. Tente novamente.");
+            setErrorMessage("Medição falhou. Verifique iluminação e posicionamento.");
             setStatus("error");
             if (shenaiPollRef.current) {
               clearInterval(shenaiPollRef.current);
@@ -332,7 +398,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       setErrorMessage(err?.message || "Erro ao inicializar o SDK Shen.ai");
       setStatus("error");
     }
-  }, [enterDemoMode]);
+  }, []);
 
 
   const initialize = useCallback(async (videoElement: HTMLVideoElement, cameraDeviceId?: string) => {
