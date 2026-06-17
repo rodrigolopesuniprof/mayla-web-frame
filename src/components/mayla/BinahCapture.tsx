@@ -68,7 +68,7 @@ const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
 
 const PROCESSING_TIME = 60;
 
-export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey }: BinahCaptureProps) {
+export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic }: BinahCaptureProps) {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -86,8 +86,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     imageValidity,
     errorMessage,
     isDemoMode,
-    providerName,
     provider,
+    wasmProgress,
     initialize,
     initializeShenai,
     startMeasurement,
@@ -97,7 +97,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
 
   const isShenai = provider === "shenai";
   const canvasId = "shenai-canvas";
-  const headerTitle = displayName || "Medição Especial";
+  const headerTitle = displayName || "Análise de Saúde";
 
 
 
@@ -111,20 +111,28 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     }
   }, [status, finalResults]);
 
-  // Handle SDK errors
+  // Handle SDK errors / unsupported environment
   useEffect(() => {
     if (status === "error") {
       setPhase("error");
       stopTimer();
+    } else if (status === "unsupported") {
+      setPhase("unsupported");
+      stopTimer();
     }
   }, [status]);
 
-  // Auto-start measurement when SDK is ready
+  // For the advanced provider, surface a ready phase so the user clicks Start themselves.
+  // For the basic flow we keep the legacy auto-start behaviour.
   useEffect(() => {
     if (status === "ready" && phase === "camera") {
-      handleStartMeasurement();
+      if (isShenai) {
+        setPhase("ready");
+      } else {
+        handleStartMeasurement();
+      }
     }
-  }, [status, phase]);
+  }, [status, phase, isShenai]);
 
   // Cleanup on unmount
   useEffect(() => {
