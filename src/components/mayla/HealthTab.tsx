@@ -5,6 +5,7 @@ import { BinahCapture } from "./BinahCapture";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useVitalsSources, type VitalsSource } from "@/hooks/useVitalsSources";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
