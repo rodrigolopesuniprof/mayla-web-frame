@@ -9,6 +9,7 @@ import { AdminCompanyDetail } from "@/components/admin/AdminCompanyDetail";
 import { AdminAssistantInsights } from "@/components/admin/AdminAssistantInsights";
 import { AdminMagazine } from "@/components/admin/AdminMagazine";
 import { AdminBranding } from "@/components/admin/AdminBranding";
+import { AdminVitalsVisibility } from "@/components/admin/AdminVitalsVisibility";
 import { toast } from "@/hooks/use-toast";
 import maylaLogo from "@/assets/mayla-avatar.png";
 
