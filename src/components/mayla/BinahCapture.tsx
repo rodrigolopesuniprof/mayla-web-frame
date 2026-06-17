@@ -645,7 +645,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
       </div>
 
       {/* Cancel button during measurement */}
-      {(phase === "camera" || phase === "measuring") && (
+      {(phase === "camera" || phase === "ready" || phase === "measuring") && (
         <div className="px-6 pb-6 shrink-0">
           <button
             onClick={handleCancel}
