@@ -1,76 +1,106 @@
-# Cancelamento e inadimplência — webhook + UX
 
-## 1. Configurar webhook no painel Pagar.me (passo manual do usuário)
+## Objetivo
 
-Para a empresa Mayla (e cada futura empresa com Pagar.me), no painel:
+O Shen.ai retorna 30+ indicadores por medição. Vamos:
+1. **Persistir** o resultado completo de cada medição.
+2. **Mostrar tudo** no painel do admin da empresa (visão por colaborador).
+3. **Permitir ao super admin** (painel global) escolher quais indicadores aparecem para o usuário final.
 
-- **Menu Desenvolvedores → Webhooks → Adicionar endpoint**
-- **URL:** `https://ymexlslqsdflgkcvwjoz.supabase.co/functions/v1/pagarme-webhook`
-- **Eventos a marcar** (essenciais para cancelamento/inadimplência):
-  - `charge.paid`
-  - `charge.payment_failed`
-  - `charge.refunded`
-  - `subscription.created`
-  - `subscription.canceled`
-  - `invoice.created`
-  - `invoice.paid`
-  - `invoice.payment_failed`
-- **Segredo do webhook (opcional, recomendado):** gerar uma chave e salvar em **Admin → Empresas → Mayla → Pagar.me → Webhook secret** (coluna `company_payment_credentials.webhook_secret` que já existe). Se preenchido, a edge function valida HMAC.
+---
 
-Te entrego esse trecho como instrução escrita após implementar — não há como configurar pelo código nosso lado.
+## 1. Banco de dados (1 migration)
 
-## 2. Webhook (`supabase/functions/pagarme-webhook/index.ts`) — completar eventos
+### a) Catálogo global de indicadores
+`public.vitals_indicators_catalog`
+- `key` (text PK) — ex: `heart_rate_bpm`, `hrv_sdnn_ms`, `breathing_rate_bpm`, `spo2_percent`, `systolic_blood_pressure_mmhg`, `diastolic_blood_pressure_mmhg`, `stress_index`, `cardiac_workload`, `vascular_age`, `hemoglobin_g_dl`, `hemoglobin_a1c_percent`, `parasympathetic_activity`, `mean_rri_ms`, `rmssd_ms`, `lf_hf_ratio`, `pns_index`, `sns_index`, etc.
+- `label` (pt-BR), `unit`, `category` (cardiac / respiratory / hrv / metabolic / stress / risk), `description`, `default_visible_to_user` (bool), `sort_order`, `active`.
+- Seed inicial com todos os indicadores do Shen.ai SDK (`MeasurementResults`).
 
-Acrescentar / ajustar:
+### b) Override por instância (super admin global)
+`public.user_visible_indicators` (global, sem `company_id`)
+- `indicator_key` (FK), `visible_to_user` (bool), `updated_at`, `updated_by`.
+- Decide quais indicadores aparecem para o usuário final em TODAS as empresas (regra única do super admin, conforme pedido).
+- Se vazio para um indicador → usa `default_visible_to_user` do catálogo.
 
-| Evento | Ação |
-|---|---|
-| `invoice.created` | Insere `subscription_invoices` com `status='pending'`, vinculando pelo `subscription_id` da Pagar.me → assim quando vier `charge.paid` da renovação, casa pelo `pagarme_charge_id` (já tratado). |
-| `invoice.payment_failed` / `charge.payment_failed` | invoice → `failed`, sub → `past_due` (já existente, mas garantir lookup também por `pagarme_subscription_id` quando charge.id não casar). Dispara e-mail "Pagamento recusado". |
-| `charge.paid` numa sub `past_due` | Reativa sub → `active` e atualiza `current_period_end`. Hoje o código já promove para `active`, só precisa garantir que funciona vindo de `past_due`. |
-| `subscription.canceled` | Já existente. Acrescentar disparo de e-mail "Assinatura cancelada". |
-| `charge.refunded` | invoice → `refunded`, sub → `canceled`. |
+> Observação: como o pedido é "super admin escolhe o que aparece para o usuário", a configuração é **global**, não por empresa. Admin do cliente sempre vê tudo.
 
-## 3. Cancelamento pelo usuário (fim do ciclo)
+### c) Reuso de `special_measurements`
+- A coluna `measurement_data jsonb` já existe — vamos gravar o objeto completo retornado por `getMeasurementResults()` do Shen.ai com `source = 'shenai'`.
+- Sem alteração de schema aqui.
 
-### Edge function nova: `pagarme-cancel-subscription`
+GRANT + RLS:
+- `vitals_indicators_catalog`: SELECT para `authenticated`/`anon`; ALL para `service_role`. Escrita apenas para `admin` (super admin).
+- `user_visible_indicators`: SELECT para `authenticated`; escrita apenas `admin`.
 
-- Recebe `{ subscription_id }`, valida que `auth.uid()` é o dono.
-- Chama `DELETE /subscriptions/{pagarme_subscription_id}?cancel_pending_invoices=false` no Pagar.me. Isso instrui o gateway a não emitir mais cobranças e cancelar ao fim do ciclo.
-- Marca local: `cancel_at_period_end = true` (nova coluna boolean) e `canceled_at = now()`. **NÃO** muda `status` ainda — sub continua `active` até `current_period_end`.
-- Quando chegar o evento `subscription.canceled` do Pagar.me, o webhook seta `status='canceled'` (já implementado) e dispara e-mail.
+---
 
-### UI: aba "Assinatura" no Perfil
+## 2. Captura completa (Shen.ai)
 
-Pequeno bloco mostrando: plano, próxima cobrança, status, e botão "Cancelar assinatura" com confirmação. Se já estiver em `cancel_at_period_end`, mostrar aviso "Sua assinatura encerra em DD/MM/AAAA" e botão "Reativar" (chama Pagar.me para recriar — fora deste escopo, fica para depois).
+Em `src/hooks/useVitalsMeasurement.ts` (branch Shen.ai):
+- Ao finalizar, chamar `shenai.getMeasurementResults()` e gravar o objeto inteiro em `special_measurements.measurement_data` (`source: 'shenai'`).
+- Mapear um subconjunto para `health_measurements` (campos colunares existentes: HR, HRV, SpO2, BP, RR, stress) para manter compatibilidade com Home/Report atuais.
 
-## 4. Schema
+---
 
-Migration adicionando à `subscriptions`:
-- `cancel_at_period_end boolean DEFAULT false`
-- (já existe `canceled_at`)
+## 3. Painel do admin cliente — visão completa
 
-Adicionando a `subscription_invoices`:
-- valor `refunded` ao status (string livre hoje, só documentação).
+Nova aba/seção em `src/components/admin/AdminUsers.tsx` (detalhe do colaborador): **"Medições completas"**.
+- Lista as últimas medições de `special_measurements` do usuário.
+- Ao expandir, renderiza um grid usando `vitals_indicators_catalog` × `measurement_data`:
+  - Agrupado por `category`.
+  - Mostra rótulo, valor, unidade.
+  - Mostra TODOS os indicadores presentes no payload (sem filtro).
+- Exportar CSV (botão simples).
 
-## 5. E-mails automáticos
+Componente novo: `src/components/admin/UserVitalsFullPanel.tsx`.
 
-Reusar a infra de e-mail transacional já existente (escrita em planos anteriores). Dois templates novos disparados pelo próprio webhook:
+---
 
-- **`subscription-payment-failed`** — quando charge falha. CTA "atualizar cartão" (link para `/perfil/assinatura`).
-- **`subscription-canceled`** — quando vem `subscription.canceled`. Confirmação + convite a reassinar.
+## 4. Painel super admin — escolher o que o usuário vê
 
-Se a infra de e-mail transacional ainda não estiver montada neste projeto, o plano inclui criar o helper mínimo de envio (usando Lovable Cloud Email). Identificar isso no momento da implementação e ajustar.
+Nova página: `src/components/admin/AdminVitalsVisibility.tsx` (rota dentro do AdminDashboard global).
+- Lista todos os indicadores do catálogo agrupados por categoria.
+- Toggle "Visível para o usuário final" por indicador (escreve em `user_visible_indicators`).
+- Indica visual quais vêm de Shen.ai/Binah/ambos.
+- Botões: "Restaurar padrão" e "Mostrar todos / ocultar todos".
 
-## 6. Fora de escopo agora
+---
 
-- Reativação automática após cancelamento (botão "Reativar" só mostra mensagem manual).
-- Dunning customizado (Pagar.me já faz retentativas próprias).
-- Telas administrativas de inadimplência (admin já pode filtrar `subscriptions` por status no Supabase).
+## 5. UI do usuário final — respeitar visibilidade
 
-## Validação
+Onde hoje exibimos vitals (HomeTab card, HealthReport, BinahCapture pós-medição):
+- Criar hook `useVisibleIndicators()` que carrega catálogo + overrides e expõe `isVisible(key)` + lista ordenada.
+- `HealthReport.tsx`: nova seção "Indicadores avançados" listando apenas chaves marcadas como visíveis e presentes no último `special_measurements.measurement_data`.
+- Card pós-medição Shen.ai mostra apenas indicadores visíveis.
 
-1. Configurar webhook no painel.
-2. Cancelar uma sub teste pelo botão → checar `cancel_at_period_end=true`, e-mail "cancelada" depois do evento.
-3. Forçar falha de cobrança (cartão de teste recusado) → sub vira `past_due` na hora, usuário perde acesso, recebe e-mail "pagamento recusado".
-4. Pagar novamente → sub volta a `active`.
+---
+
+## 6. Tipos e integração
+
+- Adicionar `src/types/shenai-indicators.ts` com a lista canônica (espelha o seed do catálogo).
+- Atualizar `useVitalsMeasurement.ts` para extrair o payload bruto Shen.ai.
+
+---
+
+## Arquivos a criar / editar
+
+**Criar**
+- `supabase/migrations/<timestamp>_vitals_indicator_catalog.sql`
+- `src/types/shenai-indicators.ts`
+- `src/hooks/useVisibleIndicators.ts`
+- `src/components/admin/UserVitalsFullPanel.tsx`
+- `src/components/admin/AdminVitalsVisibility.tsx`
+
+**Editar**
+- `src/hooks/useVitalsMeasurement.ts` — gravar payload completo Shen.ai.
+- `src/components/admin/AdminUsers.tsx` — embutir `UserVitalsFullPanel`.
+- `src/components/admin/AdminDashboard.tsx` — rota/aba "Indicadores".
+- `src/components/report/HealthReport.tsx` — seção "Indicadores avançados" filtrada.
+- `src/components/mayla/BinahCapture.tsx` — exibir só indicadores visíveis no resumo pós-medição.
+
+---
+
+## Pontos de confirmação
+
+- Visibilidade do usuário é **global** (decisão do super admin vale para todas as empresas). Se preferir por empresa, ajustamos o modelo.
+- Admin do cliente vê **sempre tudo**, sem filtro.

@@ -3945,6 +3945,77 @@ export type Database = {
         }
         Relationships: []
       }
+      user_visible_indicators: {
+        Row: {
+          indicator_key: string
+          updated_at: string
+          updated_by: string | null
+          visible_to_user: boolean
+        }
+        Insert: {
+          indicator_key: string
+          updated_at?: string
+          updated_by?: string | null
+          visible_to_user?: boolean
+        }
+        Update: {
+          indicator_key?: string
+          updated_at?: string
+          updated_by?: string | null
+          visible_to_user?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_visible_indicators_indicator_key_fkey"
+            columns: ["indicator_key"]
+            isOneToOne: true
+            referencedRelation: "vitals_indicators_catalog"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      vitals_indicators_catalog: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          default_visible_to_user: boolean
+          description: string | null
+          key: string
+          label: string
+          providers: string[]
+          sort_order: number
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          default_visible_to_user?: boolean
+          description?: string | null
+          key: string
+          label: string
+          providers?: string[]
+          sort_order?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          default_visible_to_user?: boolean
+          description?: string | null
+          key?: string
+          label?: string
+          providers?: string[]
+          sort_order?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       webhook_events: {
         Row: {
           company_id: string | null

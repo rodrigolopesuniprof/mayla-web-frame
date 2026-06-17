@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { UserVitalsFullPanel } from "./UserVitalsFullPanel";
 
 interface Profile {
   id: string;
@@ -112,6 +113,7 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
 
   // Engagement dialog
   const [engageProfile, setEngageProfile] = useState<Profile | null>(null);
+  const [vitalsProfile, setVitalsProfile] = useState<Profile | null>(null);
   const [engageData, setEngageData] = useState<EngagementData | null>(null);
   const [engageLoading, setEngageLoading] = useState(false);
 
@@ -557,6 +559,9 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
                           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openEngagement(p)}>
                             📊 Engajamento
                           </Button>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setVitalsProfile(p)}>
+                            ❤️ Vitals
+                          </Button>
                           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openNoteDialog(p)}>
                             📝 Atendimento
                           </Button>
@@ -765,6 +770,16 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
               </div>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Vitals Full Dialog */}
+      <Dialog open={!!vitalsProfile} onOpenChange={(open) => { if (!open) setVitalsProfile(null); }}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>❤️ Medições completas — {vitalsProfile?.full_name || "Usuário"}</DialogTitle>
+          </DialogHeader>
+          {vitalsProfile && <UserVitalsFullPanel userId={vitalsProfile.user_id} userName={vitalsProfile.full_name} />}
         </DialogContent>
       </Dialog>
     </div>

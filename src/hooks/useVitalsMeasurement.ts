@@ -51,6 +51,7 @@ export interface UseVitalsMeasurementReturn {
   status: MonitorStatus;
   partialVitals: VitalSigns | null;
   finalResults: VitalSigns | null;
+  rawResults: Record<string, any> | null;
   imageValidity: ImageValidity;
   errorMessage: string;
   isSDKAvailable: boolean;
@@ -108,6 +109,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
   const [status, setStatus] = useState<MonitorStatus>("idle");
   const [partialVitals, setPartialVitals] = useState<VitalSigns | null>(null);
   const [finalResults, setFinalResults] = useState<VitalSigns | null>(null);
+  const [rawResults, setRawResults] = useState<Record<string, any> | null>(null);
   const [imageValidity, setImageValidity] = useState<ImageValidity>(ImageValidity.VALID);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSDKAvailable, setIsSDKAvailable] = useState(true);
@@ -248,7 +250,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
   const initializeShenai = useCallback(async (canvasId: string) => {
     setStatus("initializing");
     setPartialVitals(null);
-    setFinalResults(null);
+    setFinalResults(null); setRawResults(null);
     setErrorMessage("");
 
     if (!crossOriginIsolated) {
@@ -304,6 +306,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
 
           if (state === s.MeasurementState?.FINISHED) {
             const final = s.getMeasurementResults();
+            setRawResults({ provider: "shenai", payload: final });
             setFinalResults(mapShenaiResults(final));
             setStatus("completed");
             if (shenaiPollRef.current) {
@@ -335,7 +338,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
   const initialize = useCallback(async (videoElement: HTMLVideoElement, cameraDeviceId?: string) => {
     setStatus("initializing");
     setPartialVitals(null);
-    setFinalResults(null);
+    setFinalResults(null); setRawResults(null);
     setErrorMessage("");
 
     const deviceId = cameraDeviceId ||
@@ -357,7 +360,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     if (isDemoMode) {
       setStatus("measuring");
       setPartialVitals(null);
-      setFinalResults(null);
+      setFinalResults(null); setRawResults(null);
       setImageValidity(ImageValidity.VALID);
       demoElapsedRef.current = 0;
 
@@ -385,7 +388,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     if (providerConfig?.integration_type === "api_remota") {
       setStatus("measuring");
       setPartialVitals(null);
-      setFinalResults(null);
+      setFinalResults(null); setRawResults(null);
       // TODO: implement frame capture → vitals-proxy edge function
       // For now, fall back to demo vitals after PROCESSING_TIME
       demoElapsedRef.current = 0;
@@ -411,7 +414,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       try {
         setStatus("measuring");
         setPartialVitals(null);
-        setFinalResults(null);
+        setFinalResults(null); setRawResults(null);
         shenaiSdkRef.current.startMeasurement();
       } catch (err: any) {
         console.error("[Shen.ai] Start error:", err);
@@ -431,7 +434,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     try {
       setStatus("measuring");
       setPartialVitals(null);
-      setFinalResults(null);
+      setFinalResults(null); setRawResults(null);
       sessionRef.current.start();
     } catch (err: any) {
       console.error("[Vitals SDK] Start error:", err);
@@ -474,7 +477,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     }
     setStatus("idle");
     setPartialVitals(null);
-    setFinalResults(null);
+    setFinalResults(null); setRawResults(null);
     setImageValidity(ImageValidity.VALID);
     setErrorMessage("");
   }, []);
@@ -483,6 +486,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     status,
     partialVitals,
     finalResults,
+    rawResults,
     imageValidity,
     errorMessage,
     isSDKAvailable,
