@@ -52,13 +52,12 @@ Deno.serve(async (req) => {
 
     const { data: feature } = await admin
       .from("company_features")
-      .select("enabled, config")
+      .select("enabled")
       .eq("company_id", companyId)
-      .eq("feature_key", "binah_special_measurement")
+      .eq("feature_key", "vitals_premium_shenai")
       .maybeSingle();
 
-    const cfg = (feature?.config || {}) as Record<string, any>;
-    if (!feature?.enabled || cfg.provider !== "shenai") {
+    if (!feature?.enabled) {
       return new Response(JSON.stringify({ ok: false, error: "shenai_not_enabled_for_company" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
