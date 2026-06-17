@@ -444,10 +444,76 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
 
           {/* Camera initializing / SDK loading */}
           {phase === "camera" && status !== "ready" && (
-            <div className="text-center space-y-4 mt-4">
+            <div className="w-full max-w-xs text-center space-y-4 mt-4">
               <div className="text-4xl animate-pulse">📡</div>
-              <p className="text-sm font-medium text-foreground">Preparando análise...</p>
-              <p className="text-[12px] text-muted-foreground">Inicializando o SDK de medição</p>
+              <p className="text-sm font-medium text-foreground">Carregando análise…</p>
+              {isShenai && wasmProgress > 0 && wasmProgress < 100 && (
+                <>
+                  <Progress value={wasmProgress} className="h-2" />
+                  <p className="text-[11px] text-muted-foreground">{wasmProgress}%</p>
+                </>
+              )}
+              {(!isShenai || wasmProgress === 0) && (
+                <p className="text-[12px] text-muted-foreground">Preparando a câmera…</p>
+              )}
+            </div>
+          )}
+
+          {/* Ready — user starts measurement themselves (advanced provider, custom UI) */}
+          {phase === "ready" && isShenai && (
+            <div className="w-full space-y-4 mt-4">
+              <div className="bg-secondary/60 rounded-2xl p-4 text-center space-y-2">
+                <p className="text-sm font-medium text-foreground">Tudo pronto</p>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  Posicione o rosto na moldura, garanta boa iluminação e fique parado durante ~60 segundos.
+                </p>
+              </div>
+              <button
+                onClick={handleStartMeasurement}
+                className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
+                style={{
+                  background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
+                  boxShadow: "0 8px 24px rgba(26,92,138,.3)",
+                }}
+              >
+                Iniciar medição
+              </button>
+            </div>
+          )}
+
+          {/* Unsupported environment (e.g. preview iframe without crossOriginIsolated) */}
+          {phase === "unsupported" && (
+            <div className="text-center space-y-5 max-w-sm">
+              <div className="mx-auto w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+                <MonitorOff className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-display text-xl font-semibold text-foreground">
+                Análise indisponível neste navegador
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Esta análise avançada precisa de um navegador moderno em janela própria.
+                Em janelas incorporadas ou navegadores corporativos antigos ela não funciona.
+              </p>
+              <div className="space-y-2">
+                {onFallbackToBasic && (
+                  <button
+                    onClick={() => { cleanup(); onFallbackToBasic(); }}
+                    className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))",
+                      boxShadow: "0 8px 24px rgba(232,87,74,.3)",
+                    }}
+                  >
+                    Usar Análise Básica
+                  </button>
+                )}
+                <button
+                  onClick={() => { cleanup(); onClose(); }}
+                  className="w-full rounded-2xl py-3 text-sm font-medium bg-secondary text-foreground"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           )}
 
