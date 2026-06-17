@@ -306,6 +306,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
 
           if (state === s.MeasurementState?.FINISHED) {
             const final = s.getMeasurementResults();
+            setRawResults({ provider: "shenai", payload: final });
             setFinalResults(mapShenaiResults(final));
             setStatus("completed");
             if (shenaiPollRef.current) {
