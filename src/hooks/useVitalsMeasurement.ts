@@ -510,15 +510,21 @@ export function useVitalsMeasurement(
       return;
     }
 
-    // Shen.ai
+    // Advanced provider (Shen-style canvas SDK)
     if (shenaiSdkRef.current) {
       try {
         setStatus("measuring");
         setPartialVitals(null);
         setFinalResults(null); setRawResults(null);
-        shenaiSdkRef.current.startMeasurement();
+        const s = shenaiSdkRef.current;
+        // Prefer operating-mode switch (custom-UI flow); fall back to startMeasurement.
+        if (s.setOperatingMode && s.OperatingMode?.MEASURE != null) {
+          s.setOperatingMode(s.OperatingMode.MEASURE);
+        } else if (typeof s.startMeasurement === "function") {
+          s.startMeasurement();
+        }
       } catch (err: any) {
-        console.error("[Shen.ai] Start error:", err);
+        console.error("[Vitals] Start error:", err);
         setErrorMessage(err?.message || "Erro ao iniciar medição");
         setStatus("error");
       }
