@@ -113,6 +113,7 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
 
   // Engagement dialog
   const [engageProfile, setEngageProfile] = useState<Profile | null>(null);
+  const [vitalsProfile, setVitalsProfile] = useState<Profile | null>(null);
   const [engageData, setEngageData] = useState<EngagementData | null>(null);
   const [engageLoading, setEngageLoading] = useState(false);
 
