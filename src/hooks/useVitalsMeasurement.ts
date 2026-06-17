@@ -581,7 +581,7 @@ export function useVitalsMeasurement(
       shenaiPollRef.current = null;
     }
     if (shenaiSdkRef.current) {
-      try { shenaiSdkRef.current.deinitialize(); } catch (err) { console.warn("[Shen.ai] Deinit error:", err); }
+      try { shenaiSdkRef.current.deinitialize(); } catch (err) { console.warn("[Vitals] Deinit error:", err); }
       try { shenaiSdkRef.current.destroyRuntime?.(); } catch {}
       shenaiSdkRef.current = null;
     }
