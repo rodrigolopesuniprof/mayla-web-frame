@@ -88,6 +88,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     isDemoMode,
     provider,
     wasmProgress,
+    unsupportedReasons,
+    sdkErrorDetail,
     initialize,
     initializeShenai,
     startMeasurement,
