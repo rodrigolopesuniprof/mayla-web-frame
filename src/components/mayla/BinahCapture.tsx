@@ -5,7 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { useVitalsMeasurement, ImageValidity, type VitalSigns } from "@/hooks/useVitalsMeasurement";
 import { useVisibleIndicators, flattenMeasurementPayload, categoryLabel } from "@/hooks/useVisibleIndicators";
 import { Progress } from "@/components/ui/progress";
-import { HelpCircle, X } from "lucide-react";
+import { HelpCircle, X, MonitorOff } from "lucide-react";
 
 interface BinahCaptureProps {
   onClose: () => void;
@@ -18,9 +18,11 @@ interface BinahCaptureProps {
   displayName?: string;
   /** Logical source identifier saved with the measurement (e.g. vitals_premium_binah). */
   sourceKey?: string;
+  /** When the environment doesn't support the advanced analysis, offer a fallback to basic rPPG. */
+  onFallbackToBasic?: () => void;
 }
 
-type CapturePhase = "consent" | "camera" | "measuring" | "result" | "error";
+type CapturePhase = "consent" | "camera" | "ready" | "measuring" | "result" | "error" | "unsupported";
 
 interface MappedResult {
   heart_rate?: number;
@@ -66,7 +68,7 @@ const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
 
 const PROCESSING_TIME = 60;
 
-export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey }: BinahCaptureProps) {
+export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic }: BinahCaptureProps) {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -84,8 +86,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     imageValidity,
     errorMessage,
     isDemoMode,
-    providerName,
     provider,
+    wasmProgress,
     initialize,
     initializeShenai,
     startMeasurement,
@@ -95,7 +97,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
 
   const isShenai = provider === "shenai";
   const canvasId = "shenai-canvas";
-  const headerTitle = displayName || "Medição Especial";
+  const headerTitle = displayName || "Análise de Saúde";
 
 
 
@@ -109,20 +111,28 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     }
   }, [status, finalResults]);
 
-  // Handle SDK errors
+  // Handle SDK errors / unsupported environment
   useEffect(() => {
     if (status === "error") {
       setPhase("error");
       stopTimer();
+    } else if (status === "unsupported") {
+      setPhase("unsupported");
+      stopTimer();
     }
   }, [status]);
 
-  // Auto-start measurement when SDK is ready
+  // For the advanced provider, surface a ready phase so the user clicks Start themselves.
+  // For the basic flow we keep the legacy auto-start behaviour.
   useEffect(() => {
     if (status === "ready" && phase === "camera") {
-      handleStartMeasurement();
+      if (isShenai) {
+        setPhase("ready");
+      } else {
+        handleStartMeasurement();
+      }
     }
-  }, [status, phase]);
+  }, [status, phase, isShenai]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -177,7 +187,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
         }
         await initializeShenai(canvasId, userProfile);
       } catch (err: any) {
-        console.error("Shen.ai init error:", err);
+        console.error("[Vitals] init error:", err);
         setPhase("error");
       }
       return;
@@ -376,12 +386,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
         />
       )}
 
-      {/* Canvas (Shen.ai native UI) */}
+      {/* Canvas (advanced provider — UI rendered by us on top) */}
       {isShenai && (
         <canvas
           id={canvasId}
           className={
-            phase === "camera" || phase === "measuring"
+            phase === "ready" || phase === "measuring"
               ? "w-full max-h-[480px] aspect-[3/4] rounded-2xl mx-auto px-4 shrink-0 bg-black"
               : "hidden"
           }
@@ -434,10 +444,76 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
 
           {/* Camera initializing / SDK loading */}
           {phase === "camera" && status !== "ready" && (
-            <div className="text-center space-y-4 mt-4">
+            <div className="w-full max-w-xs text-center space-y-4 mt-4">
               <div className="text-4xl animate-pulse">📡</div>
-              <p className="text-sm font-medium text-foreground">Preparando análise...</p>
-              <p className="text-[12px] text-muted-foreground">Inicializando o SDK de medição</p>
+              <p className="text-sm font-medium text-foreground">Carregando análise…</p>
+              {isShenai && wasmProgress > 0 && wasmProgress < 100 && (
+                <>
+                  <Progress value={wasmProgress} className="h-2" />
+                  <p className="text-[11px] text-muted-foreground">{wasmProgress}%</p>
+                </>
+              )}
+              {(!isShenai || wasmProgress === 0) && (
+                <p className="text-[12px] text-muted-foreground">Preparando a câmera…</p>
+              )}
+            </div>
+          )}
+
+          {/* Ready — user starts measurement themselves (advanced provider, custom UI) */}
+          {phase === "ready" && isShenai && (
+            <div className="w-full space-y-4 mt-4">
+              <div className="bg-secondary/60 rounded-2xl p-4 text-center space-y-2">
+                <p className="text-sm font-medium text-foreground">Tudo pronto</p>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  Posicione o rosto na moldura, garanta boa iluminação e fique parado durante ~60 segundos.
+                </p>
+              </div>
+              <button
+                onClick={handleStartMeasurement}
+                className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
+                style={{
+                  background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
+                  boxShadow: "0 8px 24px rgba(26,92,138,.3)",
+                }}
+              >
+                Iniciar medição
+              </button>
+            </div>
+          )}
+
+          {/* Unsupported environment (e.g. preview iframe without crossOriginIsolated) */}
+          {phase === "unsupported" && (
+            <div className="text-center space-y-5 max-w-sm">
+              <div className="mx-auto w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+                <MonitorOff className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-display text-xl font-semibold text-foreground">
+                Análise indisponível neste navegador
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Esta análise avançada precisa de um navegador moderno em janela própria.
+                Em janelas incorporadas ou navegadores corporativos antigos ela não funciona.
+              </p>
+              <div className="space-y-2">
+                {onFallbackToBasic && (
+                  <button
+                    onClick={() => { cleanup(); onFallbackToBasic(); }}
+                    className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))",
+                      boxShadow: "0 8px 24px rgba(232,87,74,.3)",
+                    }}
+                  >
+                    Usar Análise Básica
+                  </button>
+                )}
+                <button
+                  onClick={() => { cleanup(); onClose(); }}
+                  className="w-full rounded-2xl py-3 text-sm font-medium bg-secondary text-foreground"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           )}
 
@@ -569,7 +645,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
       </div>
 
       {/* Cancel button during measurement */}
-      {(phase === "camera" || phase === "measuring") && (
+      {(phase === "camera" || phase === "ready" || phase === "measuring") && (
         <div className="px-6 pb-6 shrink-0">
           <button
             onClick={handleCancel}

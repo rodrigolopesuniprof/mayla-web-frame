@@ -58,6 +58,7 @@ export interface UseVitalsMeasurementReturn {
   isDemoMode: boolean;
   providerName: string;
   provider: VitalsProvider;
+  wasmProgress: number;
   initialize: (videoElement: HTMLVideoElement, cameraDeviceId?: string) => Promise<void>;
   initializeShenai: (canvasId: string, userProfile?: { age?: number; gender?: "male" | "female" | "other"; height?: number; weight?: number }) => Promise<void>;
   startMeasurement: () => void;
@@ -117,6 +118,7 @@ export function useVitalsMeasurement(
   const [errorMessage, setErrorMessage] = useState("");
   const [isSDKAvailable, setIsSDKAvailable] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [wasmProgress, setWasmProgress] = useState(0);
   const [providerConfig, setProviderConfig] = useState<VitalsProviderConfig | null>(null);
 
   const sessionRef = useRef<any>(null);
@@ -291,20 +293,36 @@ export function useVitalsMeasurement(
     setPartialVitals(null);
     setFinalResults(null); setRawResults(null);
     setErrorMessage("");
+    setWasmProgress(0);
 
-    if (!crossOriginIsolated) {
-      console.warn("[Shen.ai] crossOriginIsolated=false — SDK pode falhar (precisa de SharedArrayBuffer). Tentando assim mesmo.");
+    // Pre-flight environment check (avoids the SDK preload display rendering its own
+    // browser-incompatibility screen inside the canvas).
+    const reasons: string[] = [];
+    if (typeof WebAssembly === "undefined") reasons.push("wasm");
+    if (typeof SharedArrayBuffer === "undefined" || !(self as any).crossOriginIsolated) reasons.push("isolation");
+    if (!navigator.mediaDevices?.getUserMedia) reasons.push("camera");
+    try {
+      if (!document.createElement("canvas").getContext("webgl2")) reasons.push("webgl2");
+    } catch { reasons.push("webgl2"); }
+    if (reasons.length) {
+      console.warn("[Vitals] unsupported environment:", reasons);
+      setStatus("unsupported");
+      return;
     }
 
     try {
       const { data: cfg, error: cfgErr } = await supabase.functions.invoke("shenai-config");
       if (cfgErr || !cfg?.ok || !cfg?.api_key) {
-        throw new Error(cfg?.error || cfgErr?.message || "Falha ao obter chave do Shen.ai");
+        throw new Error(cfg?.error || cfgErr?.message || "Falha ao obter credenciais da análise avançada");
       }
 
       const mod = await import("@shenai/sdk");
       const CreateShenaiSDK: any = (mod as any).default;
-      const sdk = await CreateShenaiSDK({ hidePreloadDisplayLogo: true });
+      const sdk = await CreateShenaiSDK({
+        enablePreloadDisplay: false,
+        enableErrorReporting: false,
+        onWasmLoadingProgress: (p: number) => setWasmProgress(Math.round((p || 0) * 100)),
+      });
       shenaiSdkRef.current = sdk;
 
       const risksFactors: any = {};
@@ -329,35 +347,43 @@ export function useVitalsMeasurement(
             precisionMode: sdk.PrecisionMode?.RELAXED ?? sdk.PrecisionMode?.STRICT,
             cameraMode: sdk.CameraMode?.FACING_USER,
             onboardingMode: sdk.OnboardingMode?.HIDDEN,
-            showUserInterface: true,
+            // Whitelabel — no third-party UI, no vendor branding visible to the user.
+            showUserInterface: false,
             showFacePositioningOverlay: true,
-            showFaceMask: true,
-            showBloodFlow: true,
-            showSignalQualityIndicator: true,
-            showSignalTile: true,
+            showFaceMask: false,
+            showBloodFlow: false,
+            showSignalQualityIndicator: false,
+            showSignalTile: false,
             showVisualWarnings: true,
             showStartStopButton: false,
+            showInfoButton: false,
+            showDisclaimer: false,
             enableHealthRisks: true,
             saveHealthRisksFactors: true,
             enableSummaryScreen: false,
             showResultsFinishButton: false,
             showHealthIndicesFinishButton: false,
-            hideShenaiLogo: false,
+            hideShenaiLogo: true,
             language: "pt",
+            uiFlowScreens: [],
             risksFactors: Object.keys(risksFactors).length ? risksFactors : undefined,
+            onCameraError: () => {
+              setErrorMessage("Não foi possível acessar a câmera.");
+              setStatus("error");
+            },
           },
           (result: any) => {
             const ok = result === sdk.InitializationResult?.OK || result === 0;
             if (ok) resolve();
-            else if (result === sdk.InitializationResult?.INVALID_API_KEY) reject(new Error("API key Shen.ai inválida"));
-            else if (result === sdk.InitializationResult?.CONNECTION_ERROR) reject(new Error("Sem conexão com Shen.ai"));
-            else reject(new Error("Erro interno do SDK Shen.ai"));
+            else if (result === sdk.InitializationResult?.INVALID_API_KEY) reject(new Error("Credenciais da análise avançada inválidas"));
+            else if (result === sdk.InitializationResult?.CONNECTION_ERROR) reject(new Error("Sem conexão para validar a análise avançada"));
+            else reject(new Error("Erro interno ao iniciar a análise avançada"));
           },
         );
       });
 
       sdk.attachToCanvas(`#${canvasId}`, true);
-      sdk.setOperatingMode?.(sdk.OperatingMode?.MEASURE ?? 1);
+      sdk.setOperatingMode?.(sdk.OperatingMode?.POSITIONING ?? 0);
 
       shenaiPollRef.current = setInterval(() => {
         const s = shenaiSdkRef.current;
@@ -397,14 +423,14 @@ export function useVitalsMeasurement(
             }
           }
         } catch (e) {
-          console.warn("[Shen.ai poll]", e);
+          console.warn("[Vitals poll]", e);
         }
       }, 1000);
 
       setStatus("ready");
     } catch (err: any) {
-      console.error("[Shen.ai] Init error:", err);
-      setErrorMessage(err?.message || "Erro ao inicializar o SDK Shen.ai");
+      console.error("[Vitals] Init error:", err);
+      setErrorMessage(err?.message || "Erro ao iniciar a análise avançada");
       setStatus("error");
     }
   }, []);
@@ -484,15 +510,21 @@ export function useVitalsMeasurement(
       return;
     }
 
-    // Shen.ai
+    // Advanced provider (Shen-style canvas SDK)
     if (shenaiSdkRef.current) {
       try {
         setStatus("measuring");
         setPartialVitals(null);
         setFinalResults(null); setRawResults(null);
-        shenaiSdkRef.current.startMeasurement();
+        const s = shenaiSdkRef.current;
+        // Prefer operating-mode switch (custom-UI flow); fall back to startMeasurement.
+        if (s.setOperatingMode && s.OperatingMode?.MEASURE != null) {
+          s.setOperatingMode(s.OperatingMode.MEASURE);
+        } else if (typeof s.startMeasurement === "function") {
+          s.startMeasurement();
+        }
       } catch (err: any) {
-        console.error("[Shen.ai] Start error:", err);
+        console.error("[Vitals] Start error:", err);
         setErrorMessage(err?.message || "Erro ao iniciar medição");
         setStatus("error");
       }
@@ -524,7 +556,14 @@ export function useVitalsMeasurement(
       demoTimerRef.current = null;
     }
     if (shenaiSdkRef.current) {
-      try { shenaiSdkRef.current.stopMeasurement(); } catch (err) { console.warn("[Shen.ai] Stop error:", err); }
+      const s = shenaiSdkRef.current;
+      try {
+        if (s.setOperatingMode && s.OperatingMode?.POSITIONING != null) {
+          s.setOperatingMode(s.OperatingMode.POSITIONING);
+        } else if (typeof s.stopMeasurement === "function") {
+          s.stopMeasurement();
+        }
+      } catch (err) { console.warn("[Vitals] Stop error:", err); }
     }
     if (sessionRef.current) {
       try { sessionRef.current.stop(); } catch (err) { console.warn("[Vitals SDK] Stop error:", err); }
@@ -542,7 +581,7 @@ export function useVitalsMeasurement(
       shenaiPollRef.current = null;
     }
     if (shenaiSdkRef.current) {
-      try { shenaiSdkRef.current.deinitialize(); } catch (err) { console.warn("[Shen.ai] Deinit error:", err); }
+      try { shenaiSdkRef.current.deinitialize(); } catch (err) { console.warn("[Vitals] Deinit error:", err); }
       try { shenaiSdkRef.current.destroyRuntime?.(); } catch {}
       shenaiSdkRef.current = null;
     }
@@ -568,6 +607,7 @@ export function useVitalsMeasurement(
     isDemoMode,
     providerName,
     provider,
+    wasmProgress,
     initialize,
     initializeShenai,
     startMeasurement,

@@ -86,6 +86,7 @@ export function WellbeingTab() {
       );
     }
     const providerOverride = activeSource.id === "premium_shenai" ? "shenai" : "binah";
+    const basicSource = sources.find((s) => s.id === "basic_rppg" && s.enabled);
     return (
       <BinahCapture
         onClose={() => setActiveSource(null)}
@@ -95,6 +96,7 @@ export function WellbeingTab() {
         providerOverride={providerOverride}
         displayName={activeSource.displayName}
         sourceKey={activeSource.featureKey}
+        onFallbackToBasic={basicSource ? () => setActiveSource(basicSource) : undefined}
       />
     );
   }
