@@ -503,6 +503,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
                   </div>
                 ))}
               </div>
+              {rawResults?.payload && <AdvancedIndicatorsSection payload={rawResults.payload} />}
               <button
                 onClick={saveResult}
                 disabled={saving || saved}
