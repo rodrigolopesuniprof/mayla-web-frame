@@ -327,17 +327,32 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
         </span>
       </div>
 
-      {/* Video element */}
-      <video
-        ref={videoRef}
-        playsInline
-        muted
-        className={
-          phase === "camera" || phase === "measuring"
-            ? "w-full max-h-[300px] object-cover rounded-2xl mx-auto px-4 shrink-0"
-            : "hidden"
-        }
-      />
+      {/* Video element (Binah) */}
+      {!isShenai && (
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={
+            phase === "camera" || phase === "measuring"
+              ? "w-full max-h-[300px] object-cover rounded-2xl mx-auto px-4 shrink-0"
+              : "hidden"
+          }
+        />
+      )}
+
+      {/* Canvas (Shen.ai native UI) */}
+      {isShenai && (
+        <canvas
+          id={canvasId}
+          className={
+            phase === "camera" || phase === "measuring"
+              ? "w-full max-h-[480px] aspect-[3/4] rounded-2xl mx-auto px-4 shrink-0 bg-black"
+              : "hidden"
+          }
+        />
+      )}
+
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         <div className="flex flex-col items-center justify-center min-h-full">
