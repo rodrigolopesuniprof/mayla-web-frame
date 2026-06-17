@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useVitalsMeasurement, ImageValidity, type VitalSigns } from "@/hooks/useVitalsMeasurement";
+import { useVisibleIndicators, flattenMeasurementPayload, categoryLabel } from "@/hooks/useVisibleIndicators";
 import { Progress } from "@/components/ui/progress";
 import { HelpCircle, X } from "lucide-react";
 
