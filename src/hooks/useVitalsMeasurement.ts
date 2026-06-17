@@ -56,7 +56,9 @@ export interface UseVitalsMeasurementReturn {
   isSDKAvailable: boolean;
   isDemoMode: boolean;
   providerName: string;
+  provider: VitalsProvider;
   initialize: (videoElement: HTMLVideoElement, cameraDeviceId?: string) => Promise<void>;
+  initializeShenai: (canvasId: string) => Promise<void>;
   startMeasurement: () => void;
   stopMeasurement: () => void;
   cleanup: () => void;
@@ -64,7 +66,10 @@ export interface UseVitalsMeasurementReturn {
 
 // ── Config shape from company_features.config ──
 
+export type VitalsProvider = "binah" | "shenai";
+
 interface VitalsProviderConfig {
+  provider: VitalsProvider;
   provider_name: string;
   integration_type: "sdk_local" | "api_remota";
   license_key: string;
@@ -72,6 +77,7 @@ interface VitalsProviderConfig {
   api_key: string;
   monthly_limit: number;
 }
+
 
 const FALLBACK_LICENSE_KEY = "9FE0E4-F8E4ED-48B396-2CF86D-322751-1B04DE";
 const PROCESSING_TIME = 60;
