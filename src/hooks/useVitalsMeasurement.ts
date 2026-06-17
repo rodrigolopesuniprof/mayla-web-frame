@@ -115,10 +115,14 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
   const [providerConfig, setProviderConfig] = useState<VitalsProviderConfig | null>(null);
 
   const sessionRef = useRef<any>(null);
+  const shenaiSdkRef = useRef<any>(null);
+  const shenaiPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoElapsedRef = useRef(0);
 
-  const providerName = providerConfig?.provider_name || "Provedor";
+  const provider: VitalsProvider = providerConfig?.provider || "binah";
+  const providerName = providerConfig?.provider_name
+    || (provider === "shenai" ? "Shen.ai" : "Binah");
 
   // Load provider config from company_features
   useEffect(() => {
@@ -133,7 +137,8 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
         if (data?.config) {
           const cfg = data.config as Record<string, any>;
           setProviderConfig({
-            provider_name: cfg.provider_name || "Binah",
+            provider: (cfg.provider === "shenai" ? "shenai" : "binah"),
+            provider_name: cfg.provider_name || (cfg.provider === "shenai" ? "Shen.ai" : "Binah"),
             integration_type: cfg.integration_type || "sdk_local",
             license_key: cfg.license_key || "",
             base_url: cfg.base_url || "",
@@ -149,6 +154,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     setIsSDKAvailable(false);
     setStatus("ready");
   }, []);
+
 
   // ── SDK Local flow (Binah-compatible) ──
 
