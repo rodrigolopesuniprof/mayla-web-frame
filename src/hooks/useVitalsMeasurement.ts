@@ -556,7 +556,14 @@ export function useVitalsMeasurement(
       demoTimerRef.current = null;
     }
     if (shenaiSdkRef.current) {
-      try { shenaiSdkRef.current.stopMeasurement(); } catch (err) { console.warn("[Shen.ai] Stop error:", err); }
+      const s = shenaiSdkRef.current;
+      try {
+        if (s.setOperatingMode && s.OperatingMode?.POSITIONING != null) {
+          s.setOperatingMode(s.OperatingMode.POSITIONING);
+        } else if (typeof s.stopMeasurement === "function") {
+          s.stopMeasurement();
+        }
+      } catch (err) { console.warn("[Vitals] Stop error:", err); }
     }
     if (sessionRef.current) {
       try { sessionRef.current.stop(); } catch (err) { console.warn("[Vitals SDK] Stop error:", err); }
