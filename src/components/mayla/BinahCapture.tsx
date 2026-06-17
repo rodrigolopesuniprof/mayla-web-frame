@@ -139,6 +139,18 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
 
   const openCamera = useCallback(async () => {
     setPhase("camera");
+
+    // Shen.ai: SDK manages its own camera; just attach to canvas
+    if (isShenai) {
+      try {
+        await initializeShenai(canvasId);
+      } catch (err: any) {
+        console.error("Shen.ai init error:", err);
+        setPhase("error");
+      }
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
@@ -156,7 +168,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       console.error("Camera error:", err);
       setPhase("error");
     }
-  }, [initialize]);
+  }, [initialize, initializeShenai, isShenai]);
+
 
   const handleStartMeasurement = async () => {
     setPhase("measuring");
