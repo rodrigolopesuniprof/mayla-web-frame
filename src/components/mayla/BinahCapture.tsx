@@ -66,7 +66,7 @@ const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
 
 const PROCESSING_TIME = 60;
 
-export function BinahCapture({ onClose, onComplete, municipalityId, companyId }: BinahCaptureProps) {
+export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey }: BinahCaptureProps) {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -91,10 +91,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     startMeasurement,
     stopMeasurement,
     cleanup,
-  } = useVitalsMeasurement(companyId);
+  } = useVitalsMeasurement(companyId, providerOverride);
 
   const isShenai = provider === "shenai";
   const canvasId = "shenai-canvas";
+  const headerTitle = displayName || "Medição Especial";
+
 
 
   // Map final results when completed
