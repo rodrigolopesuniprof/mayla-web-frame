@@ -450,8 +450,23 @@ export function useVitalsMeasurement(
       setStatus("ready");
     } catch (err: any) {
       console.error("[Vitals] Init error:", err);
-      setErrorMessage(err?.message || "Erro ao iniciar a análise avançada");
-      setStatus("error");
+      const msg = err?.message || String(err) || "Erro ao iniciar a análise avançada";
+      setSdkErrorDetail(msg);
+      // If the SDK itself complains about environment capabilities, surface as unsupported
+      // with the real reason captured from the SDK instead of a generic error.
+      const envFingerprint = /SharedArrayBuffer|crossOriginIsolated|WebAssembly|WebGL|getUserMedia|isolation|threads/i;
+      if (envFingerprint.test(msg)) {
+        const reasons: string[] = [];
+        if (/SharedArrayBuffer|crossOriginIsolated|isolation|threads/i.test(msg)) reasons.push("isolation");
+        if (/WebAssembly/i.test(msg)) reasons.push("wasm");
+        if (/WebGL/i.test(msg)) reasons.push("webgl2");
+        if (/getUserMedia|camera/i.test(msg)) reasons.push("camera");
+        setUnsupportedReasons(reasons.length ? reasons : ["sdk"]);
+        setStatus("unsupported");
+      } else {
+        setErrorMessage(msg);
+        setStatus("error");
+      }
     }
   }, []);
 
