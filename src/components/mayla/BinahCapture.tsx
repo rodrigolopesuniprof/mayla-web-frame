@@ -266,7 +266,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
       blood_pressure_dia: mappedResult.blood_pressure_dia ? Math.round(mappedResult.blood_pressure_dia) : null,
       hrv: mappedResult.hrv_sdnn ? Math.round(mappedResult.hrv_sdnn) : null,
       source: isDemoMode ? "vitals_demo" : "vitals_premium",
-      notes: `Medição especial via ${providerName}`,
+      notes: `Medição: ${headerTitle}`,
     });
 
     // Award points via centralized engine
