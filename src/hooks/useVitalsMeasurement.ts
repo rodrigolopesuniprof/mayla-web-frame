@@ -612,6 +612,8 @@ export function useVitalsMeasurement(
     providerName,
     provider,
     wasmProgress,
+    unsupportedReasons,
+    sdkErrorDetail,
     initialize,
     initializeShenai,
     startMeasurement,
