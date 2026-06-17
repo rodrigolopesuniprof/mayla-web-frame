@@ -58,6 +58,7 @@ export interface UseVitalsMeasurementReturn {
   isDemoMode: boolean;
   providerName: string;
   provider: VitalsProvider;
+  wasmProgress: number;
   initialize: (videoElement: HTMLVideoElement, cameraDeviceId?: string) => Promise<void>;
   initializeShenai: (canvasId: string, userProfile?: { age?: number; gender?: "male" | "female" | "other"; height?: number; weight?: number }) => Promise<void>;
   startMeasurement: () => void;
