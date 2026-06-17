@@ -51,6 +51,7 @@ export interface UseVitalsMeasurementReturn {
   status: MonitorStatus;
   partialVitals: VitalSigns | null;
   finalResults: VitalSigns | null;
+  rawResults: Record<string, any> | null;
   imageValidity: ImageValidity;
   errorMessage: string;
   isSDKAvailable: boolean;
