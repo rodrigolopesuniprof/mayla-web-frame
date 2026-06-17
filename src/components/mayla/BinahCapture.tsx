@@ -386,12 +386,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
         />
       )}
 
-      {/* Canvas (Shen.ai native UI) */}
+      {/* Canvas (advanced provider — UI rendered by us on top) */}
       {isShenai && (
         <canvas
           id={canvasId}
           className={
-            phase === "camera" || phase === "measuring"
+            phase === "ready" || phase === "measuring"
               ? "w-full max-h-[480px] aspect-[3/4] rounded-2xl mx-auto px-4 shrink-0 bg-black"
               : "hidden"
           }
