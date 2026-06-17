@@ -12,6 +12,12 @@ interface BinahCaptureProps {
   onComplete: () => void;
   municipalityId: string | null;
   companyId?: string | null;
+  /** Force a specific provider. When omitted, falls back to company_features lookup (legacy). */
+  providerOverride?: "binah" | "shenai";
+  /** Whitelabel title shown in the header (replaces brand name). */
+  displayName?: string;
+  /** Logical source identifier saved with the measurement (e.g. vitals_premium_binah). */
+  sourceKey?: string;
 }
 
 type CapturePhase = "consent" | "camera" | "measuring" | "result" | "error";
