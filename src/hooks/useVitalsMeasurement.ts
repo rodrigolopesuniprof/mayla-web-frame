@@ -570,6 +570,7 @@ export function useVitalsMeasurement(
     isDemoMode,
     providerName,
     provider,
+    wasmProgress,
     initialize,
     initializeShenai,
     startMeasurement,
