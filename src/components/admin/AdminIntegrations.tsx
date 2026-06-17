@@ -69,7 +69,8 @@ export function AdminIntegrations({ companyId }: Props) {
           setBinah({
             enabled: f.enabled ?? false,
             config: {
-              provider_name: cfg.provider_name || "Binah",
+              provider: cfg.provider === "shenai" ? "shenai" : "binah",
+              provider_name: cfg.provider_name || (cfg.provider === "shenai" ? "Shen.ai" : "Binah"),
               integration_type: cfg.integration_type || "sdk_local",
               license_key: cfg.license_key || "",
               base_url: cfg.base_url || "",
@@ -78,6 +79,7 @@ export function AdminIntegrations({ companyId }: Props) {
             },
           });
         }
+
         if (f.feature_key === FEATURE_KEYS.prontuario) {
           setProntuario({
             enabled: f.enabled ?? false,
