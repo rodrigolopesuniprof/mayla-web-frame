@@ -27,6 +27,7 @@ const FEATURE_KEYS = {
 } as const;
 
 const DEFAULT_BINAH_CONFIG = {
+  provider: "binah" as "binah" | "shenai",
   provider_name: "Binah",
   integration_type: "sdk_local" as "sdk_local" | "api_remota",
   license_key: "",
@@ -34,6 +35,7 @@ const DEFAULT_BINAH_CONFIG = {
   api_key: "",
   monthly_limit: 3,
 };
+
 
 const DEFAULT_PRONTUARIO_CONFIG = {
   provider_name: "Meddit",
