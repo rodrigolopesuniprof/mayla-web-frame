@@ -105,7 +105,10 @@ function generateDemoVitals(): VitalSigns {
 
 // ── Hook ──
 
-export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasurementReturn {
+export function useVitalsMeasurement(
+  companyId?: string | null,
+  providerOverride?: VitalsProvider,
+): UseVitalsMeasurementReturn {
   const [status, setStatus] = useState<MonitorStatus>("idle");
   const [partialVitals, setPartialVitals] = useState<VitalSigns | null>(null);
   const [finalResults, setFinalResults] = useState<VitalSigns | null>(null);
@@ -122,22 +125,27 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
   const demoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoElapsedRef = useRef(0);
 
-  const provider: VitalsProvider = providerConfig?.provider || "binah";
+  const provider: VitalsProvider = providerOverride || providerConfig?.provider || "binah";
+  // providerName kept for legacy callers; not exposed in UX anymore.
   const providerName = providerConfig?.provider_name
     || (provider === "shenai" ? "Shen.ai" : "Binah");
 
-  // Load provider config from company_features
+  // Load provider config from company_features ONLY when no override is given.
+  // New code paths pass providerOverride directly; this lookup is legacy fallback.
   useEffect(() => {
+    if (providerOverride) return;
     if (!companyId) return;
+    // Try the new per-provider feature keys first, then fall back to legacy.
+    const lookupKey = provider === "shenai" ? "vitals_premium_shenai" : "vitals_premium_binah";
     supabase
       .from("company_features")
       .select("config")
       .eq("company_id", companyId)
-      .eq("feature_key", "binah_special_measurement")
-      .maybeSingle()
+      .in("feature_key", [lookupKey, "binah_special_measurement"])
       .then(({ data }) => {
-        if (data?.config) {
-          const cfg = data.config as Record<string, any>;
+        const row = data?.find((d: any) => d.feature_key === lookupKey) || data?.[0];
+        if (row?.config) {
+          const cfg = row.config as Record<string, any>;
           setProviderConfig({
             provider: (cfg.provider === "shenai" ? "shenai" : "binah"),
             provider_name: cfg.provider_name || (cfg.provider === "shenai" ? "Shen.ai" : "Binah"),
@@ -149,7 +157,8 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
           });
         }
       });
-  }, [companyId]);
+  }, [companyId, providerOverride, provider]);
+
 
   const enterDemoMode = useCallback(() => {
     setIsDemoMode(true);

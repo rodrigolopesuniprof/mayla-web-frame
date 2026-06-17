@@ -12,6 +12,12 @@ interface BinahCaptureProps {
   onComplete: () => void;
   municipalityId: string | null;
   companyId?: string | null;
+  /** Force a specific provider. When omitted, falls back to company_features lookup (legacy). */
+  providerOverride?: "binah" | "shenai";
+  /** Whitelabel title shown in the header (replaces brand name). */
+  displayName?: string;
+  /** Logical source identifier saved with the measurement (e.g. vitals_premium_binah). */
+  sourceKey?: string;
 }
 
 type CapturePhase = "consent" | "camera" | "measuring" | "result" | "error";
@@ -60,7 +66,7 @@ const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
 
 const PROCESSING_TIME = 60;
 
-export function BinahCapture({ onClose, onComplete, municipalityId, companyId }: BinahCaptureProps) {
+export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey }: BinahCaptureProps) {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -85,10 +91,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     startMeasurement,
     stopMeasurement,
     cleanup,
-  } = useVitalsMeasurement(companyId);
+  } = useVitalsMeasurement(companyId, providerOverride);
 
   const isShenai = provider === "shenai";
   const canvasId = "shenai-canvas";
+  const headerTitle = displayName || "Medição Especial";
+
 
 
   // Map final results when completed
@@ -258,7 +266,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       blood_pressure_dia: mappedResult.blood_pressure_dia ? Math.round(mappedResult.blood_pressure_dia) : null,
       hrv: mappedResult.hrv_sdnn ? Math.round(mappedResult.hrv_sdnn) : null,
       source: isDemoMode ? "vitals_demo" : "vitals_premium",
-      notes: `Medição especial via ${providerName}`,
+      notes: `Medição: ${headerTitle}`,
     });
 
     // Award points via centralized engine
@@ -350,10 +358,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
         <button onClick={handleCancel} className="text-muted-foreground text-lg">
           ✕
         </button>
-        <h2 className="font-display text-lg font-semibold text-foreground">Medição Especial</h2>
-        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium uppercase">
-          {providerName}
-        </span>
+        <h2 className="font-display text-lg font-semibold text-foreground">{headerTitle}</h2>
+
       </div>
 
       {/* Video element (Binah) */}
