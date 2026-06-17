@@ -109,6 +109,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
   const [status, setStatus] = useState<MonitorStatus>("idle");
   const [partialVitals, setPartialVitals] = useState<VitalSigns | null>(null);
   const [finalResults, setFinalResults] = useState<VitalSigns | null>(null);
+  const [rawResults, setRawResults] = useState<Record<string, any> | null>(null);
   const [imageValidity, setImageValidity] = useState<ImageValidity>(ImageValidity.VALID);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSDKAvailable, setIsSDKAvailable] = useState(true);
