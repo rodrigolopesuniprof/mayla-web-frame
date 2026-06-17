@@ -559,6 +559,9 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
                           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openEngagement(p)}>
                             📊 Engajamento
                           </Button>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setVitalsProfile(p)}>
+                            ❤️ Vitals
+                          </Button>
                           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openNoteDialog(p)}>
                             📝 Atendimento
                           </Button>
