@@ -19,23 +19,37 @@ interface IntegrationConfig {
 }
 
 const FEATURE_KEYS = {
-  binah: "binah_special_measurement",
+  vitalsBasic: "vitals_basic_rppg",
+  vitalsBinah: "vitals_premium_binah",
+  vitalsShenai: "vitals_premium_shenai",
   prontuario: "prontuario_conveniado",
   consulta: "consulta_servico",
   consultaInternos: "consulta_medicos_internos",
   consultaExternos: "consulta_medicos_externos",
 } as const;
 
-const DEFAULT_BINAH_CONFIG = {
-  provider: "binah" as "binah" | "shenai",
-  provider_name: "Binah",
-  integration_type: "sdk_local" as "sdk_local" | "api_remota",
+interface VitalsSourceConfig {
+  enabled: boolean;
+  display_name: string;
+  monthly_limit?: number;
+  license_key?: string;
+}
+
+const DEFAULT_VITALS_BASIC: VitalsSourceConfig = {
+  enabled: true,
+  display_name: "Medir sinais vitais",
+};
+const DEFAULT_VITALS_BINAH: VitalsSourceConfig = {
+  enabled: false,
+  display_name: "Avaliação Completa de Saúde",
+  monthly_limit: 3,
   license_key: "",
-  base_url: "",
-  api_key: "",
+};
+const DEFAULT_VITALS_SHENAI: VitalsSourceConfig = {
+  enabled: false,
+  display_name: "Análise Avançada de Saúde",
   monthly_limit: 3,
 };
-
 
 const DEFAULT_PRONTUARIO_CONFIG = {
   provider_name: "Meddit",
