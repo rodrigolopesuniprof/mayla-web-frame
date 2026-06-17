@@ -73,6 +73,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     status,
     partialVitals,
     finalResults,
+    rawResults,
     imageValidity,
     errorMessage,
     isDemoMode,
