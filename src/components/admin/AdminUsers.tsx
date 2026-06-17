@@ -772,6 +772,16 @@ export function AdminUsers({ companyId, companyName }: AdminUsersProps = {}) {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {/* Vitals Full Dialog */}
+      <Dialog open={!!vitalsProfile} onOpenChange={(open) => { if (!open) setVitalsProfile(null); }}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>❤️ Medições completas — {vitalsProfile?.full_name || "Usuário"}</DialogTitle>
+          </DialogHeader>
+          {vitalsProfile && <UserVitalsFullPanel userId={vitalsProfile.user_id} userName={vitalsProfile.full_name} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
