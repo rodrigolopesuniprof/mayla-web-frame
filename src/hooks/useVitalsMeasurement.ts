@@ -121,6 +121,8 @@ export function useVitalsMeasurement(
   const [isSDKAvailable, setIsSDKAvailable] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [wasmProgress, setWasmProgress] = useState(0);
+  const [unsupportedReasons, setUnsupportedReasons] = useState<string[]>([]);
+  const [sdkErrorDetail, setSdkErrorDetail] = useState("");
   const [providerConfig, setProviderConfig] = useState<VitalsProviderConfig | null>(null);
 
   const sessionRef = useRef<any>(null);
