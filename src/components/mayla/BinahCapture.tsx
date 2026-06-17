@@ -358,10 +358,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
         <button onClick={handleCancel} className="text-muted-foreground text-lg">
           ✕
         </button>
-        <h2 className="font-display text-lg font-semibold text-foreground">Medição Especial</h2>
-        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium uppercase">
-          {providerName}
-        </span>
+        <h2 className="font-display text-lg font-semibold text-foreground">{headerTitle}</h2>
+
       </div>
 
       {/* Video element (Binah) */}
