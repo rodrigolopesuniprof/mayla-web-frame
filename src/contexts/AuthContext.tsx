@@ -22,22 +22,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (cancelled) return;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Defensive timeout: if getSession hangs (backend overloaded → 504),
+    // unblock the UI after 8s so users see the login screen instead of an infinite spinner.
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 8000);
 
-    return () => subscription.unsubscribe();
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn("[AuthContext] getSession failed:", err);
+        if (!cancelled) setLoading(false);
+      })
+      .finally(() => window.clearTimeout(timeoutId));
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
+
 
   const signOut = async () => {
     await supabase.auth.signOut();
