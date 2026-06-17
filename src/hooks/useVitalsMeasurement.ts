@@ -486,6 +486,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     status,
     partialVitals,
     finalResults,
+    rawResults,
     imageValidity,
     errorMessage,
     isSDKAvailable,
