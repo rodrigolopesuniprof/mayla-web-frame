@@ -577,3 +577,43 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     </div>
   );
 }
+
+function AdvancedIndicatorsSection({ payload }: { payload: any }) {
+  const { visible } = useVisibleIndicators();
+  const flat = flattenMeasurementPayload(payload);
+  // Show only indicators that are (a) visible per super admin AND (b) not already in the basic grid.
+  const basicKeys = new Set([
+    "heart_rate_bpm","systolic_blood_pressure_mmhg","diastolic_blood_pressure_mmhg",
+    "spo2_percent","breathing_rate_bpm","stress_index","hrv_sdnn_ms","wellness_score","hemoglobin_g_dl","hemoglobin_a1c_percent",
+  ]);
+  const extras = visible.filter((ind) => !basicKeys.has(ind.key) && flat[ind.key] != null);
+  if (extras.length === 0) return null;
+
+  const grouped: Record<string, typeof extras> = {};
+  for (const e of extras) (grouped[e.category] = grouped[e.category] || []).push(e);
+
+  return (
+    <div className="bg-secondary/40 rounded-2xl p-3 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase">Indicadores avançados</div>
+      {Object.entries(grouped).map(([cat, list]) => (
+        <div key={cat}>
+          <div className="text-[10px] uppercase text-muted-foreground/70 mb-1">{categoryLabel(cat)}</div>
+          <div className="grid grid-cols-2 gap-2">
+            {list.map((ind) => {
+              const v = flat[ind.key];
+              const display = typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(1)) : String(v);
+              return (
+                <div key={ind.key} className="bg-background/70 rounded-lg p-2">
+                  <div className="text-[10px] text-muted-foreground">{ind.label}</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {display} {ind.unit && <span className="text-[10px] text-muted-foreground font-normal">{ind.unit}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
