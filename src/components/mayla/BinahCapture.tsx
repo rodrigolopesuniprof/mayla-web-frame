@@ -77,11 +77,17 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     errorMessage,
     isDemoMode,
     providerName,
+    provider,
     initialize,
+    initializeShenai,
     startMeasurement,
     stopMeasurement,
     cleanup,
   } = useVitalsMeasurement(companyId);
+
+  const isShenai = provider === "shenai";
+  const canvasId = "shenai-canvas";
+
 
   // Map final results when completed
   useEffect(() => {
