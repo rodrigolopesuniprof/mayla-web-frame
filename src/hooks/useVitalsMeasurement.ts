@@ -56,7 +56,9 @@ export interface UseVitalsMeasurementReturn {
   isSDKAvailable: boolean;
   isDemoMode: boolean;
   providerName: string;
+  provider: VitalsProvider;
   initialize: (videoElement: HTMLVideoElement, cameraDeviceId?: string) => Promise<void>;
+  initializeShenai: (canvasId: string) => Promise<void>;
   startMeasurement: () => void;
   stopMeasurement: () => void;
   cleanup: () => void;
@@ -64,7 +66,10 @@ export interface UseVitalsMeasurementReturn {
 
 // ── Config shape from company_features.config ──
 
+export type VitalsProvider = "binah" | "shenai";
+
 interface VitalsProviderConfig {
+  provider: VitalsProvider;
   provider_name: string;
   integration_type: "sdk_local" | "api_remota";
   license_key: string;
@@ -72,6 +77,7 @@ interface VitalsProviderConfig {
   api_key: string;
   monthly_limit: number;
 }
+
 
 const FALLBACK_LICENSE_KEY = "9FE0E4-F8E4ED-48B396-2CF86D-322751-1B04DE";
 const PROCESSING_TIME = 60;
@@ -109,10 +115,14 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
   const [providerConfig, setProviderConfig] = useState<VitalsProviderConfig | null>(null);
 
   const sessionRef = useRef<any>(null);
+  const shenaiSdkRef = useRef<any>(null);
+  const shenaiPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const demoElapsedRef = useRef(0);
 
-  const providerName = providerConfig?.provider_name || "Provedor";
+  const provider: VitalsProvider = providerConfig?.provider || "binah";
+  const providerName = providerConfig?.provider_name
+    || (provider === "shenai" ? "Shen.ai" : "Binah");
 
   // Load provider config from company_features
   useEffect(() => {
@@ -127,7 +137,8 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
         if (data?.config) {
           const cfg = data.config as Record<string, any>;
           setProviderConfig({
-            provider_name: cfg.provider_name || "Binah",
+            provider: (cfg.provider === "shenai" ? "shenai" : "binah"),
+            provider_name: cfg.provider_name || (cfg.provider === "shenai" ? "Shen.ai" : "Binah"),
             integration_type: cfg.integration_type || "sdk_local",
             license_key: cfg.license_key || "",
             base_url: cfg.base_url || "",
@@ -143,6 +154,7 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     setIsSDKAvailable(false);
     setStatus("ready");
   }, []);
+
 
   // ── SDK Local flow (Binah-compatible) ──
 
@@ -214,7 +226,111 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     setStatus("ready");
   }, []);
 
-  // ── Public initialize ──
+  // ── Shen.ai SDK flow ──
+
+  const mapShenaiResults = (r: any): VitalSigns => {
+    if (!r) return {};
+    const stress = r.stress_index != null
+      ? (r.stress_index <= 1 ? Math.round(r.stress_index * 100) : Math.round(r.stress_index))
+      : undefined;
+    return {
+      pulseRate: r.heart_rate_bpm != null ? { value: r.heart_rate_bpm } : undefined,
+      sdnn: r.hrv_sdnn_ms != null ? { value: r.hrv_sdnn_ms } : undefined,
+      respirationRate: r.breathing_rate_bpm != null ? { value: r.breathing_rate_bpm } : undefined,
+      stressLevel: stress != null ? { value: stress } : undefined,
+      bloodPressure: (r.systolic_blood_pressure_mmhg != null && r.diastolic_blood_pressure_mmhg != null)
+        ? { value: { systolic: r.systolic_blood_pressure_mmhg, diastolic: r.diastolic_blood_pressure_mmhg } }
+        : undefined,
+      cardiacWorkload: r.cardiac_workload_mmhg_per_sec != null ? { value: r.cardiac_workload_mmhg_per_sec } : undefined,
+    };
+  };
+
+  const initializeShenai = useCallback(async (canvasId: string) => {
+    setStatus("initializing");
+    setPartialVitals(null);
+    setFinalResults(null);
+    setErrorMessage("");
+
+    if (!crossOriginIsolated) {
+      console.warn("[Shen.ai] crossOriginIsolated=false → demo mode");
+      enterDemoMode();
+      return;
+    }
+
+    try {
+      // Fetch global API key from edge function
+      const { data: cfg, error: cfgErr } = await supabase.functions.invoke("shenai-config");
+      if (cfgErr || !cfg?.ok || !cfg?.api_key) {
+        throw new Error(cfg?.error || cfgErr?.message || "Falha ao obter chave do Shen.ai");
+      }
+
+      const mod = await import("@shenai/sdk");
+      const CreateShenaiSDK: any = (mod as any).default;
+      const sdk = await CreateShenaiSDK({ hidePreloadDisplayLogo: true });
+      shenaiSdkRef.current = sdk;
+
+      const preset = sdk.MeasurementPreset?.ONE_MINUTE_ALL_METRICS
+        ?? sdk.MeasurementPreset?.ONE_MINUTE_HR_HRV_BR;
+
+      await new Promise<void>((resolve, reject) => {
+        sdk.initialize(
+          cfg.api_key,
+          cfg.user_id || "",
+          {
+            measurementPreset: preset,
+            precisionMode: sdk.PrecisionMode?.STRICT ?? sdk.PrecisionMode?.RELAXED,
+          },
+          (result: any) => {
+            const ok = result === sdk.InitializationResult?.OK || result === 0;
+            if (ok) resolve();
+            else if (result === sdk.InitializationResult?.INVALID_API_KEY) reject(new Error("API key inválida"));
+            else if (result === sdk.InitializationResult?.CONNECTION_ERROR) reject(new Error("Sem conexão com Shen.ai"));
+            else reject(new Error("Erro interno do SDK Shen.ai"));
+          },
+        );
+      });
+
+      sdk.attachToCanvas(`#${canvasId}`, true);
+      sdk.setOperatingMode?.(sdk.OperatingMode?.MEASURE ?? 1);
+
+      // Poll measurement state + realtime metrics
+      shenaiPollRef.current = setInterval(() => {
+        const s = shenaiSdkRef.current;
+        if (!s) return;
+        try {
+          const state = s.getMeasurementState();
+          const rt = s.getRealtimeMetrics?.(10) || null;
+          if (rt) setPartialVitals(mapShenaiResults(rt));
+
+          if (state === s.MeasurementState?.FINISHED) {
+            const final = s.getMeasurementResults();
+            setFinalResults(mapShenaiResults(final));
+            setStatus("completed");
+            if (shenaiPollRef.current) {
+              clearInterval(shenaiPollRef.current);
+              shenaiPollRef.current = null;
+            }
+          } else if (state === s.MeasurementState?.FAILED) {
+            setErrorMessage("Medição falhou. Tente novamente.");
+            setStatus("error");
+            if (shenaiPollRef.current) {
+              clearInterval(shenaiPollRef.current);
+              shenaiPollRef.current = null;
+            }
+          }
+        } catch (e) {
+          console.warn("[Shen.ai poll]", e);
+        }
+      }, 1000);
+
+      setStatus("ready");
+    } catch (err: any) {
+      console.error("[Shen.ai] Init error:", err);
+      setErrorMessage(err?.message || "Erro ao inicializar o SDK Shen.ai");
+      setStatus("error");
+    }
+  }, [enterDemoMode]);
+
 
   const initialize = useCallback(async (videoElement: HTMLVideoElement, cameraDeviceId?: string) => {
     setStatus("initializing");
@@ -290,7 +406,22 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       return;
     }
 
-    // SDK local
+    // Shen.ai
+    if (shenaiSdkRef.current) {
+      try {
+        setStatus("measuring");
+        setPartialVitals(null);
+        setFinalResults(null);
+        shenaiSdkRef.current.startMeasurement();
+      } catch (err: any) {
+        console.error("[Shen.ai] Start error:", err);
+        setErrorMessage(err?.message || "Erro ao iniciar medição");
+        setStatus("error");
+      }
+      return;
+    }
+
+    // SDK local (Binah)
     if (!sessionRef.current) {
       setErrorMessage("Sessão não inicializada");
       setStatus("error");
@@ -314,6 +445,9 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
       clearInterval(demoTimerRef.current);
       demoTimerRef.current = null;
     }
+    if (shenaiSdkRef.current) {
+      try { shenaiSdkRef.current.stopMeasurement(); } catch (err) { console.warn("[Shen.ai] Stop error:", err); }
+    }
     if (sessionRef.current) {
       try { sessionRef.current.stop(); } catch (err) { console.warn("[Vitals SDK] Stop error:", err); }
     }
@@ -324,6 +458,15 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     if (demoTimerRef.current) {
       clearInterval(demoTimerRef.current);
       demoTimerRef.current = null;
+    }
+    if (shenaiPollRef.current) {
+      clearInterval(shenaiPollRef.current);
+      shenaiPollRef.current = null;
+    }
+    if (shenaiSdkRef.current) {
+      try { shenaiSdkRef.current.deinitialize(); } catch (err) { console.warn("[Shen.ai] Deinit error:", err); }
+      try { shenaiSdkRef.current.destroyRuntime?.(); } catch {}
+      shenaiSdkRef.current = null;
     }
     if (sessionRef.current) {
       try { sessionRef.current.terminate(); } catch (err) { console.warn("[Vitals SDK] Terminate error:", err); }
@@ -345,11 +488,14 @@ export function useVitalsMeasurement(companyId?: string | null): UseVitalsMeasur
     isSDKAvailable,
     isDemoMode,
     providerName,
+    provider,
     initialize,
+    initializeShenai,
     startMeasurement,
     stopMeasurement,
     cleanup,
   };
+
 }
 
 // Re-export old name for backward compatibility

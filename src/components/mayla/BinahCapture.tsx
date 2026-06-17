@@ -77,11 +77,17 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     errorMessage,
     isDemoMode,
     providerName,
+    provider,
     initialize,
+    initializeShenai,
     startMeasurement,
     stopMeasurement,
     cleanup,
   } = useVitalsMeasurement(companyId);
+
+  const isShenai = provider === "shenai";
+  const canvasId = "shenai-canvas";
+
 
   // Map final results when completed
   useEffect(() => {
@@ -133,6 +139,18 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
 
   const openCamera = useCallback(async () => {
     setPhase("camera");
+
+    // Shen.ai: SDK manages its own camera; just attach to canvas
+    if (isShenai) {
+      try {
+        await initializeShenai(canvasId);
+      } catch (err: any) {
+        console.error("Shen.ai init error:", err);
+        setPhase("error");
+      }
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
@@ -150,7 +168,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
       console.error("Camera error:", err);
       setPhase("error");
     }
-  }, [initialize]);
+  }, [initialize, initializeShenai, isShenai]);
+
 
   const handleStartMeasurement = async () => {
     setPhase("measuring");
@@ -308,17 +327,32 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
         </span>
       </div>
 
-      {/* Video element */}
-      <video
-        ref={videoRef}
-        playsInline
-        muted
-        className={
-          phase === "camera" || phase === "measuring"
-            ? "w-full max-h-[300px] object-cover rounded-2xl mx-auto px-4 shrink-0"
-            : "hidden"
-        }
-      />
+      {/* Video element (Binah) */}
+      {!isShenai && (
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={
+            phase === "camera" || phase === "measuring"
+              ? "w-full max-h-[300px] object-cover rounded-2xl mx-auto px-4 shrink-0"
+              : "hidden"
+          }
+        />
+      )}
+
+      {/* Canvas (Shen.ai native UI) */}
+      {isShenai && (
+        <canvas
+          id={canvasId}
+          className={
+            phase === "camera" || phase === "measuring"
+              ? "w-full max-h-[480px] aspect-[3/4] rounded-2xl mx-auto px-4 shrink-0 bg-black"
+              : "hidden"
+          }
+        />
+      )}
+
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         <div className="flex flex-col items-center justify-center min-h-full">
