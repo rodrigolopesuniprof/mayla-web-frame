@@ -1,111 +1,49 @@
-## Diagnóstico confirmado
+# Diagnóstico do bloqueio do Shen.AI SDK
 
-O playground (`playground.shen.ai`) prova: API key OK, SDK 3.1.0 inicializa, plano PROFESSIONAL, câmera abre. Logo o problema **não** é licença nem `shenai-config`. A tela "Seu navegador não é compatível" é renderizada pelo **preload display** do SDK (canvas WebGL próprio dele) quando o ambiente não tem `crossOriginIsolated=true` / `SharedArrayBuffer` — caso da preview iframe do Lovable.
+## Contexto
 
-Em produção (`saude.saudecomvc.com.br`) os headers COOP/COEP já estão configurados, então o SDK roda normal. Falta whitelabel, fallback amigável na preview e UI 100% nossa.
+A tela "Análise indisponível neste navegador" é gerada pelo **nosso** pre-check em `src/hooks/useVitalsMeasurement.ts` (linhas 298-309), não pelo SDK Shen. Hoje ele bloqueia preventivamente se faltar qualquer um destes 4:
 
-Observação: `CameraMode.CUSTOM_FRAMES` existe só no SDK React Native (com código nativo). No Web SDK (`@shenai/sdk`) a câmera é sempre gerenciada pelo SDK — "UI 100% nossa" aqui significa `showUserInterface: false` + nossos botões e overlay sobre o canvas.
+1. `WebAssembly` indefinido
+2. `SharedArrayBuffer` indefinido OU `crossOriginIsolated === false`
+3. `navigator.mediaDevices.getUserMedia` indisponível
+4. Contexto `webgl2` não criável
 
-## Mudanças
+Não sabemos qual está falhando no ambiente do usuário, e o pre-check é mais rígido que o SDK precisa de fato.
 
-### 1. `src/hooks/useVitalsMeasurement.ts` — pré-checagem + loader silencioso
+## O que fazer
 
-Antes de qualquer `CreateShenaiSDK`, validar o ambiente:
+### 1. Expor o motivo real na tela de bloqueio
+Em `useVitalsMeasurement.ts`, guardar o array `reasons` num estado novo (`unsupportedReasons: string[]`) e expor no retorno do hook. Em `BinahCapture.tsx`, mostrar o código (ex.: `ERR_ISOLATION`, `ERR_WEBGL2`, `ERR_CAMERA`, `ERR_WASM`) na tela "Análise indisponível", junto com texto curto por motivo:
+- `wasm` → "Navegador sem suporte a WebAssembly"
+- `isolation` → "Janela embutida sem isolamento de origem (COOP/COEP)"
+- `camera` → "Câmera bloqueada ou indisponível"
+- `webgl2` → "Aceleração gráfica WebGL2 indisponível"
 
-```ts
-const reasons: string[] = [];
-if (typeof WebAssembly === "undefined") reasons.push("wasm");
-if (typeof SharedArrayBuffer === "undefined" || !self.crossOriginIsolated) reasons.push("isolation");
-if (!navigator.mediaDevices?.getUserMedia) reasons.push("camera");
-if (!document.createElement("canvas").getContext("webgl2")) reasons.push("webgl2");
-if (reasons.length) {
-  console.warn("[Vitals] unsupported:", reasons);
-  setStatus("unsupported");
-  return;
-}
-```
+Isso permite identificar em segundos se é problema de header (nosso/host), permissão de câmera (usuário), ou capacidade real do browser (Shen).
 
-Trocar a criação do SDK para desligar o preload nativo (origem da mensagem) e o telemetry interno:
+### 2. Relaxar o pre-check para SAB (tentar mesmo assim)
+Hoje bloqueamos se `crossOriginIsolated=false`. Algumas versões do Web SDK Shen funcionam parcialmente sem SAB. Mudar o pre-check para:
+- **Bloqueio duro** (não tenta SDK): só se faltar `WebAssembly`, `getUserMedia` ou `WebGL2`.
+- **Aviso só** (deixa o SDK tentar): se faltar apenas `SharedArrayBuffer`/`crossOriginIsolated`. Se o `CreateShenaiSDK()` lançar exceção, aí cai pra `unsupported` com motivo real do SDK.
 
-```ts
-const sdk = await CreateShenaiSDK({
-  enablePreloadDisplay: false,
-  enableErrorReporting: false,
-  onWasmLoadingProgress: (p) => setWasmProgress(Math.round(p * 100)),
-});
-```
+### 3. Capturar e exibir o erro retornado pelo SDK
+No `try/catch` da inicialização do SDK (já existe nas linhas ~220), guardar `err.message` num estado `sdkErrorDetail` e exibir na tela de bloqueio em texto pequeno, pra o usuário poder mandar print pro suporte.
 
-Expor novo estado `wasmProgress` no retorno do hook.
+### 4. Log estruturado
+Adicionar `console.warn("[Vitals] unsupported", { reasons, userAgent: navigator.userAgent, isolated: crossOriginIsolated, hasSAB: typeof SharedArrayBuffer !== "undefined" })` pra ficar fácil debugar via DevTools.
 
-### 2. `src/hooks/useVitalsMeasurement.ts` — inicialização whitelabel
+## Arquivos afetados
 
-`InitializationSettings` em modo "custom UI":
+- `src/hooks/useVitalsMeasurement.ts` — adicionar `unsupportedReasons` e `sdkErrorDetail` no estado e no retorno; relaxar pre-check de SAB; logs.
+- `src/components/mayla/BinahCapture.tsx` — renderizar motivo + código de erro na tela "Análise indisponível".
 
-```ts
-sdk.initialize(apiKey, userId, {
-  language: "pt",
-  showUserInterface: false,
-  showFacePositioningOverlay: true,
-  showVisualWarnings: true,
-  showFaceMask: false,
-  showBloodFlow: false,
-  showSignalQualityIndicator: false,
-  showSignalTile: false,
-  showStartStopButton: false,
-  showInfoButton: false,
-  showDisclaimer: false,
-  enableSummaryScreen: false,
-  showResultsFinishButton: false,
-  enableHealthRisks: false,
-  hideShenaiLogo: true,
-  uiFlowScreens: [],
-  onboardingMode: "HIDDEN",
-  cameraMode: "FACING_USER",
-  operatingMode: "POSITIONING",
-  onCameraError: () => { setErrorMessage("Não foi possível acessar a câmera."); setStatus("error"); },
-  eventCallback: (e) => { /* MEASUREMENT_FINISHED já tratado pelo polling */ },
-}, (r) => { /* mapear OK/INVALID_API_KEY/CONNECTION_ERROR/INTERNAL_ERROR */ });
-```
+## O que NÃO está incluído (respeitando suas restrições)
 
-`start()` chama `sdk.setOperatingMode("MEASURE")`, `stop()` volta para `POSITIONING`. Polling de resultados existente permanece.
+- Não abre nova janela / `window.open` / intent.
+- Não ativa fallback automático para outra análise.
+- Não muda comportamento quando o SDK funciona normalmente.
 
-### 3. `src/components/mayla/BinahCapture.tsx` — UI whitelabel
+## Limite do que conseguimos resolver sozinhos
 
-Fases visuais (sem nomes de fornecedor em texto, log ou placeholder):
-
-- **`loading`** → barra de progresso com `wasmProgress` + texto "Carregando análise…".
-- **`ready` / intro** → instruções ("Posicione o rosto na moldura, boa luz, fique parado") + botão **Iniciar medição** → `start()`.
-- **`measuring`** → canvas + overlay com timer/orientação + botão **Cancelar**.
-- **`done`** → resumo nosso + botão **Concluir**.
-- **`unsupported`** → tela nova:
-  - Ícone `MonitorOff`.
-  - Título: "Análise indisponível neste navegador".
-  - Texto: "Esta análise avançada precisa de um navegador moderno em janela própria. Em janelas incorporadas ou navegadores corporativos antigos ela não funciona."
-  - Botão primário **Usar Análise Básica** → `onFallbackToBasic()`.
-  - Botão secundário **Fechar**.
-- **`error`** → `errorMessage` + **Tentar novamente**.
-
-`<canvas id="shenai-canvas">` só é renderizado a partir de `ready`.
-
-### 4. `src/components/mayla/HealthTab.tsx` e `WellbeingTab.tsx` — wiring do fallback
-
-Passar `onFallbackToBasic` para `BinahCapture` apontando para a mesma função que já abre o rPPG básico. Se `useVitalsSources().basic` estiver desabilitado, o botão "Usar Análise Básica" não aparece (só "Fechar").
-
-### 5. Limpeza whitelabel
-
-Remover de UI, logs visíveis, títulos, descrições e props as strings "Binah", "Shen", "Shen.ai", "shenai". Logs internos viram `[Vitals]`. Identificadores técnicos (imports, ids de canvas, nomes de variável) permanecem.
-
-## Fora de escopo
-
-- `customColorTheme` por tenant (próxima entrega).
-- `public/_headers` (já configurado em produção).
-- `shenai-config`, `AdminIntegrations`, `useVitalsSources` (sem mudanças).
-- Short-term tokens / Remote Configuration do portal Shen.ai.
-- `cameraMode: CUSTOM_FRAMES` (não existe no Web SDK).
-
-## Validação
-
-1. **Preview Lovable (iframe)**: Análise Avançada → tela "Análise indisponível neste navegador" + **Usar Análise Básica**. Nunca aparece o retângulo cinza nativo.
-2. **`saude.saudecomvc.com.br`**: barra de progresso nossa → instruções → **Iniciar medição** → canvas com overlay (sem logo, sem START nativo, sem disclaimer) → resumo nosso.
-3. Console sem strings de marca; sem stack trace do SDK na fase inicial.
-4. Nenhuma menção visível a "Binah" ou "Shen.ai" em qualquer fase.
+Se depois desse diagnóstico o motivo for **WebAssembly ausente** ou **WebGL2 ausente** no WebView do host, aí sim **só a Shen** resolve (build single-thread / modo `CUSTOM_FRAMES` no Web SDK). Se for **isolation** ou **camera**, é configuração nossa / do app que embeda — resolvível.
