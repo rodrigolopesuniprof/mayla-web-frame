@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { UserVitalsFullPanel } from "./UserVitalsFullPanel";
 
 interface Profile {
   id: string;
