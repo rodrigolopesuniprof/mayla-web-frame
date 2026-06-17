@@ -204,12 +204,17 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId }:
     if (!user || !mappedResult || saving || saved) return;
     setSaving(true);
 
+    // Persist FULL raw payload when available (Shen.ai), else mapped fields.
+    const fullPayload = rawResults?.payload
+      ? { ...rawResults.payload, _mapped: mappedResult, _provider: rawResults.provider }
+      : mappedResult;
+
     const { error } = await supabase.from("special_measurements").insert({
       user_id: user.id,
       municipality_id: municipalityId,
       company_id: companyId || null,
-      measurement_data: mappedResult as any,
-      source: isDemoMode ? "vitals_demo" : "vitals_premium",
+      measurement_data: fullPayload as any,
+      source: isDemoMode ? "vitals_demo" : (rawResults?.provider === "shenai" ? "shenai" : "vitals_premium"),
     });
 
     if (error) {
