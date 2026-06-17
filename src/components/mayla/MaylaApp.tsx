@@ -19,7 +19,7 @@ import { HealthMagazineList } from "./HealthMagazineList";
 import { LeaderboardScreen } from "./LeaderboardScreen";
 import { MaylaFloatingButton } from "./MaylaFloatingButton";
 import { ProfileCompletionGate } from "./ProfileCompletionGate";
-import { PointsOnboardingTour } from "./PointsOnboardingTour";
+
 import { LevelUpNotifier } from "./LevelUpNotifier";
 
 
@@ -83,15 +83,6 @@ export function MaylaApp() {
           <>
             {user && <ProfileCompletionGate onComplete={() => {}} />}
             {user && <LevelUpNotifier />}
-            {user && (
-              <PointsOnboardingTour
-                onOpenProfile={() => setActiveTab("perfil")}
-                onOpenSelfAssessment={() => setShowSelfAssessment(true)}
-                onOpenRppg={() => setActiveTab("bemestar")}
-                onOpenCampaigns={() => setActiveTab("campanhas")}
-                onOpenLeaderboard={() => setShowLeaderboard(true)}
-              />
-            )}
 
             {showSelfAssessment && (
               <div className="absolute inset-0 z-40 bg-background">
