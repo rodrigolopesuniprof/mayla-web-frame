@@ -123,73 +123,45 @@ export function WellbeingTab() {
       <TopBar title="Bem-estar" />
       <div className="flex-1 overflow-y-auto px-[22px] py-5 space-y-6">
 
-        {/* rPPG CTA */}
-        <div
-          className="rounded-[18px] p-5 relative overflow-hidden cursor-pointer"
-          style={{
-            background: "linear-gradient(135deg, hsl(var(--mayla-rose)), hsl(var(--mayla-rose-lt)))",
-            boxShadow: "0 12px 36px rgba(232,87,74,.3)",
-          }}
-          onClick={() => setShowRppg(true)}
-        >
-          <div className="flex items-center gap-4">
-            <div className="text-5xl animate-heartbeat">❤️</div>
-            <div>
-              <div className="text-lg font-semibold" style={{ color: "#fff" }}>
-                Medir sinais vitais
+        {/* Vitals measurement CTAs (dynamic per enabled source) */}
+        {sources.filter((s) => s.enabled).map((s) => {
+          const limitReached = s.monthlyLimit != null && (s.usedThisMonth ?? 0) >= s.monthlyLimit;
+          return (
+            <div
+              key={s.id}
+              className="rounded-[18px] p-5 relative overflow-hidden cursor-pointer"
+              style={{
+                background: s.gradient,
+                boxShadow: s.shadow,
+                opacity: limitReached ? 0.5 : 1,
+              }}
+              onClick={() => { if (!limitReached) setActiveSource(s); }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="text-5xl">{s.emoji}</div>
+                <div className="flex-1">
+                  <div className="text-[15px] font-semibold" style={{ color: "#fff" }}>
+                    {s.displayName}
+                  </div>
+                  <div className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,.8)" }}>
+                    {s.description} · +{s.pointsReward} pts
+                  </div>
+                </div>
+                {s.monthlyLimit != null && (
+                  <div className="rounded-xl px-2.5 py-1 text-[10px] font-bold shrink-0" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
+                    {s.usedThisMonth ?? 0}/{s.monthlyLimit}
+                  </div>
+                )}
               </div>
-              <div className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,.8)" }}>
-                Câmera rPPG · {latest ? "Nova medição" : "30 segundos"} · +50 pts
-              </div>
+              {limitReached && (
+                <div className="mt-2 text-[11px] font-medium text-center" style={{ color: "rgba(255,255,255,.9)" }}>
+                  Limite mensal atingido. Disponível no próximo mês.
+                </div>
+              )}
             </div>
-          </div>
-          <div className="mt-4 flex gap-3">
-            {["❤️ Freq. Cardíaca", "🫁 Respiração", "😰 Estresse"].map((item, i) => (
-              <div
-                key={i}
-                className="rounded-xl px-2.5 py-1.5 text-[10px] font-medium"
-                style={{ background: "rgba(255,255,255,.2)", color: "#fff" }}
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-        </div>
+          );
+        })}
 
-        {/* Special Measurement CTA (Binah) */}
-        {binahEnabled && (
-          <div
-            className="rounded-[18px] p-4 relative overflow-hidden cursor-pointer"
-            style={{
-              background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
-              boxShadow: "0 8px 24px rgba(26,92,138,.25)",
-              opacity: binahUsedThisMonth >= binahLimit ? 0.5 : 1,
-            }}
-            onClick={() => {
-              if (binahUsedThisMonth < binahLimit) setShowBinah(true);
-            }}
-          >
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">🔬</div>
-              <div className="flex-1">
-                <div className="text-[15px] font-semibold" style={{ color: "#fff" }}>
-                  Medir sinais vitais – Função Especial
-                </div>
-                <div className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,.8)" }}>
-                  Análise completa · PA, hemoglobina, HRV · +100 pts
-                </div>
-              </div>
-              <div className="rounded-xl px-2.5 py-1 text-[10px] font-bold shrink-0" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
-                {binahUsedThisMonth}/{binahLimit}
-              </div>
-            </div>
-            {binahUsedThisMonth >= binahLimit && (
-              <div className="mt-2 text-[11px] font-medium text-center" style={{ color: "rgba(255,255,255,.9)" }}>
-                Limite mensal atingido. Disponível no próximo mês.
-              </div>
-            )}
-          </div>
-        )}
 
 
         {/* Latest vitals */}
