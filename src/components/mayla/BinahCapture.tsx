@@ -187,7 +187,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
         }
         await initializeShenai(canvasId, userProfile);
       } catch (err: any) {
-        console.error("Shen.ai init error:", err);
+        console.error("[Vitals] init error:", err);
         setPhase("error");
       }
       return;
