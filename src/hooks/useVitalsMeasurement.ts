@@ -59,7 +59,7 @@ export interface UseVitalsMeasurementReturn {
   providerName: string;
   provider: VitalsProvider;
   initialize: (videoElement: HTMLVideoElement, cameraDeviceId?: string) => Promise<void>;
-  initializeShenai: (canvasId: string) => Promise<void>;
+  initializeShenai: (canvasId: string, userProfile?: { age?: number; gender?: "male" | "female" | "other"; height?: number; weight?: number }) => Promise<void>;
   startMeasurement: () => void;
   stopMeasurement: () => void;
   cleanup: () => void;
