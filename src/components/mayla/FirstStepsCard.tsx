@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { POINTS_TOUR_EVENT, POINTS_TOUR_COMPLETED_EVENT } from "./PointsOnboardingTour";
+
 import {
   FIRST_STEPS_REFRESH_EVENT,
   hasFirstStep,
@@ -104,14 +104,11 @@ export function FirstStepsCard() {
       description: "Bons ganhos pela frente. Continue cuidando da sua saúde!",
       duration: 5000,
     });
-    // Silence the recurring PointsOnboardingTour popup permanently
+    // Silence the legacy PointsOnboardingTour flag for old users
     supabase
       .from("profiles")
       .update({ points_tour_completed: true, points_tour_current_step: STEPS.length, points_tour_dismissed_at: null })
-      .eq("user_id", user.id)
-      .then(() => {
-        window.dispatchEvent(new Event(POINTS_TOUR_COMPLETED_EVENT));
-      });
+      .eq("user_id", user.id);
     const t = setTimeout(() => {
       markFirstStep(user.id, "dismissed");
       setDismissed(true);
@@ -123,14 +120,6 @@ export function FirstStepsCard() {
 
   if (!loaded || !user || dismissed) return null;
 
-  const reopenTour = async () => {
-    if (allDone) return;
-    await supabase
-      .from("profiles")
-      .update({ points_tour_completed: false, points_tour_dismissed_at: null })
-      .eq("user_id", user.id);
-    window.dispatchEvent(new Event(POINTS_TOUR_EVENT));
-  };
 
   const pct = Math.round((completedCount / STEPS.length) * 100);
 
@@ -153,14 +142,6 @@ export function FirstStepsCard() {
             {completedCount}/{STEPS.length} concluídos · ganhe pontos de bônus
           </div>
         </div>
-        {!allDone && (
-          <button
-            onClick={reopenTour}
-            className="text-xs font-semibold text-primary bg-transparent border-none cursor-pointer hover:underline"
-          >
-            Continuar →
-          </button>
-        )}
       </div>
 
       <div className="h-1.5 bg-border rounded-full overflow-hidden mb-3">

@@ -1,52 +1,31 @@
-## Objetivo
+# Plano: remover resquício do box de welcome/onboarding
 
-Unificar a interface da **Medição Básica de Sinais Vitais (rPPG)** com o layout já consolidado da **Análise Completa (Binah / Shen.ai)**, mantendo a mesma estrutura visual em todas as fases (consentimento, câmera, medição, resultado, erro).
+## Diagnóstico
 
-Hoje os dois fluxos têm telas bem diferentes:
-- `RppgCapture` (Básica): vídeo em fullscreen com overlay escuro, oval rosa, header próprio.
-- `BinahCapture` (Avançada): header padrão com X + título + avatar, vídeo embutido como cartão arredondado, barra de progresso `Progress`, badge "Rosto detectado", grid de resultados com `HelpCircle`, botão único "Salvar Medição".
+O box da imagem ainda existe em `PointsOnboardingTour.tsx`. Mesmo removido do app principal anteriormente, o componente ainda está no código e tem mecanismos próprios para reabrir:
 
-## O que vai mudar (apenas frontend)
+- Abre automaticamente no carregamento se `points_tour_completed` estiver falso.
+- Reabre por evento `open-points-tour` disparado pelo card `FirstStepsCard`.
+- Tem timer de reabertura a cada 5 minutos (`IDLE_REOPEN_MS`).
+- Reabre após avançar etapa com `setTimeout`.
+- O card `FirstStepsCard` ainda importa esse tour e tem botão “Continuar” que pode reativá-lo.
 
-Reescrita do arquivo `src/components/mayla/RppgCapture.tsx` para espelhar o layout do `BinahCapture`, preservando 100% da lógica atual de captura (getUserMedia 320×240, 6 fps, 20s, base64, `rppg-proxy`, pontos, toasts).
+## Correção proposta
 
-### Nova estrutura visual (idêntica à do Binah)
+1. Remover a dependência do `FirstStepsCard` em relação ao `PointsOnboardingTour`:
+   - Apagar imports `POINTS_TOUR_EVENT` e `POINTS_TOUR_COMPLETED_EVENT`.
+   - Remover qualquer `dispatchEvent` que abra o tour.
+   - Remover a função/botão “Continuar” que reabre o popup.
 
-1. **Container fullscreen** `fixed inset-0 z-50 flex flex-col bg-background`.
-2. **Header** com botão `✕` + título "Medição de Sinais Vitais" (ou `displayName` quando fornecido) — mesmo padrão do Binah.
-3. **Tela de consentimento (`consent`)**:
-   - Ícone grande (❤️) centralizado.
-   - Título "Medir Sinais Vitais".
-   - Texto descritivo curto.
-   - Grid `grid-cols-3` com badges: ❤️ FC, 🫁 Resp, 😰 Estresse, 💧 SpO2 (mesmo estilo `bg-secondary rounded-xl`).
-   - Linha de metadados: "Duração: ~20 segundos · ganhe +50 pontos".
-   - Botão primário com gradiente `mayla-rose → mayla-rose-lt` (mantém identidade da medição básica).
-4. **Fase câmera/medição (`capturing`)**:
-   - Vídeo como cartão `w-full max-h-[300px] object-cover rounded-2xl mx-auto px-4` (igual ao Binah), espelhado horizontalmente.
-   - Badge verde "📷 Capturando vídeo" no estilo do badge "Rosto detectado".
-   - Barra `<Progress />` do shadcn com "Medindo sinais vitais… {elapsed}s / 20s".
-   - Linha pequena "{n} frames capturados".
-   - Botão "Cancelar" fixo no rodapé (mesmo padrão do Binah).
-5. **Processando (`processing`)**:
-   - Mesmo layout do "Carregando análise…" do Binah: ícone pulsante + texto + `Progress` indeterminada animada.
-6. **Resultado (`result`)**:
-   - Cabeçalho "✅ Resultados da Medição" idêntico ao Binah.
-   - Grid `grid-cols-2` de cartões `bg-secondary rounded-2xl p-3.5` com emoji + label + valor + unidade.
-   - Inclui ícone `HelpCircle` em cada card, abrindo o mesmo modal inferior do Binah com explicações (FC, Resp, Estresse, SpO2).
-   - Botão "Salvar Medição" com gradiente `mayla-pref → mayla-teal` (mesmo do Binah). Como hoje o `RppgCapture` não persiste (o `WellbeingTab`/`HealthTab` cuida do `onComplete`), o botão apenas chama `onComplete()` + `onClose()` mantendo o comportamento atual; nada de lógica nova de persistência.
-7. **Erro (`error`)**:
-   - Mesma tela do Binah: ⚠️ + "Medição não concluída" + mensagem + botão "Tentar novamente".
+2. Manter apenas o card inline de primeiros passos, sem modal:
+   - O card pode continuar mostrando progresso se ainda for desejado.
+   - Ao completar tudo, ele continua marcando `points_tour_completed = true` no perfil para silenciar usuários antigos.
+   - Não abrirá nenhuma janela sobreposta.
 
-### Detalhes técnicos
+3. Desativar o componente `PointsOnboardingTour` para não haver reativação futura:
+   - Remover timers/event listeners/toasts de avanço do popup ou deixar o componente como `return null` permanente.
+   - Preferência técnica: excluir o uso prático do componente sem mexer em banco/migrações.
 
-- Importar `Progress`, `HelpCircle`, `X` (lucide-react), como no Binah.
-- Reaproveitar exatamente os mesmos tokens/cores/sombras/gradientes do `BinahCapture` para garantir paridade visual.
-- Manter as refs (`videoRef`, `canvasRef`, `streamRef`, intervals) e toda a lógica de `startCapture` / `processFrames` / `cleanup` inalteradas — só muda o JSX e classes.
-- Manter props públicas (`onClose`, `onComplete`) inalteradas — `WellbeingTab.tsx` e `HealthTab.tsx` não precisam mudar.
-- Remover os subcomponentes antigos (`ConsentScreen`, `CapturingOverlay`, `ProcessingScreen`, `ErrorScreen`, `ResultScreen`, `ResultCard`) — substituídos por blocos inline no mesmo estilo do Binah.
-
-## Fora de escopo
-
-- Não mexer no `BinahCapture.tsx`, `useVitalsMeasurement.ts`, nem em qualquer lógica de captura/proxy/pontos.
-- Não alterar `HealthTab.tsx`/`WellbeingTab.tsx`.
-- Não consolidar os dois capturadores em um único componente — mantemos `RppgCapture` separado, apenas com o layout unificado.
+4. Verificação:
+   - Buscar novamente por `open-points-tour`, `PointsOnboardingTour`, `PASSO`, `Pular esta etapa`, `Ver campanhas`.
+   - Confirmar que não há mais caminho no frontend que exiba o box de welcome/onboarding.
