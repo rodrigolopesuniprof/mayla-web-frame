@@ -483,26 +483,46 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
             </div>
           )}
 
-          {/* Unsupported environment (e.g. preview iframe without crossOriginIsolated) */}
+          {/* Unsupported environment (e.g. preview iframe without crossOriginIsolated, in-app webview) */}
           {phase === "unsupported" && (() => {
+            const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+            const isWebView = /FBAN|FBAV|Instagram|Line|MicroMessenger|; wv\)|WhatsApp|LinkedInApp|Twitter/i.test(ua);
+            const isAndroid = /Android/i.test(ua);
             const reasonMap: Record<string, { code: string; text: string }> = {
               wasm: { code: "ERR_WASM", text: "Navegador sem suporte a WebAssembly." },
               isolation: { code: "ERR_ISOLATION", text: "Janela embutida sem isolamento de origem (COOP/COEP)." },
               camera: { code: "ERR_CAMERA", text: "Câmera bloqueada ou indisponível." },
               webgl2: { code: "ERR_WEBGL2", text: "Aceleração gráfica WebGL2 indisponível." },
+              webview: { code: "ERR_WEBVIEW", text: "Aberto dentro de um app (WhatsApp/Instagram/etc.)." },
               sdk: { code: "ERR_SDK", text: "O motor da análise recusou inicializar neste navegador." },
             };
             const list = (unsupportedReasons?.length ? unsupportedReasons : ["sdk"]).map(r => reasonMap[r] || reasonMap.sdk);
+
+            const openInExternalBrowser = () => {
+              const currentUrl = window.location.href;
+              if (isAndroid) {
+                // Try to force Chrome via Android intent URI
+                const cleanUrl = currentUrl.replace(/^https?:\/\//, "");
+                const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+                window.location.href = intentUrl;
+              } else {
+                // iOS / desktop: best-effort — most webviews intercept this and open Safari
+                window.open(currentUrl, "_blank", "noopener,noreferrer");
+              }
+            };
+
             return (
               <div className="text-center space-y-5 max-w-sm">
                 <div className="mx-auto w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
                   <MonitorOff className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="font-display text-xl font-semibold text-foreground">
-                  Análise indisponível neste navegador
+                  {isWebView ? "Abra em Chrome ou Safari" : "Análise indisponível neste navegador"}
                 </h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Esta análise avançada precisa de um navegador moderno em janela própria.
+                  {isWebView
+                    ? "Esta análise avançada não funciona dentro de apps como WhatsApp, Instagram ou Facebook. Toque em \"Abrir no navegador\" para continuar."
+                    : "Esta análise avançada precisa de um navegador moderno em janela própria."}
                 </p>
                 <div className="rounded-xl bg-secondary/60 px-4 py-3 text-left space-y-1.5">
                   {list.map((r, i) => (
@@ -518,6 +538,18 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
                   )}
                 </div>
                 <div className="space-y-2">
+                  {isWebView && (
+                    <button
+                      onClick={openInExternalBrowser}
+                      className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white"
+                      style={{
+                        background: "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
+                        boxShadow: "0 8px 24px rgba(26,92,138,.3)",
+                      }}
+                    >
+                      Abrir no navegador
+                    </button>
+                  )}
                   {onFallbackToBasic && (
                     <button
                       onClick={() => { cleanup(); onFallbackToBasic(); }}
