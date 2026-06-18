@@ -52,7 +52,7 @@ server {
 
     # Headers obrigatórios para o Binah SDK (SharedArrayBuffer)
     add_header Cross-Origin-Opener-Policy "same-origin" always;
-    add_header Cross-Origin-Embedder-Policy "require-corp" always;
+    add_header Cross-Origin-Embedder-Policy "credentialless" always;
 
     root /var/www/mayla/dist;
     index index.html;
@@ -66,7 +66,7 @@ server {
         expires 30d;
         add_header Cache-Control "public, immutable";
         add_header Cross-Origin-Opener-Policy "same-origin" always;
-        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Embedder-Policy "credentialless" always;
     }
 }
 
