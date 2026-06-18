@@ -6,6 +6,11 @@
     <meta name="theme-color" content="#FDF6EE" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- Cross-origin isolation hints for advanced vitals SDK (Shen.ai/Binah).
+         Real isolation requires HTTP headers (set in vite.config for dev/preview);
+         these meta tags help where supported and are harmless otherwise. -->
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="credentialless" />
     <link rel="icon" type="image/x-icon" href="https://ymexlslqsdflgkcvwjoz.supabase.co/storage/v1/object/public/app-branding/favicon.png?v=1">
     <link rel="apple-touch-icon" href="https://ymexlslqsdflgkcvwjoz.supabase.co/storage/v1/object/public/app-branding/favicon.png?v=1">
     <title>Mayla Saúde</title>

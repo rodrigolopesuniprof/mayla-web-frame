@@ -302,26 +302,30 @@ export function useVitalsMeasurement(
     setSdkErrorDetail("");
 
     // Pre-flight environment check.
-    // Hard-block only on capabilities the SDK cannot work around: WebAssembly, camera, WebGL2.
-    // Missing SharedArrayBuffer / crossOriginIsolated is logged but we still attempt init —
-    // some Web SDK builds run without SAB; let the SDK be the source of truth.
+    // Hard-block ONLY on capabilities truly impossible to work around: WebAssembly and camera API.
+    // WebGL2, SharedArrayBuffer / crossOriginIsolated are checked as soft hints — let the SDK be
+    // the source of truth (it has its own fallbacks/feature detection per build).
     const hardReasons: string[] = [];
     const softReasons: string[] = [];
     if (typeof WebAssembly === "undefined") hardReasons.push("wasm");
     if (!navigator.mediaDevices?.getUserMedia) hardReasons.push("camera");
     try {
-      if (!document.createElement("canvas").getContext("webgl2")) hardReasons.push("webgl2");
-    } catch { hardReasons.push("webgl2"); }
+      if (!document.createElement("canvas").getContext("webgl2")) softReasons.push("webgl2");
+    } catch { softReasons.push("webgl2"); }
     if (typeof SharedArrayBuffer === "undefined" || !(self as any).crossOriginIsolated) {
       softReasons.push("isolation");
     }
+    // In-app webviews (Instagram/Facebook/LinkedIn/WhatsApp) often strip APIs needed by the SDK.
+    const ua = navigator.userAgent || "";
+    const isWebView = /FBAN|FBAV|Instagram|Line|MicroMessenger|; wv\)|WhatsApp|LinkedInApp|Twitter/i.test(ua);
+    if (isWebView) softReasons.push("webview");
 
     console.warn("[Vitals] env check", {
       hardReasons,
       softReasons,
       isolated: (self as any).crossOriginIsolated,
       hasSAB: typeof SharedArrayBuffer !== "undefined",
-      userAgent: navigator.userAgent,
+      userAgent: ua,
     });
 
     if (hardReasons.length) {
