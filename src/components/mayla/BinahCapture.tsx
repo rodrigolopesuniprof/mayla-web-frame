@@ -232,10 +232,15 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     await startMeasurement();
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     stopMeasurement();
     stopTimer();
     stopCamera();
+    // Flush pending result before tearing down the SDK.
+    if (rawResults && mappedResult && !autoSavedRef.current && !saved && !saving) {
+      autoSavedRef.current = true;
+      try { await saveResult(); } catch (e) { console.warn("[Vitals] flush on cancel failed", e); }
+    }
     cleanup();
     onClose();
   };
