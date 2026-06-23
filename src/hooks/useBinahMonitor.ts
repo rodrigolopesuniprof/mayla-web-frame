@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { loadBinahSdk } from "@/lib/binah-loader";
 
 interface VitalSignValue<T = number> {
   value: T;
@@ -119,10 +120,9 @@ export function useBinahMonitor(): UseBinahMonitorReturn {
     console.log("[Binah] Using deviceId:", deviceId || "(empty)");
 
     try {
-      const sdkPath = "@biosensesignal/web-sdk";
-      const sdk = await import(/* @vite-ignore */ sdkPath);
-      const monitor = sdk.default;
+      const monitor = await loadBinahSdk();
       console.log("[Binah] SDK loaded successfully");
+
 
       await monitor.initialize({ licenseKey: BINAH_LICENSE_KEY });
       console.log("[Binah] SDK initialized with license key");
@@ -164,9 +164,11 @@ export function useBinahMonitor(): UseBinahMonitorReturn {
         err?.message?.includes("SharedArrayBuffer") ||
         err?.message?.includes("crossOriginIsolated") ||
         err?.message?.includes("Cannot find module") ||
+        err?.message?.includes("Failed to resolve module") ||
+        err?.message?.includes("Falha ao baixar") ||
         err?.code === "ERR_MODULE_NOT_FOUND"
       ) {
-        console.warn(`[Binah] Fallback para demo mode. Motivo: ${err?.message}. Verifique se o SDK foi instalado: npm install ./biosensesignal-web-sdk-5.11.4.tgz`);
+        console.warn(`[Binah] Fallback para demo mode. Motivo: ${err?.message}`);
         enterDemoMode();
       } else {
         setErrorMessage(err?.message || "Erro ao inicializar o SDK");

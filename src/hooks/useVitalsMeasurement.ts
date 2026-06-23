@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { loadBinahSdk } from "@/lib/binah-loader";
 
 // ── Shared types (same interface regardless of provider) ──
 
@@ -183,9 +184,8 @@ export function useVitalsMeasurement(
     }
 
     try {
-      const sdkPath = "@biosensesignal/web-sdk";
-      const sdk = await import(/* @vite-ignore */ sdkPath);
-      const monitor = sdk.default;
+      const monitor = await loadBinahSdk();
+
 
       await monitor.initialize({ licenseKey });
 
@@ -225,6 +225,8 @@ export function useVitalsMeasurement(
         err?.message?.includes("SharedArrayBuffer") ||
         err?.message?.includes("crossOriginIsolated") ||
         err?.message?.includes("Cannot find module") ||
+        err?.message?.includes("Failed to resolve module") ||
+        err?.message?.includes("Falha ao baixar") ||
         err?.code === "ERR_MODULE_NOT_FOUND"
       ) {
         enterDemoMode();
