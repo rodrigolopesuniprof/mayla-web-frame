@@ -242,6 +242,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const autoSavedRef = useRef(false);
 
   const saveResult = async () => {
     if (!user || !mappedResult || saving || saved) return;
