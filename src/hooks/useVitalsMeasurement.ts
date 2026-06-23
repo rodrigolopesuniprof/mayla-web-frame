@@ -639,7 +639,7 @@ export function useVitalsMeasurement(
       setErrorMessage(err?.message || "Erro ao iniciar medição");
       setStatus("error");
     }
-  }, [isDemoMode, providerConfig]);
+  }, [isDemoMode, providerConfig, status]);
 
   const stopMeasurement = useCallback(() => {
     if (demoTimerRef.current) {
