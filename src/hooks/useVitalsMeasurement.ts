@@ -291,11 +291,24 @@ export function useVitalsMeasurement(
     return out;
   };
 
+  const isFinishedState = (s: any, state: any): boolean => {
+    if (state == null) return false;
+    const finished = s?.MeasurementState?.FINISHED;
+    if (finished != null && state === finished) return true;
+    if (typeof state === "string" && state.toUpperCase().includes("FINISH")) return true;
+    // Historical numeric enum index for FINISHED in some SDK builds
+    if (typeof state === "number" && state === 4) return true;
+    return false;
+  };
+
+  const shenaiCommittedRef = useRef(false);
+
   const initializeShenai = useCallback(async (
     canvasId: string,
     userProfile?: { age?: number; gender?: "male" | "female" | "other"; height?: number; weight?: number },
   ) => {
     setStatus("initializing");
+    shenaiCommittedRef.current = false;
     setPartialVitals(null);
     setFinalResults(null); setRawResults(null);
     setErrorMessage("");
@@ -304,9 +317,6 @@ export function useVitalsMeasurement(
     setSdkErrorDetail("");
 
     // Pre-flight environment check.
-    // Hard-block ONLY on capabilities truly impossible to work around: WebAssembly and camera API.
-    // WebGL2, SharedArrayBuffer / crossOriginIsolated are checked as soft hints — let the SDK be
-    // the source of truth (it has its own fallbacks/feature detection per build).
     const hardReasons: string[] = [];
     const softReasons: string[] = [];
     if (typeof WebAssembly === "undefined") hardReasons.push("wasm");
@@ -317,14 +327,12 @@ export function useVitalsMeasurement(
     if (typeof SharedArrayBuffer === "undefined" || !(self as any).crossOriginIsolated) {
       softReasons.push("isolation");
     }
-    // In-app webviews (Instagram/Facebook/LinkedIn/WhatsApp) often strip APIs needed by the SDK.
     const ua = navigator.userAgent || "";
     const isWebView = /FBAN|FBAV|Instagram|Line|MicroMessenger|; wv\)|WhatsApp|LinkedInApp|Twitter/i.test(ua);
     if (isWebView) softReasons.push("webview");
 
     console.warn("[Vitals] env check", {
-      hardReasons,
-      softReasons,
+      hardReasons, softReasons,
       isolated: (self as any).crossOriginIsolated,
       hasSAB: typeof SharedArrayBuffer !== "undefined",
       userAgent: ua,
@@ -373,7 +381,6 @@ export function useVitalsMeasurement(
             precisionMode: sdk.PrecisionMode?.RELAXED ?? sdk.PrecisionMode?.STRICT,
             cameraMode: sdk.CameraMode?.FACING_USER,
             onboardingMode: sdk.OnboardingMode?.HIDDEN,
-            // Whitelabel — no third-party UI, no vendor branding visible to the user.
             showUserInterface: true,
             showFacePositioningOverlay: true,
             showFaceMask: true,
@@ -386,9 +393,10 @@ export function useVitalsMeasurement(
             showDisclaimer: true,
             enableHealthRisks: true,
             saveHealthRisksFactors: true,
-            enableSummaryScreen: true,
-            showResultsFinishButton: true,
-            showHealthIndicesFinishButton: true,
+            // Disable SDK summary screens so state stays FINISHED until we read it.
+            enableSummaryScreen: false,
+            showResultsFinishButton: false,
+            showHealthIndicesFinishButton: false,
             hideShenaiLogo: true,
             language: "pt",
             uiFlowScreens: [],
@@ -411,55 +419,94 @@ export function useVitalsMeasurement(
       sdk.attachToCanvas(`#${canvasId}`, true);
       sdk.setOperatingMode?.(sdk.OperatingMode?.POSITIONING ?? 0);
 
+      // Helper to commit results once.
+      const commitShenaiResult = (s: any, trigger: string) => {
+        if (shenaiCommittedRef.current) return;
+        try {
+          let final: any = null;
+          try { final = s.getMeasurementResults?.() ?? null; } catch (e) {
+            console.warn("[Shenai] getMeasurementResults threw", e);
+          }
+          if (!final || (final.heart_rate_bpm == null && final.hrv_sdnn_ms == null)) {
+            try {
+              const history = s.getMeasurementResultsHistory?.();
+              const items = Array.isArray(history) ? history : (history?.measurements || history?.items || []);
+              if (items?.length) final = items[items.length - 1]?.measurement ?? items[items.length - 1] ?? final;
+            } catch (e) {
+              console.warn("[Shenai] getMeasurementResultsHistory threw", e);
+            }
+          }
+          if (!final || final.heart_rate_bpm == null) {
+            console.warn("[Shenai] commit attempted but no valid final results", { trigger, final });
+            setErrorMessage("Não foi possível obter os resultados da medição. Tente novamente em melhor iluminação.");
+            setStatus("error");
+            shenaiCommittedRef.current = true;
+            if (shenaiPollRef.current) { clearInterval(shenaiPollRef.current); shenaiPollRef.current = null; }
+            return;
+          }
+          let risks: any = null;
+          try { risks = s.getHealthRisks?.() ?? null; } catch {}
+          let history: any = null;
+          try { history = s.getMeasurementResultsHistory?.() ?? null; } catch {}
+          const payload = buildShenaiPayload(final, risks);
+          console.info("[Shenai] commit results", { trigger, hasFinal: !!final, keys: Object.keys(final || {}).length });
+          setRawResults({
+            provider: "shenai",
+            payload,
+            raw_measurement: final,
+            health_risks: risks,
+            history,
+            measurement_id: s.getMeasurementID?.() || null,
+          });
+          setFinalResults(mapShenaiResults(final, risks));
+          setStatus("completed");
+          shenaiCommittedRef.current = true;
+          if (shenaiPollRef.current) { clearInterval(shenaiPollRef.current); shenaiPollRef.current = null; }
+        } catch (err) {
+          console.error("[Shenai] commit error", err);
+        }
+      };
+
+      // Subscribe to SDK event callbacks (preferred over polling).
+      try {
+        sdk.setOnMeasurementFinishedCallback?.(() => commitShenaiResult(sdk, "onMeasurementFinished"));
+      } catch (e) { console.warn("[Shenai] setOnMeasurementFinishedCallback unavailable", e); }
+      try {
+        sdk.setOnStateChangeCallback?.((state: any) => {
+          if (isFinishedState(sdk, state)) commitShenaiResult(sdk, "onStateChange");
+        });
+      } catch (e) { console.warn("[Shenai] setOnStateChangeCallback unavailable", e); }
+
+      let stateLogged = false;
       shenaiPollRef.current = setInterval(() => {
         const s = shenaiSdkRef.current;
         if (!s) return;
         try {
-          const state = s.getMeasurementState();
+          const state = s.getMeasurementState?.();
+          if (!stateLogged) {
+            console.info("[Shenai] first poll", { state, type: typeof state, enum: s.MeasurementState });
+            stateLogged = true;
+          }
           const rt = s.getRealtimeMetrics?.(10) || null;
           if (rt) setPartialVitals(mapShenaiResults(rt));
 
-          if (state === s.MeasurementState?.FINISHED) {
-            const final = s.getMeasurementResults();
-            let risks: any = null;
-            try { risks = s.getHealthRisks?.() ?? null; } catch {}
-            let history: any = null;
-            try { history = s.getMeasurementResultsHistory?.() ?? null; } catch {}
-            const payload = buildShenaiPayload(final, risks);
-            setRawResults({
-              provider: "shenai",
-              payload,
-              raw_measurement: final,
-              health_risks: risks,
-              history,
-              measurement_id: s.getMeasurementID?.() || null,
-            });
-            setFinalResults(mapShenaiResults(final, risks));
-            setStatus("completed");
-            if (shenaiPollRef.current) {
-              clearInterval(shenaiPollRef.current);
-              shenaiPollRef.current = null;
-            }
+          if (isFinishedState(s, state)) {
+            commitShenaiResult(s, "poll");
           } else if (state === s.MeasurementState?.FAILED) {
             setErrorMessage("Medição falhou. Verifique iluminação e posicionamento.");
             setStatus("error");
-            if (shenaiPollRef.current) {
-              clearInterval(shenaiPollRef.current);
-              shenaiPollRef.current = null;
-            }
+            if (shenaiPollRef.current) { clearInterval(shenaiPollRef.current); shenaiPollRef.current = null; }
           }
         } catch (e) {
           console.warn("[Vitals poll]", e);
         }
-      }, 1000);
+      }, 500);
 
       setStatus("ready");
     } catch (err: any) {
       console.error("[Vitals] Init error:", err);
       const msg = err?.message || String(err) || "Erro ao iniciar a análise avançada";
       setSdkErrorDetail(msg);
-      // If the SDK itself complains about environment capabilities, surface as unsupported
-      // with the real reason captured from the SDK instead of a generic error.
       const envFingerprint = /SharedArrayBuffer|crossOriginIsolated|WebAssembly|WebGL|getUserMedia|isolation|threads/i;
       if (envFingerprint.test(msg)) {
         const reasons: string[] = [];
