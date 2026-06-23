@@ -314,6 +314,14 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     onComplete();
   };
 
+  // Auto-save as soon as results arrive, so data is never lost if user closes the screen.
+  useEffect(() => {
+    if (status === "completed" && mappedResult && !autoSavedRef.current && !saved && !saving) {
+      autoSavedRef.current = true;
+      saveResult();
+    }
+  }, [status, mappedResult, saved, saving]);
+
   const validityInfo = VALIDITY_MESSAGES[imageValidity] || VALIDITY_MESSAGES[ImageValidity.VALID];
   const partialMapped = partialVitals ? mapVitalsToResult(partialVitals) : null;
   const progressPercent = Math.min((elapsed / PROCESSING_TIME) * 100, 100);
