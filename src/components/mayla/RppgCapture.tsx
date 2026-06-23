@@ -64,12 +64,53 @@ export function RppgCapture({ onClose, onComplete, displayName }: RppgCapturePro
     }
   }, [phase]);
 
-  const startCapture = async () => {
+  const requestStream = async (): Promise<MediaStream> => {
+    // Try ideal constraints first; fall back to plain video:true on OverconstrainedError
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: FRAME_WIDTH, height: FRAME_HEIGHT },
+      return await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: FRAME_WIDTH },
+          height: { ideal: FRAME_HEIGHT },
+        },
         audio: false,
       });
+    } catch (err: any) {
+      if (err?.name === "OverconstrainedError" || err?.name === "NotFoundError") {
+        return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      throw err;
+    }
+  };
+
+  const startCapture = async () => {
+    try {
+      // Release any leftover stream from a previous attempt / Binah
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+
+      // Pre-flight checks for clearer diagnostics
+      if (typeof window !== "undefined" && window.isSecureContext === false) {
+        setErrorMsg(
+          "Seu navegador exige HTTPS para acessar a câmera. Abra o app em uma URL HTTPS (https://) e tente novamente."
+        );
+        setPhase("error");
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        const inIframe = typeof window !== "undefined" && window.self !== window.top;
+        setErrorMsg(
+          inIframe
+            ? "A câmera está bloqueada porque o app está dentro de um iframe sem permissão. Abra o app diretamente no navegador (fora do iframe) e tente de novo."
+            : "Seu navegador não suporta acesso à câmera. Tente atualizar ou usar outro navegador (Chrome/Safari recentes)."
+        );
+        setPhase("error");
+        return;
+      }
+
+      const stream = await requestStream();
       streamRef.current = stream;
       setPhase("capturing");
       setElapsed(0);
@@ -99,12 +140,43 @@ export function RppgCapture({ onClose, onComplete, displayName }: RppgCapturePro
           processFrames();
         }
       }, 200);
-    } catch (err) {
-      console.error("Camera error:", err);
-      setErrorMsg("Não foi possível acessar a câmera. Verifique as permissões.");
+    } catch (err: any) {
+      const name = err?.name || "Error";
+      const msg = err?.message || String(err);
+      console.error("[rPPG] getUserMedia failed:", name, msg, err);
+
+      let friendly = "";
+      switch (name) {
+        case "NotAllowedError":
+        case "SecurityError":
+          friendly =
+            "Permissão de câmera negada. Toque no ícone de cadeado da barra de endereço → Permissões → Câmera → Permitir, e recarregue a página.";
+          break;
+        case "NotFoundError":
+        case "DevicesNotFoundError":
+          friendly = "Nenhuma câmera foi encontrada neste dispositivo.";
+          break;
+        case "NotReadableError":
+        case "TrackStartError":
+          friendly =
+            "A câmera está sendo usada por outro app. Feche WhatsApp, Câmera, Meet ou outras chamadas e tente novamente.";
+          break;
+        case "OverconstrainedError":
+        case "ConstraintNotSatisfiedError":
+          friendly = "Sua câmera não suporta a configuração pedida. Tente em outro dispositivo.";
+          break;
+        case "TypeError":
+          friendly =
+            "Acesso à câmera indisponível neste contexto (verifique se está em HTTPS e fora de iframe restrito).";
+          break;
+        default:
+          friendly = `Não foi possível acessar a câmera (${name}). ${msg}`;
+      }
+      setErrorMsg(friendly);
       setPhase("error");
     }
   };
+
 
   const processFrames = async () => {
     setPhase("processing");
