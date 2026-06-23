@@ -184,9 +184,8 @@ export function useVitalsMeasurement(
     }
 
     try {
-      const sdkPath = "@biosensesignal/web-sdk";
-      const sdk = await import(/* @vite-ignore */ sdkPath);
-      const monitor = sdk.default;
+      const monitor = await loadBinahSdk();
+
 
       await monitor.initialize({ licenseKey });
 
