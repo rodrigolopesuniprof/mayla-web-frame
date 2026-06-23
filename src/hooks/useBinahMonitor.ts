@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { loadBinahSdk } from "@/lib/binah-loader";
 
 interface VitalSignValue<T = number> {
   value: T;
