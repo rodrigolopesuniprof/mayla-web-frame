@@ -35,12 +35,4 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  optimizeDeps: {
-    exclude: ["@biosensesignal/web-sdk"],
-  },
-  build: {
-    rollupOptions: {
-      external: ["@biosensesignal/web-sdk"],
-    },
-  },
 }));
