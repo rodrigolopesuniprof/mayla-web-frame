@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { loadBinahSdk } from "@/lib/binah-loader";
 
 // ── Shared types (same interface regardless of provider) ──
 
