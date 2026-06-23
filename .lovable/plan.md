@@ -1,58 +1,80 @@
-## Problema
+## Diagnóstico
 
-A tela de "Medição de Sinais Vitais" (rPPG simplificado) está falhando com "Não foi possível acessar a câmera. Verifique as permissões." Esse erro é genérico — qualquer falha em `navigator.mediaDevices.getUserMedia` cai no mesmo catch, sem distinguir a causa real.
+Rastreei o fluxo do Shen.ai em `src/hooks/useVitalsMeasurement.ts` (initializeShenai, linhas 294‑477) e em `src/components/mayla/BinahCapture.tsx` (saveResult, linhas 246‑314). A captura da câmera ocorre, o SDK roda a medição, mas o objeto `MeasurementResults` raramente chega ao estado `rawResults/finalResults` — e quando chega, ainda pode não ser persistido. Encontrei seis causas concretas:
 
-## Causas prováveis identificadas em `src/components/mayla/RppgCapture.tsx`
+### 1. Polling 1s perde a janela `FINISHED`
+O resultado só é coletado dentro de `setInterval(..., 1000)` que checa `state === s.MeasurementState?.FINISHED`. Como o SDK está configurado com `enableSummaryScreen: true`, `showResultsFinishButton: true` e `showHealthIndicesFinishButton: true`, ao terminar a medição o SDK transita automaticamente para a tela de resumo e, quando o usuário toca em "Finish", o estado volta para `IDLE/POSITIONING`. Se o tick de 1s cair fora dessa janela, `getMeasurementResults()` nunca é chamado.
 
-1. **Contexto inseguro / iframe sem permissão** (causa mais provável no preview Lovable)
-   - `getUserMedia` só funciona em HTTPS ou `localhost`. A URL `*.lovable.app` é HTTPS, mas a página é carregada dentro de um iframe do editor Lovable, e o iframe pai **precisa** do atributo `allow="camera; microphone"` para liberar a câmera no filho. Sem isso, o navegador retorna `NotAllowedError` mesmo antes de pedir permissão.
-   - Em produção (`saude.saudecomvc.com.br`), se a app for embedada em outro iframe (ex.: portal corporativo), o mesmo bloqueio acontece.
+### 2. Comparação por enum frágil
+`s.MeasurementState?.FINISHED` pode ser `undefined` em builds onde o enum é exposto como string. A comparação `state === undefined` casa com qualquer leitura nula e nunca dispara o ramo de sucesso. Não há fallback nem log do valor real do estado.
 
-2. **Permissão negada pelo navegador no Android**
-   - Permissão de câmera previamente negada para o domínio fica "lembrada"; o `getUserMedia` lança `NotAllowedError` instantaneamente, sem reabrir o prompt.
+### 3. Não usamos os callbacks do SDK
+O Shen.ai expõe `setOnMeasurementFinishedCallback` (e variantes `setOnStateChangeCallback`). São disparados síncronamente quando o resultado fica pronto, sem race com a UI de resumo. Hoje confiamos só no polling.
 
-3. **Câmera ocupada por outro app**
-   - WhatsApp/Câmera/Meet abertos no Android seguram o sensor → `NotReadableError`.
+### 4. Save é manual e tardio
+Mesmo quando `rawResults` chega, o registro no banco só ocorre se o usuário tocar em "Salvar Medição" (`saveResult` em BinahCapture.tsx:246). Se ele fechar a tela, voltar ou tocar em "Finish" do SDK, **os dados são perdidos** — nada vai para `special_measurements` nem `health_measurements`.
 
-4. **Constraints inválidas para o dispositivo**
-   - Pedimos `width: 320, height: 240` como constraint estrita. Em alguns Androids/navegadores isso falha com `OverconstrainedError`. O ideal é usar `{ ideal: 320 }`.
+### 5. `startMeasurement` zera resultados sem proteção
+Em `useVitalsMeasurement.ts:559` chamamos `setFinalResults(null); setRawResults(null)` ao re-entrar em "measuring". Se o usuário toca duas vezes em Start (botão nosso + botão do SDK), pode zerar um resultado já capturado.
 
-5. **Mensagem de erro mascara a causa real**
-   - O catch atual ignora `err.name`, então o usuário (e nós) não conseguimos diagnosticar. Hoje qualquer falha vira "Verifique as permissões".
+### 6. Falhas silenciosas
+O `catch` do polling apenas faz `console.warn("[Vitals poll]", e)`. Quando `getMeasurementResults()` retorna `null` (ex.: state já voltou), não há aviso na tela nem retry — o usuário vê a câmera fechar sem feedback e nada é salvo.
 
-6. **Possível conflito com Binah já ter aberto a câmera**
-   - Se o usuário tentou Binah antes na mesma sessão e o stream não foi liberado, a câmera fica presa.
+---
 
 ## Plano de correção
 
-### 1. Diagnóstico granular no `RppgCapture`
-Tratar `err.name` no catch de `startCapture` e exibir mensagem específica:
-- `NotAllowedError` / `SecurityError` → "Permissão de câmera negada. Toque no cadeado da barra de endereço → Permissões → Câmera → Permitir, e recarregue."
-- `NotFoundError` / `OverconstrainedError` → "Nenhuma câmera compatível encontrada. Tentando com configuração padrão…" e tentar fallback sem `width/height`.
-- `NotReadableError` → "Câmera está sendo usada por outro app. Feche WhatsApp/Câmera/Meet e tente novamente."
-- `TypeError` (sem `mediaDevices`) → "Seu navegador/contexto não suporta câmera (precisa de HTTPS)."
-- Qualquer outro → mostrar `err.name + err.message` para diagnóstico.
+Tudo dentro de `src/hooks/useVitalsMeasurement.ts` e `src/components/mayla/BinahCapture.tsx`. Sem mudanças em backend ou edge functions.
 
-### 2. Detectar contexto inseguro / iframe antes de pedir
-Antes de chamar `getUserMedia`:
-- Se `!window.isSecureContext` → mensagem explícita de HTTPS obrigatório.
-- Se `!navigator.mediaDevices?.getUserMedia` → API indisponível (provável iframe sem `allow="camera"`).
-- Se `window.self !== window.top` → avisar que está em iframe e que o site pai precisa permitir câmera.
+### A. Capturar o resultado por callback do SDK (não por polling)
+Em `initializeShenai`, após `sdk.initialize(...)`:
+1. Criar `commitShenaiResult(s)` que faz: `const final = s.getMeasurementResults(); if (!final?.heart_rate_bpm) { tentar s.getMeasurementResultsHistory() último item }`; monta payload, `setRawResults` e `setStatus("completed")`. Idempotente (não roda se já completou).
+2. Registrar callbacks disponíveis:
+   - `sdk.setOnMeasurementFinishedCallback?.(() => commitShenaiResult(s))`
+   - `sdk.setOnStateChangeCallback?.((state) => { if (isFinishedState(state)) commitShenaiResult(s) })`
+3. Manter o `setInterval` apenas para **realtime metrics** + fallback (chama `commitShenaiResult` se detectar estado finalizado por comparação por nome OU número OU presença de `getMeasurementResults()` retornando algo válido).
 
-### 3. Relaxar constraints
-Trocar `width: FRAME_WIDTH, height: FRAME_HEIGHT` por `width: { ideal: 320 }, height: { ideal: 240 }` para evitar `OverconstrainedError`.
+### B. Tornar o reconhecimento de `FINISHED` robusto
+Helper `isFinishedState(s, state)`:
+- aceita `state === s.MeasurementState?.FINISHED`
+- aceita `String(state).toUpperCase().includes("FINISH")`
+- aceita `state === 4 /* enum index histórico do SDK */`
+Logar `state`, `typeof state` e `s.MeasurementState` na primeira execução para diagnóstico futuro.
 
-### 4. Garantir liberação prévia de streams
-No início de `startCapture`, fechar qualquer `streamRef.current` remanescente antes de pedir um novo, evitando conflito com Binah ou tentativa anterior.
+### C. Desligar a tela de resumo nativa do SDK
+Em `sdk.initialize(...)` mudar:
+- `enableSummaryScreen: false`
+- `showResultsFinishButton: false`
+- `showHealthIndicesFinishButton: false`
 
-### 5. Logs no console
-Adicionar `console.error("[rPPG] getUserMedia failed:", err.name, err.message)` para que, se o problema persistir, possamos ler os logs do navegador.
+Assim o estado permanece `FINISHED` até nós chamarmos `setOperatingMode(POSITIONING)`, eliminando a corrida. Nossa própria tela de "Resultados" já existe (`phase === "result"`).
+
+### D. Auto-salvar quando o resultado chega
+Em `BinahCapture.tsx`, no `useEffect` que reage a `status === "completed"`:
+- Continuar mostrando a tela de resultados.
+- Disparar `saveResult()` automaticamente uma única vez (guarda por ref `autoSavedRef`). O botão "Salvar" vira indicador "✓ Salvo".
+- Em `handleCancel`, se já há `rawResults` e ainda não salvo, salvar antes de fechar.
+
+### E. Proteger `startMeasurement` contra duplo-clique
+Não zerar `finalResults/rawResults` se `status === "completed"`. Só limpar quando o usuário inicia uma **nova** medição via fluxo de consentimento (já chama `cleanup`).
+
+### F. Logs e feedback de erro
+- `console.info("[Shenai] commit results", { hasFinal, keys })` ao salvar.
+- Se `commitShenaiResult` rodar e `final` vier vazio, `setErrorMessage("Não foi possível obter os resultados da medição. Tente novamente em melhor iluminação.")` + `setStatus("error")`.
+- No `catch` do poll/callback, propagar para `setSdkErrorDetail` para a tela exibir.
+
+### G. Validação no banco (somente leitura, sem migração)
+Após implementar, executar uma medição de teste e checar `select * from special_measurements where user_id=... order by created_at desc limit 1` para confirmar que `measurement_data` contém o payload Shen.ai completo (heart_rate_bpm, hrv_sdnn_ms, blood pressures, _health_risks, etc.).
+
+---
 
 ## Arquivos afetados
 
-- `src/components/mayla/RppgCapture.tsx` — única alteração; isolada na função `startCapture` e no estado de erro.
+- `src/hooks/useVitalsMeasurement.ts` — refatoração do `initializeShenai` (callbacks, helper `isFinishedState`, `commitShenaiResult`, logs); ajuste em `startMeasurement` para não zerar resultados já completos; flags do `initialize` (`enableSummaryScreen` etc.).
+- `src/components/mayla/BinahCapture.tsx` — `useEffect` que auto-chama `saveResult` em `status === "completed"`; `handleCancel` salva pendente; ref `autoSavedRef`.
 
 ## Fora de escopo
 
-- Não mexer no `useBinahMonitor` nem em `BinahCapture` (Binah é outro fluxo).
-- Não alterar a edge `rppg-proxy` — o problema é client-side, antes de chamar o backend.
+- `rppg-proxy`, `useBinahMonitor`, `RppgCapture` (fluxo básico) — não tocados.
+- Edge function `shenai-config`.
+- Esquema do banco (`special_measurements`/`health_measurements`).

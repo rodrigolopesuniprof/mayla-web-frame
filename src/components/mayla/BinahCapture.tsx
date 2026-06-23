@@ -232,16 +232,22 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     await startMeasurement();
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     stopMeasurement();
     stopTimer();
     stopCamera();
+    // Flush pending result before tearing down the SDK.
+    if (rawResults && mappedResult && !autoSavedRef.current && !saved && !saving) {
+      autoSavedRef.current = true;
+      try { await saveResult(); } catch (e) { console.warn("[Vitals] flush on cancel failed", e); }
+    }
     cleanup();
     onClose();
   };
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const autoSavedRef = useRef(false);
 
   const saveResult = async () => {
     if (!user || !mappedResult || saving || saved) return;
@@ -312,6 +318,14 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     });
     onComplete();
   };
+
+  // Auto-save as soon as results arrive, so data is never lost if user closes the screen.
+  useEffect(() => {
+    if (status === "completed" && mappedResult && !autoSavedRef.current && !saved && !saving) {
+      autoSavedRef.current = true;
+      saveResult();
+    }
+  }, [status, mappedResult, saved, saving]);
 
   const validityInfo = VALIDITY_MESSAGES[imageValidity] || VALIDITY_MESSAGES[ImageValidity.VALID];
   const partialMapped = partialVitals ? mapVitalsToResult(partialVitals) : null;
