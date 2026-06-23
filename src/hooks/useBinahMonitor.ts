@@ -120,10 +120,9 @@ export function useBinahMonitor(): UseBinahMonitorReturn {
     console.log("[Binah] Using deviceId:", deviceId || "(empty)");
 
     try {
-      const sdkPath = "@biosensesignal/web-sdk";
-      const sdk = await import(/* @vite-ignore */ sdkPath);
-      const monitor = sdk.default;
+      const monitor = await loadBinahSdk();
       console.log("[Binah] SDK loaded successfully");
+
 
       await monitor.initialize({ licenseKey: BINAH_LICENSE_KEY });
       console.log("[Binah] SDK initialized with license key");
