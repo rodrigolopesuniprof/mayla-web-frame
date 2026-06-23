@@ -601,9 +601,12 @@ export function useVitalsMeasurement(
     // Advanced provider (Shen-style canvas SDK)
     if (shenaiSdkRef.current) {
       try {
-        setStatus("measuring");
-        setPartialVitals(null);
-        setFinalResults(null); setRawResults(null);
+        if (status !== "completed") {
+          setStatus("measuring");
+          setPartialVitals(null);
+          setFinalResults(null); setRawResults(null);
+          shenaiCommittedRef.current = false;
+        }
         const s = shenaiSdkRef.current;
         // Prefer operating-mode switch (custom-UI flow); fall back to startMeasurement.
         if (s.setOperatingMode && s.OperatingMode?.MEASURE != null) {
