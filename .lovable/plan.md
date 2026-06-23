@@ -1,39 +1,80 @@
-
 ## Diagnóstico
 
-A tela "Análise indisponível neste navegador" é gerada em `src/hooks/useVitalsMeasurement.ts` no pre-flight de `initializeShenai` (linhas 308–331). Ele bloqueia (`hardReasons`) quando falta `WebAssembly`, `getUserMedia` ou contexto **WebGL2**.
+A tela "Avaliação Completa de Saúde" (provider **Binah**) falha em produção com:
 
-Em Chrome/Safari mobile **modernos**, esses três normalmente existem — então o bloqueio mais provável hoje é um falso negativo da checagem de WebGL2 (quando o navegador exige gesto/contexto ativo) ou o próprio SDK falhando depois por falta de `crossOriginIsolated` em produção.
+> `Failed to resolve module specifier '@biosensesignal/web-sdk'`
 
-Sobre a orientação da Shen.ai (`crossorigin="anonymous"` no `<script>`): no nosso código o SDK é importado via npm (`import("@shenai/sdk")`), não via `<script>`. O equivalente é garantir COOP/COEP no domínio publicado, que hoje só está configurado no Vite (dev/preview) e não em `https://saude.saudecomvc.com.br`.
+Causa: em `src/hooks/useVitalsMeasurement.ts` (linha 186-187) e `src/hooks/useBinahMonitor.ts` (linha 122), o código faz `import(/* @vite-ignore */ "@biosensesignal/web-sdk")`. Como o `vite.config.ts` marca o pacote como `external`, o Vite não empacota o módulo. O pacote npm também **não está instalado** (não consta no `package.json`), então em produção o navegador tenta resolver um *bare specifier* sem import map e falha.
 
-## Mudanças
+Os arquivos do SDK já existem em `public/binah-sdk/` (`main.js`, `a.js`, `a.wasm.gz`, `a.worker.js`, `799.js`, `legacyVideos.js`), servidos pelo próprio site. O `main.js` é um bundle **UMD** que, quando carregado via `<script>`, anexa seus exports (incluindo `default` = monitor) ao objeto global.
 
-### 1. Relaxar o gate "navegador não suportado" (`src/hooks/useVitalsMeasurement.ts`)
-- Remover **WebGL2** dos `hardReasons` do pre-flight: o SDK fará a checagem real internamente e, se falhar, cairá no `catch` com motivo correto via `envFingerprint`.
-- Manter apenas `WebAssembly` e `getUserMedia` como bloqueios duros (impossíveis de contornar).
-- Continuar tratando `isolation` (SAB/COI) como soft, mas registrar como `unsupportedReasons` informativo.
-- Adicionar detecção de **WebView** (Instagram/Facebook/LinkedIn/etc.) e, quando detectada **e** o init falhar, expor um motivo `webview` na UI com ação "Abrir no navegador externo".
+Observação: a tela aberta pelo usuário é a **Binah** ("Avaliação Completa de Saúde"), não a Shen.ai mostrada no print de configuração. Este plano só corrige o caminho Binah; a Shen.ai segue por outro fluxo (`initializeShenai`) e não está em erro.
 
-### 2. Detecção de WebView e UX de fallback (`src/components/mayla/BinahCapture.tsx`)
-- Helper `isInAppWebView()` baseado em UA (`FBAN|FBAV|Instagram|Line|MicroMessenger|WhatsApp|wv\)`).
-- Quando `phase === "unsupported"` e for WebView: mostrar texto orientando abrir em Chrome/Safari + botão **"Abrir no navegador"** que tenta `intent://...#Intent;end` (Android) e link direto (iOS Safari).
-- Quando não for WebView: manter texto atual, mas adicionar botão "Tentar mesmo assim" que chama `initializeShenai` ignorando soft reasons (já é o comportamento — só evidenciar visualmente).
+## Plano
 
-### 3. Habilitar COOP/COEP em produção
-Lovable hosting não processa `_headers`/`_redirects`/`netlify.toml`. Como não dá para definir esses headers no servidor estático, fazemos o que é possível no cliente:
-- Adicionar `<meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">` e `<meta http-equiv="Cross-Origin-Embedder-Policy" content="credentialless">` em `index.html`. Navegadores modernos respeitam esses meta tags para COOP (e parcialmente COEP), o que pode habilitar `crossOriginIsolated` mesmo sem header HTTP.
-- Manter `vite-plugin-wasm` + `topLevelAwait` que já estão no projeto.
+Trocar o `import()` dinâmico do pacote npm por um carregamento via `<script>` apontando para `/binah-sdk/main.js` (já hospedado em `public/`). Após o load, ler o monitor de `window.default` (ou de uma variável dedicada caso colida).
 
-### 4. (Opcional) Reportar a causa real ao usuário
-- Logar `unsupportedReasons` na tela técnica (já existe `sdkErrorDetail`) para facilitar suporte.
+### Mudanças
 
-## Fora de escopo
-- Alterar headers HTTP de produção (não é configurável em Lovable hosting).
-- Trocar `import("@shenai/sdk")` por CDN com `crossorigin="anonymous"` — não é necessário; o problema da Shen.ai é COI/COEP, não tag de script. Mantemos o npm.
-- Mudar a lógica do RPPG básico ou da Binah.
+**1. `src/hooks/useVitalsMeasurement.ts` (função `initializeSdkLocal`, ~linha 178-235)**
 
-## Verificação
-- Abrir `/login` no preview, navegar à medição avançada e confirmar que não cai mais em "unsupported" em Chrome desktop e mobile padrão.
-- Em WebView (WhatsApp), confirmar que aparece a nova UI com "Abrir no navegador".
-- Conferir `console` por `[Vitals] env check` — `isolated` deve passar a `true` no domínio publicado após a meta tag.
+Substituir:
+```ts
+const sdkPath = "@biosensesignal/web-sdk";
+const sdk = await import(/* @vite-ignore */ sdkPath);
+const monitor = sdk.default;
+```
+por um loader UMD reaproveitável:
+```ts
+async function loadBinahSdk(): Promise<any> {
+  if ((window as any).__binahMonitor) return (window as any).__binahMonitor;
+  await new Promise<void>((resolve, reject) => {
+    if (document.querySelector('script[data-binah-sdk]')) return resolve();
+    const s = document.createElement("script");
+    s.src = "/binah-sdk/main.js";
+    s.async = true;
+    s.crossOrigin = "anonymous";
+    s.dataset.binahSdk = "true";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Falha ao baixar /binah-sdk/main.js"));
+    document.head.appendChild(s);
+  });
+  // UMD anexa exports em window; "default" = HealthMonitorManager
+  const monitor = (window as any).default || (window as any).HealthMonitorManager;
+  if (!monitor?.initialize) throw new Error("Binah SDK carregado mas monitor indisponível");
+  (window as any).__binahMonitor = monitor;
+  return monitor;
+}
+```
+e usar `const monitor = await loadBinahSdk();` no lugar do import.
+
+Atualizar também a checagem de erro (`Cannot find module` / `ERR_MODULE_NOT_FOUND`) para capturar `"Falha ao baixar"` e continuar caindo em demo mode quando o asset não responder.
+
+**2. `src/hooks/useBinahMonitor.ts` (~linha 120-130)**
+
+Aplicar a mesma troca (extrair `loadBinahSdk` para `src/lib/binah-loader.ts` e reaproveitar nos dois hooks).
+
+**3. `vite.config.ts`**
+
+Remover as entradas que tratam o pacote como dependência npm (não usamos mais o specifier):
+- `optimizeDeps.exclude: ["@biosensesignal/web-sdk"]`
+- `build.rollupOptions.external: ["@biosensesignal/web-sdk"]`
+
+Manter `vite-plugin-wasm` e `topLevelAwait` (necessários por outras razões) e as headers COOP/COEP.
+
+**4. `src/types/binah-sdk.d.ts`**
+
+Manter o `declare module` existente (não é mais referenciado pelo import, mas não atrapalha). Opcionalmente exportar uma interface `BinahMonitor` para tipar o retorno do loader.
+
+### Fora de escopo
+
+- Reinstalar o pacote npm `@biosensesignal/web-sdk` (não temos o .tgz no repo e o caminho local resolve o problema).
+- Mexer no fluxo Shen.ai / `initializeShenai`.
+- Alterar UI de erro do `BinahCapture.tsx` (a mensagem técnica já aparece).
+
+### Verificação
+
+Após o build, abrir "Avaliação Completa de Saúde" no Chrome mobile e confirmar no console:
+- `GET /binah-sdk/main.js` → 200
+- Sem erro `Failed to resolve module specifier`
+- Câmera abre e a sessão inicia (ou cai em demo se `crossOriginIsolated=false`, comportamento já existente).
