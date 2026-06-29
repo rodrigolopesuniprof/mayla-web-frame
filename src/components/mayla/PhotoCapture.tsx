@@ -36,12 +36,13 @@ export function PhotoCapture({ userId, onCapture, onClose }: PhotoCaptureProps) 
       return;
     }
 
-    const { data: urlData } = supabase.storage
+    // Bucket is private — generate a long-lived signed URL (10 years)
+    const { data: urlData } = await supabase.storage
       .from("validation-photos")
-      .getPublicUrl(path);
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
 
     setUploading(false);
-    onCapture(urlData.publicUrl);
+    onCapture(urlData?.signedUrl ?? "");
   };
 
   return (

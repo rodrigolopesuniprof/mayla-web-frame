@@ -1032,8 +1032,8 @@ function Configuracoes({ userId, userEmail }: { userId?: string; userEmail?: str
       return;
     }
 
-    const { data } = supabase.storage.from("validation-photos").getPublicUrl(path);
-    const url = `${data.publicUrl}?v=${Date.now()}`;
+    const { data } = await supabase.storage.from("validation-photos").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    const url = `${data?.signedUrl ?? ""}`;
     await supabase.from("profiles").update({ avatar_url: url } as any).eq("user_id", userId);
     setAvatarUrl(url);
     setAvatarFile(null);
