@@ -222,13 +222,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "appointment_slots_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "appointment_slots_health_unit_id_fkey"
             columns: ["health_unit_id"]
             isOneToOne: false
@@ -309,13 +302,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "appointments_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "appointments_municipality_id_fkey"
             columns: ["municipality_id"]
             isOneToOne: false
@@ -374,13 +360,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assistant_conversations_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -696,13 +675,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "campaigns_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "campaigns_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
@@ -799,13 +771,6 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "clinical_profile_field_config_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       collaborative_teams: {
@@ -842,13 +807,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "collaborative_teams_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -958,13 +916,6 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "company_features_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       company_invite_tokens: {
@@ -1007,13 +958,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "company_invite_tokens_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1064,13 +1008,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "company_locations_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1300,13 +1237,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consultations_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -1756,13 +1686,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "health_articles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2292,13 +2215,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notifications_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "notifications_municipality_id_fkey"
             columns: ["municipality_id"]
             isOneToOne: false
@@ -2688,13 +2604,6 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "point_rules_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       points_ledger: {
@@ -2961,13 +2870,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "profiles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "profiles_esf_team_id_fkey"
             columns: ["esf_team_id"]
             isOneToOne: false
@@ -3101,13 +3003,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "prontuario_connections_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "prontuario_connections_internal_partner_id_fkey"
             columns: ["internal_partner_id"]
             isOneToOne: false
@@ -3150,13 +3045,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "public_dashboard_tokens_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -3362,13 +3250,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "reward_grants_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "reward_grants_reward_id_fkey"
             columns: ["reward_id"]
             isOneToOne: false
@@ -3434,13 +3315,6 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "rewards_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       self_assessment_questions: {
@@ -3483,13 +3357,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "self_assessment_questions_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -3564,13 +3431,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "special_measurements_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "special_measurements_municipality_id_fkey"
             columns: ["municipality_id"]
             isOneToOne: false
@@ -3613,13 +3473,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "specialties_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -3907,13 +3760,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "support_teams_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -4251,13 +4097,6 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "wellbeing_checkins_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       wellbeing_programs: {
@@ -4311,83 +4150,10 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "wellbeing_programs_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
     Views: {
-      companies_public: {
-        Row: {
-          accent_color: string | null
-          background_color: string | null
-          cnae: string | null
-          created_at: string | null
-          employee_count: number | null
-          foreground_color: string | null
-          id: string | null
-          industry: string | null
-          logo_url: string | null
-          name: string | null
-          plan_type: string | null
-          primary_color: string | null
-          rppg_url: string | null
-          secondary_color: string | null
-          slug: string | null
-          state: string | null
-          telemedicine_url: string | null
-          updated_at: string | null
-          wellbeing_program_name: string | null
-        }
-        Insert: {
-          accent_color?: string | null
-          background_color?: string | null
-          cnae?: string | null
-          created_at?: string | null
-          employee_count?: number | null
-          foreground_color?: string | null
-          id?: string | null
-          industry?: string | null
-          logo_url?: string | null
-          name?: string | null
-          plan_type?: string | null
-          primary_color?: string | null
-          rppg_url?: string | null
-          secondary_color?: string | null
-          slug?: string | null
-          state?: string | null
-          telemedicine_url?: string | null
-          updated_at?: string | null
-          wellbeing_program_name?: string | null
-        }
-        Update: {
-          accent_color?: string | null
-          background_color?: string | null
-          cnae?: string | null
-          created_at?: string | null
-          employee_count?: number | null
-          foreground_color?: string | null
-          id?: string | null
-          industry?: string | null
-          logo_url?: string | null
-          name?: string | null
-          plan_type?: string | null
-          primary_color?: string | null
-          rppg_url?: string | null
-          secondary_color?: string | null
-          slug?: string | null
-          state?: string | null
-          telemedicine_url?: string | null
-          updated_at?: string | null
-          wellbeing_program_name?: string | null
-        }
-        Relationships: []
-      }
       company_campaign_summary: {
         Row: {
           badges_awarded: number | null
@@ -4408,13 +4174,6 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "campaigns_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       company_health_summary: {
@@ -4432,13 +4191,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profiles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -4468,13 +4220,6 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "profiles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       company_program_summary: {
@@ -4494,13 +4239,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wellbeing_programs_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -4523,13 +4261,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wellbeing_checkins_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
