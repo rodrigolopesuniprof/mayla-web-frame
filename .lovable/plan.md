@@ -1,80 +1,45 @@
 ## Diagnóstico
 
-Rastreei o fluxo do Shen.ai em `src/hooks/useVitalsMeasurement.ts` (initializeShenai, linhas 294‑477) e em `src/components/mayla/BinahCapture.tsx` (saveResult, linhas 246‑314). A captura da câmera ocorre, o SDK roda a medição, mas o objeto `MeasurementResults` raramente chega ao estado `rawResults/finalResults` — e quando chega, ainda pode não ser persistido. Encontrei seis causas concretas:
+Cruzei as regras configuradas no Admin (`point_rules`) com os locais do código que disparam pontuação e com o histórico real (`points_ledger`). Encontrei os seguintes pontos onde a ação acontece mas nenhum ponto é creditado:
 
-### 1. Polling 1s perde a janela `FINISHED`
-O resultado só é coletado dentro de `setInterval(..., 1000)` que checa `state === s.MeasurementState?.FINISHED`. Como o SDK está configurado com `enableSummaryScreen: true`, `showResultsFinishButton: true` e `showHealthIndicesFinishButton: true`, ao terminar a medição o SDK transita automaticamente para a tela de resumo e, quando o usuário toca em "Finish", o estado volta para `IDLE/POSITIONING`. Se o tick de 1s cair fora dessa janela, `getMeasurementResults()` nunca é chamado.
+| Evento | Configurado no Admin? | Ação dispara pontos? | Histórico (ledger) |
+|---|---|---|---|
+| Medição básica (rPPG) | Sim (50 pts) | Sim | 54 registros OK |
+| Medição premium (Shen.ai/Binah) | Sim (100 pts) | Sim | 43 registros OK |
+| Cadastro completo | Sim (150 pts) | Sim | 53 registros OK |
+| Autoavaliação | Sim (200 pts) | Sim (trigger) | 17 registros OK |
+| Pesquisa standalone | Sim (100 pts) | Sim | 5 registros OK |
+| Avatar | Sim (150 pts) | Sim | 3 registros OK |
+| Missão concluída | Sim | Sim (trigger UPDATE) | 4 registros OK |
+| **Check-in semanal (bem-estar)** | Sim (50 pts) | **NÃO — falta chamada** | **0 registros, com 49 check-ins feitos** |
+| **Vínculo ESF** | Sim (500 pts) | **Parcial — trigger só em UPDATE** | 0 registros |
+| **Vínculo equipe de apoio** | Sim (500 pts) | **Parcial — trigger só em UPDATE** | 0 registros |
+| Adesão a medicamento | Sim (100 pts) | Trigger existe, sem dados ainda | 0 registros (sem logs) |
+| Desafio do dia | Sim | RPC existe, sem dados ainda | 0 registros (sem conclusões) |
 
-### 2. Comparação por enum frágil
-`s.MeasurementState?.FINISHED` pode ser `undefined` em builds onde o enum é exposto como string. A comparação `state === undefined` casa com qualquer leitura nula e nunca dispara o ramo de sucesso. Não há fallback nem log do valor real do estado.
+## Correções propostas
 
-### 3. Não usamos os callbacks do SDK
-O Shen.ai expõe `setOnMeasurementFinishedCallback` (e variantes `setOnStateChangeCallback`). São disparados síncronamente quando o resultado fica pronto, sem race com a UI de resumo. Hoje confiamos só no polling.
+### 1. Check-in semanal de bem-estar (bug confirmado)
+- Em `WellbeingCheckin.tsx`, após o `insert` em `wellbeing_checkins`, chamar `supabase.rpc("award_event", { _user_id, _event_key: "weekly_checkin" })`.
+- A regra já tem `cap_per_week = 1`, então a função impede duplicidade dentro da semana.
+- Disparar `points-awarded` event para o toast aparecer ao usuário.
 
-### 4. Save é manual e tardio
-Mesmo quando `rawResults` chega, o registro no banco só ocorre se o usuário tocar em "Salvar Medição" (`saveResult` em BinahCapture.tsx:246). Se ele fechar a tela, voltar ou tocar em "Finish" do SDK, **os dados são perdidos** — nada vai para `special_measurements` nem `health_measurements`.
+### 2. Vínculo ESF e Equipe de Apoio (latente)
+Hoje os triggers `award_esf_link_points` e `award_support_team_link_points` só executam em `UPDATE` (verificam `OLD.esf_team_id IS NULL AND NEW.esf_team_id IS NOT NULL`). Se um usuário entrar já com o time selecionado (signup ou import), nunca recebe os pontos.
 
-### 5. `startMeasurement` zera resultados sem proteção
-Em `useVitalsMeasurement.ts:559` chamamos `setFinalResults(null); setRawResults(null)` ao re-entrar em "measuring". Se o usuário toca duas vezes em Start (botão nosso + botão do SDK), pode zerar um resultado já capturado.
+- Migração: recriar ambos os triggers para também responder a `INSERT`, tratando `OLD` como `NULL` nesse caminho.
 
-### 6. Falhas silenciosas
-O `catch` do polling apenas faz `console.warn("[Vitals poll]", e)`. Quando `getMeasurementResults()` retorna `null` (ex.: state já voltou), não há aviso na tela nem retry — o usuário vê a câmera fechar sem feedback e nada é salvo.
+### 3. Backfill de pontos retroativos (check-in semanal)
+Existem 49 check-ins históricos sem pontuação. Proposta: rodar um script único que credita 1 evento `weekly_checkin` por usuário/semana já registrada, respeitando o cap semanal. Confirmar antes de executar para não inflar o ranking sem aviso.
 
----
+### 4. Diagnóstico para o Admin (opcional)
+- Adicionar na tela "Regras de pontuação" um pequeno indicador por regra: "Última pontuação concedida em ___ · X eventos no último mês". Ajuda a detectar regressões futuras sem precisar consultar o banco.
 
-## Plano de correção
+## Itens NÃO alterados
+- Missões (`mission_complete`), avatar, autoavaliação, perfil completo, pesquisas standalone e medições continuam como estão — funcionam.
+- Não vou mudar os valores de pontos (são todos configuráveis pelo Admin).
+- Não vou criar novas regras (consulta agendada, favoritar médico, etc.) sem você pedir.
 
-Tudo dentro de `src/hooks/useVitalsMeasurement.ts` e `src/components/mayla/BinahCapture.tsx`. Sem mudanças em backend ou edge functions.
+## Pergunta antes de implementar
 
-### A. Capturar o resultado por callback do SDK (não por polling)
-Em `initializeShenai`, após `sdk.initialize(...)`:
-1. Criar `commitShenaiResult(s)` que faz: `const final = s.getMeasurementResults(); if (!final?.heart_rate_bpm) { tentar s.getMeasurementResultsHistory() último item }`; monta payload, `setRawResults` e `setStatus("completed")`. Idempotente (não roda se já completou).
-2. Registrar callbacks disponíveis:
-   - `sdk.setOnMeasurementFinishedCallback?.(() => commitShenaiResult(s))`
-   - `sdk.setOnStateChangeCallback?.((state) => { if (isFinishedState(state)) commitShenaiResult(s) })`
-3. Manter o `setInterval` apenas para **realtime metrics** + fallback (chama `commitShenaiResult` se detectar estado finalizado por comparação por nome OU número OU presença de `getMeasurementResults()` retornando algo válido).
-
-### B. Tornar o reconhecimento de `FINISHED` robusto
-Helper `isFinishedState(s, state)`:
-- aceita `state === s.MeasurementState?.FINISHED`
-- aceita `String(state).toUpperCase().includes("FINISH")`
-- aceita `state === 4 /* enum index histórico do SDK */`
-Logar `state`, `typeof state` e `s.MeasurementState` na primeira execução para diagnóstico futuro.
-
-### C. Desligar a tela de resumo nativa do SDK
-Em `sdk.initialize(...)` mudar:
-- `enableSummaryScreen: false`
-- `showResultsFinishButton: false`
-- `showHealthIndicesFinishButton: false`
-
-Assim o estado permanece `FINISHED` até nós chamarmos `setOperatingMode(POSITIONING)`, eliminando a corrida. Nossa própria tela de "Resultados" já existe (`phase === "result"`).
-
-### D. Auto-salvar quando o resultado chega
-Em `BinahCapture.tsx`, no `useEffect` que reage a `status === "completed"`:
-- Continuar mostrando a tela de resultados.
-- Disparar `saveResult()` automaticamente uma única vez (guarda por ref `autoSavedRef`). O botão "Salvar" vira indicador "✓ Salvo".
-- Em `handleCancel`, se já há `rawResults` e ainda não salvo, salvar antes de fechar.
-
-### E. Proteger `startMeasurement` contra duplo-clique
-Não zerar `finalResults/rawResults` se `status === "completed"`. Só limpar quando o usuário inicia uma **nova** medição via fluxo de consentimento (já chama `cleanup`).
-
-### F. Logs e feedback de erro
-- `console.info("[Shenai] commit results", { hasFinal, keys })` ao salvar.
-- Se `commitShenaiResult` rodar e `final` vier vazio, `setErrorMessage("Não foi possível obter os resultados da medição. Tente novamente em melhor iluminação.")` + `setStatus("error")`.
-- No `catch` do poll/callback, propagar para `setSdkErrorDetail` para a tela exibir.
-
-### G. Validação no banco (somente leitura, sem migração)
-Após implementar, executar uma medição de teste e checar `select * from special_measurements where user_id=... order by created_at desc limit 1` para confirmar que `measurement_data` contém o payload Shen.ai completo (heart_rate_bpm, hrv_sdnn_ms, blood pressures, _health_risks, etc.).
-
----
-
-## Arquivos afetados
-
-- `src/hooks/useVitalsMeasurement.ts` — refatoração do `initializeShenai` (callbacks, helper `isFinishedState`, `commitShenaiResult`, logs); ajuste em `startMeasurement` para não zerar resultados já completos; flags do `initialize` (`enableSummaryScreen` etc.).
-- `src/components/mayla/BinahCapture.tsx` — `useEffect` que auto-chama `saveResult` em `status === "completed"`; `handleCancel` salva pendente; ref `autoSavedRef`.
-
-## Fora de escopo
-
-- `rppg-proxy`, `useBinahMonitor`, `RppgCapture` (fluxo básico) — não tocados.
-- Edge function `shenai-config`.
-- Esquema do banco (`special_measurements`/`health_measurements`).
+Quer que eu **execute o backfill** dos 49 check-ins semanais que já foram feitos, ou prefere que a partir de agora os pontos passem a contar apenas para novos check-ins? E se houver alguma outra ação específica que você notou não pontuando (ex.: agendar consulta, favoritar médico, completar campanha, ler matéria), me diga qual para eu incluir no escopo.

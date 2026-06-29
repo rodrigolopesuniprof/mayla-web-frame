@@ -79,6 +79,23 @@ export function WellbeingCheckin({ companyId, primaryColor, onComplete }: Props)
     }
     toast.success("Check-in semanal registrado! 🎉");
     setAlreadyDone(true);
+
+    // Credita pontos do check-in semanal (regra: weekly_checkin, cap_per_week=1)
+    try {
+      const { data: award } = await supabase.rpc("award_event" as any, {
+        _user_id: user.id,
+        _event_key: "weekly_checkin",
+        _description: "Check-in semanal de bem-estar",
+      });
+      const ok = (award as any)?.ok;
+      const pts = (award as any)?.points ?? 0;
+      if (ok && pts > 0) {
+        window.dispatchEvent(new CustomEvent("points-awarded", { detail: { points: pts, source: "weekly_checkin" } }));
+      }
+    } catch (e) {
+      console.warn("weekly_checkin award failed:", e);
+    }
+
     onComplete?.();
   };
 
