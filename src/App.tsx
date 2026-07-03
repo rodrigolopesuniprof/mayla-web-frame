@@ -22,6 +22,7 @@ import Subscribe from "./pages/Subscribe.tsx";
 import MySubscription from "./pages/MySubscription.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import PublicLeaderboard from "./pages/PublicLeaderboard.tsx";
+import OAuthConsent from "./pages/OAuthConsent.tsx";
 import { AccessGate } from "./components/AccessGate";
 import { lazy, Suspense } from "react";
 
@@ -116,6 +117,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CompanyProvider>
