@@ -12,3 +12,8 @@ verify_jwt = false
 [functions.invite-signup]
 verify_jwt = false
 
+[functions.mcp]
+verify_jwt = false
+
+
+
