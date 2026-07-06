@@ -23,8 +23,6 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenArticle?: (id: string) => void;
   onOpenAllArticles?: () => void;
   onOpenLeaderboard?: () => void;
-  onOpenLeagues?: () => void;
-  onOpenLeague?: (leagueId: string) => void;
 }) {
   const { isDefault } = useCompany();
   const { user } = useAuth();
