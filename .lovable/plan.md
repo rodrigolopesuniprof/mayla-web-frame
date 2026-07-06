@@ -1,45 +1,61 @@
-## Diagnóstico
+## Contexto
 
-Cruzei as regras configuradas no Admin (`point_rules`) com os locais do código que disparam pontuação e com o histórico real (`points_ledger`). Encontrei os seguintes pontos onde a ação acontece mas nenhum ponto é creditado:
+Você colou uma migration idempotente de um módulo "Ligas + Pontuação". Ela precisa de várias adaptações para este projeto — o schema usa nomes diferentes dos pressupostos do script (`organizations`→`companies`, ledger já existe, `profiles` usa `user_id`, etc.). Também não há UI ainda; a migration sozinha só cria as tabelas.
 
-| Evento | Configurado no Admin? | Ação dispara pontos? | Histórico (ledger) |
-|---|---|---|---|
-| Medição básica (rPPG) | Sim (50 pts) | Sim | 54 registros OK |
-| Medição premium (Shen.ai/Binah) | Sim (100 pts) | Sim | 43 registros OK |
-| Cadastro completo | Sim (150 pts) | Sim | 53 registros OK |
-| Autoavaliação | Sim (200 pts) | Sim (trigger) | 17 registros OK |
-| Pesquisa standalone | Sim (100 pts) | Sim | 5 registros OK |
-| Avatar | Sim (150 pts) | Sim | 3 registros OK |
-| Missão concluída | Sim | Sim (trigger UPDATE) | 4 registros OK |
-| **Check-in semanal (bem-estar)** | Sim (50 pts) | **NÃO — falta chamada** | **0 registros, com 49 check-ins feitos** |
-| **Vínculo ESF** | Sim (500 pts) | **Parcial — trigger só em UPDATE** | 0 registros |
-| **Vínculo equipe de apoio** | Sim (500 pts) | **Parcial — trigger só em UPDATE** | 0 registros |
-| Adesão a medicamento | Sim (100 pts) | Trigger existe, sem dados ainda | 0 registros (sem logs) |
-| Desafio do dia | Sim | RPC existe, sem dados ainda | 0 registros (sem conclusões) |
+Abaixo vai o plano do que aplicar (banco) e do que construir depois (frontend), separado em fases pra você aprovar por partes.
 
-## Correções propostas
+---
 
-### 1. Check-in semanal de bem-estar (bug confirmado)
-- Em `WellbeingCheckin.tsx`, após o `insert` em `wellbeing_checkins`, chamar `supabase.rpc("award_event", { _user_id, _event_key: "weekly_checkin" })`.
-- A regra já tem `cap_per_week = 1`, então a função impede duplicidade dentro da semana.
-- Disparar `points-awarded` event para o toast aparecer ao usuário.
+## Fase 1 — Migration adaptada ao schema real
 
-### 2. Vínculo ESF e Equipe de Apoio (latente)
-Hoje os triggers `award_esf_link_points` e `award_support_team_link_points` só executam em `UPDATE` (verificam `OLD.esf_team_id IS NULL AND NEW.esf_team_id IS NOT NULL`). Se um usuário entrar já com o time selecionado (signup ou import), nunca recebe os pontos.
+Ajustes obrigatórios antes de rodar:
 
-- Migração: recriar ambos os triggers para também responder a `INSERT`, tratando `OLD` como `NULL` nesse caminho.
+- **`organizations` → `companies`**: trocar todas as referências (feature flag, FKs, `mayla_ranking`).
+- **`profiles.id` → `profiles.user_id`**: em `mayla_ranking`, o join com `point_events` é por `auth.users.id`; usar `profiles.user_id` e `profiles.company_id`.
+- **`point_events` → reusar `public.points_ledger`** (já existe, com 175+ registros históricos, integrado a `award_event`/`award_points`/triggers). Criar `point_events` paralelo dividiria a fonte da verdade e quebraria ranking/níveis atuais. Adicionar apenas a coluna derivada `week_id` (generated) e o índice `(user_id, week_id)`.
+- **Feature flag**: `companies.leagues_enabled boolean default false` (em vez de `organizations`).
+- **Policy `points_select_self`**: **NÃO** aplicar como escrita. A tabela `points_ledger` já tem policies existentes (admins veem tudo, usuários leem próprios via policy atual). Reviso e mantenho o comportamento atual — não sobrescrevo.
+- **`referral_rewards`**: manter como no script, mas com FK opcional a `affiliates.referral_code` (já existe `affiliates` no projeto) para o webhook do Pagar.me popular.
+- **Grants obrigatórios** em todas as novas tabelas públicas (`authenticated` + `service_role`) — o script original não inclui e quebraria PostgREST.
+- Triggers `add_owner_as_member` e `handle_owner_leaving`: manter como no script.
+- Funções `user_xp`, `league_ranking`, `mayla_ranking`, `is_league_member`, `is_league_admin`: manter, apontando para `points_ledger`.
 
-### 3. Backfill de pontos retroativos (check-in semanal)
-Existem 49 check-ins históricos sem pontuação. Proposta: rodar um script único que credita 1 evento `weekly_checkin` por usuário/semana já registrada, respeitando o cap semanal. Confirmar antes de executar para não inflar o ranking sem aviso.
+### Tabelas criadas (novas)
+- `public.leagues` — 1 ativa por dono (índice único parcial), invite_code, visibilidade pública/privada.
+- `public.league_members` — papéis dono/coadmin/membro.
+- `public.league_invites` — ponte com `affiliates.referral_code`.
+- `public.league_challenges` — desafios não pontuáveis (badge/meta).
+- `public.referral_rewards` — lida pelo app, escrita pelo webhook Pagar.me.
 
-### 4. Diagnóstico para o Admin (opcional)
-- Adicionar na tela "Regras de pontuação" um pequeno indicador por regra: "Última pontuação concedida em ___ · X eventos no último mês". Ajuda a detectar regressões futuras sem precisar consultar o banco.
+### O que **não** faço nesta fase
+- Não crio `point_events` (uso `points_ledger`).
+- Não mexo em RLS de `points_ledger`, `profiles`, `companies`.
+- Não ativo a seção 12 (prêmios / pg_cron) — fica documentada, sem executar.
+- Não faço backfill de `week_id` retroativo em `points_ledger` (a coluna `generated` cobre linhas antigas via cálculo, sem migração de dados).
 
-## Itens NÃO alterados
-- Missões (`mission_complete`), avatar, autoavaliação, perfil completo, pesquisas standalone e medições continuam como estão — funcionam.
-- Não vou mudar os valores de pontos (são todos configuráveis pelo Admin).
-- Não vou criar novas regras (consulta agendada, favoritar médico, etc.) sem você pedir.
+---
 
-## Pergunta antes de implementar
+## Fase 2 — Frontend (só após Fase 1 aprovada)
 
-Quer que eu **execute o backfill** dos 49 check-ins semanais que já foram feitos, ou prefere que a partir de agora os pontos passem a contar apenas para novos check-ins? E se houver alguma outra ação específica que você notou não pontuando (ex.: agendar consulta, favoritar médico, completar campanha, ler matéria), me diga qual para eu incluir no escopo.
+Componentes mínimos pra tornar o módulo utilizável:
+
+- **`/ligas` (rota nova)** — lista das minhas ligas + botão "criar liga" (bloqueado se `companies.leagues_enabled = false`).
+- **`LeagueDetail`** — placar semanal (via `league_ranking` RPC), membros, invite_code copiável, gestão de papéis se dono.
+- **`LeagueInviteAccept`** — landing `/liga/:invite_code` que entra em liga pública ou pede aprovação em privada.
+- **Admin toggle** — em `AdminCompanySettings`, checkbox "Habilitar Ligas" que grava `companies.leagues_enabled`.
+- **Card "Minha liga" no HomeTab** — atalho para o placar da semana atual.
+
+### O que **não** entra na Fase 2
+- Catálogo/premiação (seção 12 do script) — depende de definição de negócio.
+- UI de desafios de liga (`league_challenges`) — modelagem existe, tela fica para fase futura.
+- Integração de escrita de `referral_rewards` — só leitura no app; escrita é do webhook Pagar.me existente.
+
+---
+
+## Perguntas antes de eu escrever a migration
+
+1. **Confirma reusar `points_ledger`** como fonte única (recomendado) em vez de criar `point_events` paralelo?
+2. **Feature flag**: quer `companies.leagues_enabled` (por empresa, controlado no Admin) ou liberar global desde o início?
+3. **Fase 2 (UI) entra junto** ou você quer só rodar a migration primeiro e ver o schema no ar antes de eu construir tela?
+
+Responde os 3 pontos e eu já emito a migration adaptada + próximos passos.
