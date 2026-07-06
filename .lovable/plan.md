@@ -1,61 +1,70 @@
-## Contexto
 
-Você colou uma migration idempotente de um módulo "Ligas + Pontuação". Ela precisa de várias adaptações para este projeto — o schema usa nomes diferentes dos pressupostos do script (`organizations`→`companies`, ledger já existe, `profiles` usa `user_id`, etc.). Também não há UI ainda; a migration sozinha só cria as tabelas.
+## Objetivo
 
-Abaixo vai o plano do que aplicar (banco) e do que construir depois (frontend), separado em fases pra você aprovar por partes.
+Corrigir dois pontos do módulo de Ligas:
 
----
+1. **Link de convite** está usando `window.location.origin`, que no preview vira `*.lovableproject.com`. Precisa usar o domínio de produção `https://saude.saudecomvc.com.br`.
+2. **UX**: Ligas abrem numa rota separada (`/ligas`, `/ligas/:id`), tirando o usuário do fluxo da aba **Desafios**. A ideia original é manter tudo concentrado dentro de "Desafios", como já é feito com "Ranking" e "Minhas Missões".
 
-## Fase 1 — Migration adaptada ao schema real
+## Mudanças
 
-Ajustes obrigatórios antes de rodar:
+### 1. Link de convite com domínio de produção
 
-- **`organizations` → `companies`**: trocar todas as referências (feature flag, FKs, `mayla_ranking`).
-- **`profiles.id` → `profiles.user_id`**: em `mayla_ranking`, o join com `point_events` é por `auth.users.id`; usar `profiles.user_id` e `profiles.company_id`.
-- **`point_events` → reusar `public.points_ledger`** (já existe, com 175+ registros históricos, integrado a `award_event`/`award_points`/triggers). Criar `point_events` paralelo dividiria a fonte da verdade e quebraria ranking/níveis atuais. Adicionar apenas a coluna derivada `week_id` (generated) e o índice `(user_id, week_id)`.
-- **Feature flag**: `companies.leagues_enabled boolean default false` (em vez de `organizations`).
-- **Policy `points_select_self`**: **NÃO** aplicar como escrita. A tabela `points_ledger` já tem policies existentes (admins veem tudo, usuários leem próprios via policy atual). Reviso e mantenho o comportamento atual — não sobrescrevo.
-- **`referral_rewards`**: manter como no script, mas com FK opcional a `affiliates.referral_code` (já existe `affiliates` no projeto) para o webhook do Pagar.me popular.
-- **Grants obrigatórios** em todas as novas tabelas públicas (`authenticated` + `service_role`) — o script original não inclui e quebraria PostgREST.
-- Triggers `add_owner_as_member` e `handle_owner_leaving`: manter como no script.
-- Funções `user_xp`, `league_ranking`, `mayla_ranking`, `is_league_member`, `is_league_admin`: manter, apontando para `points_ledger`.
+Em `LeagueDetail.tsx` (função `copyInvite`) e em qualquer outro ponto que gere URL de convite, trocar:
 
-### Tabelas criadas (novas)
-- `public.leagues` — 1 ativa por dono (índice único parcial), invite_code, visibilidade pública/privada.
-- `public.league_members` — papéis dono/coadmin/membro.
-- `public.league_invites` — ponte com `affiliates.referral_code`.
-- `public.league_challenges` — desafios não pontuáveis (badge/meta).
-- `public.referral_rewards` — lida pelo app, escrita pelo webhook Pagar.me.
+```
+`${window.location.origin}/liga/${invite_code}`
+```
 
-### O que **não** faço nesta fase
-- Não crio `point_events` (uso `points_ledger`).
-- Não mexo em RLS de `points_ledger`, `profiles`, `companies`.
-- Não ativo a seção 12 (prêmios / pg_cron) — fica documentada, sem executar.
-- Não faço backfill de `week_id` retroativo em `points_ledger` (a coluna `generated` cobre linhas antigas via cálculo, sem migração de dados).
+por uma constante `PROD_URL = "https://saude.saudecomvc.com.br"` já usada no projeto (memória `tecnico/configuracao-dominio-producao`), gerando:
 
----
+```
+`${PROD_URL}/liga/${invite_code}`
+```
 
-## Fase 2 — Frontend (só após Fase 1 aprovada)
+A rota `/liga/:code` continua existindo em `App.tsx` para receber quem clicar no link.
 
-Componentes mínimos pra tornar o módulo utilizável:
+### 2. Ligas dentro da aba "Desafios"
 
-- **`/ligas` (rota nova)** — lista das minhas ligas + botão "criar liga" (bloqueado se `companies.leagues_enabled = false`).
-- **`LeagueDetail`** — placar semanal (via `league_ranking` RPC), membros, invite_code copiável, gestão de papéis se dono.
-- **`LeagueInviteAccept`** — landing `/liga/:invite_code` que entra em liga pública ou pede aprovação em privada.
-- **Admin toggle** — em `AdminCompanySettings`, checkbox "Habilitar Ligas" que grava `companies.leagues_enabled`.
-- **Card "Minha liga" no HomeTab** — atalho para o placar da semana atual.
+**Padrão existente**: `CampanhasTab.tsx` já usa `subView` para alternar entre "overview" e "missions" sem sair da aba. Vamos aplicar o mesmo padrão para ligas.
 
-### O que **não** entra na Fase 2
-- Catálogo/premiação (seção 12 do script) — depende de definição de negócio.
-- UI de desafios de liga (`league_challenges`) — modelagem existe, tela fica para fase futura.
-- Integração de escrita de `referral_rewards` — só leitura no app; escrita é do webhook Pagar.me existente.
+**`CampanhasTab.tsx`**
+- Adicionar novos sub-views: `"leagues" | "league-detail"`.
+- Adicionar botão "Minhas Ligas" (card no mesmo estilo de "Ranking" / "Minhas Missões"), visível somente se `companies.leagues_enabled = true` (checar via hook/query já usado no `MyLeagueCard`).
+- Renderizar componentes internos ao invés de navegar:
+  - `subView === "leagues"` → `<LeaguesPanel onOpen={(id) => setSubView({ view:'league-detail', id })} onBack={() => setSubView('overview')} />`
+  - `subView === "league-detail"` → `<LeagueDetailPanel leagueId={id} onBack={() => setSubView('leagues')} />`
 
----
+**Novos componentes (extraídos das páginas atuais, sem `min-h-screen`, sem `nav("/...")`, com `onBack` prop):**
+- `src/components/mayla/leagues/LeaguesPanel.tsx` — conteúdo hoje em `pages/Leagues.tsx`.
+- `src/components/mayla/leagues/LeagueDetailPanel.tsx` — conteúdo hoje em `pages/LeagueDetail.tsx`.
 
-## Perguntas antes de eu escrever a migration
+Ambos usam `TopBar` com título e botão voltar, mantendo o layout mobile da aba.
 
-1. **Confirma reusar `points_ledger`** como fonte única (recomendado) em vez de criar `point_events` paralelo?
-2. **Feature flag**: quer `companies.leagues_enabled` (por empresa, controlado no Admin) ou liberar global desde o início?
-3. **Fase 2 (UI) entra junto** ou você quer só rodar a migration primeiro e ver o schema no ar antes de eu construir tela?
+**`MyLeagueCard.tsx` (HomeTab)**
+- Trocar `nav("/ligas")` / `nav("/ligas/:id")` por uma prop `onOpenLeagues: () => void` fornecida pelo `HomeTab`, que muda a aba ativa para "campanhas" e sinaliza abrir sub-view de ligas.
+- `MaylaApp` já gerencia `active` tab; adicionar estado inicial de sub-view da aba Desafios ou usar um pequeno event/prop drilling (`campanhasInitialView`).
 
-Responde os 3 pontos e eu já emito a migration adaptada + próximos passos.
+**Rotas em `App.tsx`**
+- Manter `/liga/:code` (LeagueJoin) — é a landing pública do convite; após aceitar, redireciona para `/` (aba Desafios abrindo a liga).
+- Remover as rotas `/ligas` e `/ligas/:id` do `App.tsx` (ou deixá-las como fallback opcional). Recomendação: **remover**, pois tudo passa a viver dentro da aba.
+
+**`LeagueJoin.tsx`**
+- Após entrar na liga, em vez de `nav("/ligas/:id")`, navegar para `/` e sinalizar (via `sessionStorage` ou query param) que a aba Desafios deve abrir direto no detalhe da liga recém-aceita. O `MaylaApp`/`CampanhasTab` lê esse sinal no mount e limpa.
+
+### 3. Limpeza
+
+- `AdminCompanySettings` continua controlando `leagues_enabled` normalmente.
+- Excluir `src/pages/Leagues.tsx` e `src/pages/LeagueDetail.tsx` (substituídos pelos panels), mantendo `LeagueJoin.tsx`.
+
+## Detalhes técnicos
+
+- Nenhuma mudança de schema/DB.
+- Constante do domínio: reutilizar o mesmo padrão já existente no projeto (memória) — se não houver constante exportada, criar `src/lib/production-url.ts` com `export const PROD_URL = "https://saude.saudecomvc.com.br";`.
+- Sem alteração em RLS/edge functions.
+
+## Arquivos afetados
+
+- Criar: `src/components/mayla/leagues/LeaguesPanel.tsx`, `LeagueDetailPanel.tsx`, `src/lib/production-url.ts`.
+- Editar: `src/components/mayla/CampanhasTab.tsx`, `src/components/mayla/MyLeagueCard.tsx`, `src/components/mayla/HomeTab.tsx`, `src/components/mayla/MaylaApp.tsx`, `src/pages/LeagueJoin.tsx`, `src/App.tsx`.
+- Excluir: `src/pages/Leagues.tsx`, `src/pages/LeagueDetail.tsx`.

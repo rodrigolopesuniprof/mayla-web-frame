@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, LogOut, Trash2, Crown } from "lucide-react";
+import { Copy, LogOut, Trash2, Crown } from "lucide-react";
+import { TopBar } from "../TopBar";
+import { PROD_URL } from "@/lib/production-url";
 
 interface League {
   id: string;
@@ -32,9 +33,13 @@ interface RankingRow {
   posicao: number;
 }
 
-export default function LeagueDetail() {
-  const nav = useNavigate();
-  const { id } = useParams<{ id: string }>();
+interface Props {
+  leagueId: string;
+  onBack: () => void;
+  onLeft: () => void;
+}
+
+export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
   const { user } = useAuth();
   const [league, setLeague] = useState<League | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -42,20 +47,20 @@ export default function LeagueDetail() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    if (!id || !user) return;
+    if (!leagueId || !user) return;
     setLoading(true);
 
     const { data: l } = await supabase
       .from("leagues" as any)
       .select("id, nome, visibilidade, invite_code, status, owner_id, company_id, marca_logo_url")
-      .eq("id", id).maybeSingle();
+      .eq("id", leagueId).maybeSingle();
     if (!l) { setLoading(false); return; }
     setLeague(l as unknown as League);
 
     const { data: mems } = await supabase
       .from("league_members" as any)
       .select("user_id, papel, joined_at, profiles:user_id (full_name, avatar_url)")
-      .eq("league_id", id);
+      .eq("league_id", leagueId);
     const mappedMems: Member[] = ((mems || []) as any[]).map((m) => ({
       user_id: m.user_id,
       papel: m.papel,
@@ -65,7 +70,7 @@ export default function LeagueDetail() {
     }));
     setMembers(mappedMems);
 
-    const { data: rank } = await supabase.rpc("league_ranking" as any, { p_league_id: id });
+    const { data: rank } = await supabase.rpc("league_ranking" as any, { p_league_id: leagueId });
     const rankMap: Record<string, RankingRow> = {};
     ((rank || []) as RankingRow[]).forEach((r) => { rankMap[r.user_id] = r; });
     setRanking(rankMap);
@@ -73,17 +78,24 @@ export default function LeagueDetail() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [id, user]);
+  useEffect(() => { load(); }, [leagueId, user]);
 
-  if (loading) return <div className="p-4 text-sm">Carregando...</div>;
-  if (!league) return (
-    <div className="p-4 space-y-3">
-      <Button variant="ghost" size="sm" onClick={() => nav("/ligas")}>
-        <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-      </Button>
-      <p className="text-sm text-muted-foreground">Liga não encontrada.</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <TopBar title="Liga" onBack={onBack} />
+        <div className="p-4 text-sm text-muted-foreground">Carregando...</div>
+      </div>
+    );
+  }
+  if (!league) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <TopBar title="Liga" onBack={onBack} />
+        <div className="p-4 text-sm text-muted-foreground">Liga não encontrada.</div>
+      </div>
+    );
+  }
 
   const isOwner = league.owner_id === user?.id;
   const sortedMembers = [...members].sort((a, b) => {
@@ -93,7 +105,7 @@ export default function LeagueDetail() {
   });
 
   const copyInvite = () => {
-    const url = `${window.location.origin}/liga/${league.invite_code}`;
+    const url = `${PROD_URL}/liga/${league.invite_code}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link de convite copiado!", description: url });
   };
@@ -105,7 +117,7 @@ export default function LeagueDetail() {
       .delete().eq("league_id", league.id).eq("user_id", user.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Você saiu da liga." });
-    nav("/ligas");
+    onLeft();
   };
 
   const handleArchive = async () => {
@@ -114,17 +126,13 @@ export default function LeagueDetail() {
       .update({ status: "arquivada" }).eq("id", league.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Liga arquivada." });
-    nav("/ligas");
+    onLeft();
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-md mx-auto p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => nav("/ligas")}><ArrowLeft className="h-5 w-5" /></Button>
-          <h1 className="text-xl font-semibold flex-1 truncate">{league.nome}</h1>
-        </div>
-
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <TopBar title={league.nome} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <Card>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-3">

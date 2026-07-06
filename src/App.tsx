@@ -23,8 +23,6 @@ import MySubscription from "./pages/MySubscription.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import PublicLeaderboard from "./pages/PublicLeaderboard.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
-import Leagues from "./pages/Leagues.tsx";
-import LeagueDetail from "./pages/LeagueDetail.tsx";
 import LeagueJoin from "./pages/LeagueJoin.tsx";
 import { AccessGate } from "./components/AccessGate";
 import { lazy, Suspense } from "react";
@@ -122,26 +120,6 @@ const App = () => (
               />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/liga/:code" element={<LeagueJoin />} />
-              <Route
-                path="/ligas"
-                element={
-                  <ProtectedRoute>
-                    <AccessGate>
-                      <Leagues />
-                    </AccessGate>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/ligas/:id"
-                element={
-                  <ProtectedRoute>
-                    <AccessGate>
-                      <LeagueDetail />
-                    </AccessGate>
-                  </ProtectedRoute>
-                }
-              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CompanyProvider>

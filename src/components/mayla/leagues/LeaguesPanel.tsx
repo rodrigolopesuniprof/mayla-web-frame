@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Users, Trophy } from "lucide-react";
+import { Plus, Users, Trophy } from "lucide-react";
+import { TopBar } from "../TopBar";
 
 interface League {
   id: string;
@@ -21,8 +21,12 @@ interface League {
   marca_logo_url: string | null;
 }
 
-export default function Leagues() {
-  const nav = useNavigate();
+interface Props {
+  onBack: () => void;
+  onOpen: (id: string) => void;
+}
+
+export function LeaguesPanel({ onBack, onOpen }: Props) {
   const { user } = useAuth();
   const { companyId } = useCompany();
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -84,7 +88,7 @@ export default function Leagues() {
     toast({ title: "Liga criada! 🏆" });
     setShowCreate(false);
     setForm({ nome: "", visibilidade: "privada" });
-    nav(`/ligas/${(data as any).id}`);
+    onOpen((data as any).id);
   };
 
   const handleJoinPublic = async (leagueId: string) => {
@@ -92,21 +96,18 @@ export default function Leagues() {
     const { error } = await supabase.from("league_members" as any).insert({ league_id: leagueId, user_id: user.id });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Você entrou na liga! 🎉" });
-    nav(`/ligas/${leagueId}`);
+    onOpen(leagueId);
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-md mx-auto p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => nav("/")}><ArrowLeft className="h-5 w-5" /></Button>
-          <h1 className="text-xl font-semibold flex-1">🏆 Ligas</h1>
-          {enabled && (
-            <Button size="sm" onClick={() => setShowCreate(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Criar
-            </Button>
-          )}
-        </div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <TopBar title="Ligas" onBack={onBack} />
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+        {enabled && (
+          <Button size="sm" className="w-full" onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Criar nova liga
+          </Button>
+        )}
 
         {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
 
@@ -129,7 +130,7 @@ export default function Leagues() {
             <p className="text-xs uppercase tracking-wider text-muted-foreground px-1">Minhas ligas</p>
             {myLeagues.map((l) => (
               <Card key={l.id} className="cursor-pointer hover:bg-accent/5 transition-colors"
-                onClick={() => nav(`/ligas/${l.id}`)}>
+                onClick={() => onOpen(l.id)}>
                 <CardContent className="p-4 flex items-center gap-3">
                   {l.marca_logo_url
                     ? <img src={l.marca_logo_url} alt="" className="h-10 w-10 rounded-full object-cover" />

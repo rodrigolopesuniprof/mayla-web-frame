@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 
-export function MyLeagueCard() {
-  const nav = useNavigate();
+interface Props {
+  onOpenLeagues?: () => void;
+  onOpenLeague?: (leagueId: string) => void;
+}
+
+export function MyLeagueCard({ onOpenLeagues, onOpenLeague }: Props) {
   const { user } = useAuth();
   const { companyId } = useCompany();
   const [enabled, setEnabled] = useState(false);
@@ -43,7 +46,7 @@ export function MyLeagueCard() {
     return (
       <div
         className="mx-5 mb-5 rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform border-2 border-dashed border-accent/40 bg-accent/5"
-        onClick={() => nav("/ligas")}
+        onClick={() => onOpenLeagues?.()}
       >
         <div className="shrink-0 flex items-center justify-center text-2xl" style={{ width: 50, height: 50, borderRadius: 14, background: "hsl(var(--accent) / .15)" }}>🏆</div>
         <div className="flex-1">
@@ -58,7 +61,7 @@ export function MyLeagueCard() {
   return (
     <div
       className="mx-5 mb-5 bg-secondary rounded-[18px] p-4 flex items-center gap-4 cursor-pointer active:scale-[.97] transition-transform"
-      onClick={() => nav(`/ligas/${league.id}`)}
+      onClick={() => onOpenLeague?.(league.id)}
     >
       {league.marca_logo_url
         ? <img src={league.marca_logo_url} alt="" className="shrink-0 h-[50px] w-[50px] rounded-2xl object-cover" />
