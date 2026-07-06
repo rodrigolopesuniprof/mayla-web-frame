@@ -9,7 +9,7 @@ import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
 import { GamificationStatusCard } from "./GamificationStatusCard";
 import { MedicationReminderCard } from "./MedicationReminderCard";
 import { FirstStepsCard } from "./FirstStepsCard";
-import { MyLeagueCard } from "./MyLeagueCard";
+
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard, onOpenLeagues, onOpenLeague }: {
   setTab: (id: TabId) => void;
