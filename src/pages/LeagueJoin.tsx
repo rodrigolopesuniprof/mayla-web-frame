@@ -66,14 +66,14 @@ export default function LeagueJoin() {
             <>
               <div className="text-4xl">😕</div>
               <p className="text-sm">Convite inválido ou liga arquivada.</p>
-              <Button onClick={() => nav("/ligas")} className="w-full">Ver minhas ligas</Button>
+              <Button onClick={() => nav("/")} className="w-full">Voltar ao app</Button>
             </>
           )}
           {status === "joined" && league && (
             <>
               <div className="text-4xl">✅</div>
               <p className="text-sm">Você já é membro de <strong>{league.nome}</strong>.</p>
-              <Button onClick={() => nav(`/ligas/${league.id}`)} className="w-full">Abrir liga</Button>
+              <Button onClick={() => { sessionStorage.setItem("open_league_id", league.id); nav("/"); }} className="w-full">Abrir liga</Button>
             </>
           )}
           {status === "found" && league && (
