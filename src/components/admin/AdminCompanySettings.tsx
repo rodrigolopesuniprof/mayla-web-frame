@@ -128,6 +128,10 @@ export function AdminCompanySettings({ company, token, onCompanyUpdated }: Props
         </CardContent>
       </Card>
 
+      {/* Ligas (feature flag) */}
+      <LeaguesToggle companyId={company.id} />
+
+
       {/* Formulário de dados */}
       <Card>
         <CardHeader>
