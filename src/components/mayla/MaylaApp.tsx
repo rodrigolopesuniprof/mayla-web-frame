@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import type { CampanhasView } from "./CampanhasTab";
 import type { TabId } from "@/lib/mayla-config";
 import { SplashScreen } from "./SplashScreen";
 import { OnboardingScreen } from "./OnboardingScreen";
@@ -45,7 +46,19 @@ export function MaylaApp() {
   const [assistantInitialMessage, setAssistantInitialMessage] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
+  const [campanhasInitialView, setCampanhasInitialView] = useState<CampanhasView | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Após aceitar convite em /liga/:code, o LeagueJoin salva o id da liga em
+  // sessionStorage e redireciona para "/". Aqui abrimos direto o detalhe.
+  useEffect(() => {
+    const openId = sessionStorage.getItem("open_league_id");
+    if (openId) {
+      sessionStorage.removeItem("open_league_id");
+      setActiveTab("campanhas");
+      setCampanhasInitialView({ view: "league-detail", leagueId: openId });
+    }
+  }, []);
 
   useEffect(() => {
     if (hasChecked) return;
