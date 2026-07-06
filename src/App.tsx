@@ -23,6 +23,9 @@ import MySubscription from "./pages/MySubscription.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import PublicLeaderboard from "./pages/PublicLeaderboard.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
+import Leagues from "./pages/Leagues.tsx";
+import LeagueDetail from "./pages/LeagueDetail.tsx";
+import LeagueJoin from "./pages/LeagueJoin.tsx";
 import { AccessGate } from "./components/AccessGate";
 import { lazy, Suspense } from "react";
 
