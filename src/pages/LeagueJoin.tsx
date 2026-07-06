@@ -53,7 +53,8 @@ export default function LeagueJoin() {
       .insert({ league_id: league.id, user_id: user.id });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Você entrou na liga! 🎉" });
-    nav(`/ligas/${league.id}`);
+    sessionStorage.setItem("open_league_id", league.id);
+    nav("/");
   };
 
   return (
