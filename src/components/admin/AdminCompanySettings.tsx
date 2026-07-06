@@ -1,12 +1,44 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { CompanyAdminManager } from "./CompanyAdminManager";
 import { InviteLinkPanel } from "./InviteLinkPanel";
+
+function LeaguesToggle({ companyId }: { companyId: string }) {
+  const [enabled, setEnabled] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    supabase.from("companies").select("leagues_enabled").eq("id", companyId).maybeSingle()
+      .then(({ data }) => { setEnabled(!!(data as any)?.leagues_enabled); setLoading(false); });
+  }, [companyId]);
+  const toggle = async (v: boolean) => {
+    setEnabled(v);
+    const { error } = await supabase.from("companies").update({ leagues_enabled: v } as any).eq("id", companyId);
+    if (error) {
+      setEnabled(!v);
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: v ? "Ligas ativadas! 🏆" : "Ligas desativadas" });
+    }
+  };
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">🏆 Módulo Ligas</CardTitle></CardHeader>
+      <CardContent className="flex items-center justify-between gap-4">
+        <div className="text-sm text-muted-foreground">
+          Colaboradores podem criar ligas internas com placar semanal, convites e ranking próprio.
+        </div>
+        <Switch checked={enabled} disabled={loading} onCheckedChange={toggle} />
+      </CardContent>
+    </Card>
+  );
+}
+
 
 interface Company {
   id: string;
