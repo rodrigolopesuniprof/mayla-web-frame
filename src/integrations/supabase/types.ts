@@ -1974,6 +1974,7 @@ export type Database = {
           marca_logo_url: string | null
           nome: string
           owner_id: string
+          scoring_event_keys: string[]
           status: string
           updated_at: string
           visibilidade: string
@@ -1986,6 +1987,7 @@ export type Database = {
           marca_logo_url?: string | null
           nome: string
           owner_id: string
+          scoring_event_keys?: string[]
           status?: string
           updated_at?: string
           visibilidade?: string
@@ -1998,6 +2000,7 @@ export type Database = {
           marca_logo_url?: string | null
           nome?: string
           owner_id?: string
+          scoring_event_keys?: string[]
           status?: string
           updated_at?: string
           visibilidade?: string
