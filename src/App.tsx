@@ -120,26 +120,6 @@ const App = () => (
               />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/liga/:code" element={<LeagueJoin />} />
-              <Route
-                path="/ligas"
-                element={
-                  <ProtectedRoute>
-                    <AccessGate>
-                      <Leagues />
-                    </AccessGate>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/ligas/:id"
-                element={
-                  <ProtectedRoute>
-                    <AccessGate>
-                      <LeagueDetail />
-                    </AccessGate>
-                  </ProtectedRoute>
-                }
-              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CompanyProvider>
