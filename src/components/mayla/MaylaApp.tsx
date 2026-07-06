@@ -155,6 +155,14 @@ export function MaylaApp() {
                     onOpenArticle={(id) => setActiveArticleId(id)}
                     onOpenAllArticles={() => setShowAllArticles(true)}
                     onOpenLeaderboard={() => setShowLeaderboard(true)}
+                    onOpenLeagues={() => {
+                      setActiveTab("campanhas");
+                      setCampanhasInitialView({ view: "leagues" });
+                    }}
+                    onOpenLeague={(leagueId) => {
+                      setActiveTab("campanhas");
+                      setCampanhasInitialView({ view: "league-detail", leagueId });
+                    }}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
@@ -162,6 +170,8 @@ export function MaylaApp() {
                   <CampanhasTab
                     onNavigate={(tab) => setActiveTab(tab)}
                     onOpenLeaderboard={() => setShowLeaderboard(true)}
+                    initialView={campanhasInitialView}
+                    onViewConsumed={() => setCampanhasInitialView(undefined)}
                   />
                 )}
                 {activeTab === "servicos" && <ServicosTab startOnlineMode={consultOnlineMode} onClearOnlineMode={() => setConsultOnlineMode(false)} />}
