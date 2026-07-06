@@ -1,70 +1,48 @@
+## Ajustes no módulo de Ligas
 
-## Objetivo
+### 1. Remover banner de Ligas da Home
+- Em `src/components/mayla/HomeTab.tsx`, retirar o uso de `<MyLeagueCard />` (linha 197) e a prop `onOpenLeagues`/`onOpenLeague` no HomeTab.
+- Ajustar `MaylaApp.tsx` para não passar essas props ao HomeTab (mantém navegação pela aba Desafios).
+- Manter o arquivo `MyLeagueCard.tsx` por enquanto (não usado) para eventual reaproveitamento — ou remover se preferir limpeza. Proposta: **remover** o arquivo.
 
-Corrigir dois pontos do módulo de Ligas:
+### 2. Proprietário escolhe atividades da liga
+Objetivo: cada liga pontua apenas nas atividades selecionadas pelo dono.
 
-1. **Link de convite** está usando `window.location.origin`, que no preview vira `*.lovableproject.com`. Precisa usar o domínio de produção `https://saude.saudecomvc.com.br`.
-2. **UX**: Ligas abrem numa rota separada (`/ligas`, `/ligas/:id`), tirando o usuário do fluxo da aba **Desafios**. A ideia original é manter tudo concentrado dentro de "Desafios", como já é feito com "Ranking" e "Minhas Missões".
+**Schema (migration):**
+- Adicionar coluna `scoring_event_keys text[] not null default '{}'` em `public.leagues`. Array vazio = todos os eventos (comportamento atual).
+- Atualizar `public.league_ranking(p_league_id, p_week_id)` para filtrar `points_ledger.source` por `scoring_event_keys` quando o array não estiver vazio.
 
-## Mudanças
+**UI:**
+- Na criação da liga (`LeaguesPanel.tsx`): novo passo/seção "Atividades que pontuam" com checkboxes lendo `public.point_rules` da empresa (event_key, label, emoji). Default: nada marcado = todas.
+- No `LeagueDetailPanel.tsx`: botão "Editar atividades" visível para dono/coadmin, abrindo um dialog com a mesma lista.
 
-### 1. Link de convite com domínio de produção
+### 3. Dono pode promover coadmins
+- Em `LeagueDetailPanel.tsx`, na lista de membros, quando `isOwner === true` e o membro não for o dono:
+  - Botão "Tornar coadmin" (se `papel === 'membro'`) → `UPDATE league_members SET papel='coadmin'`.
+  - Botão "Remover coadmin" (se `papel === 'coadmin'`) → volta para `'membro'`.
+- RLS: verificar/garantir política que permita ao dono atualizar `papel` em `league_members` da sua liga (adicionar policy se faltar).
 
-Em `LeagueDetail.tsx` (função `copyInvite`) e em qualquer outro ponto que gere URL de convite, trocar:
+### 4. Link de convite como afiliado (base — integração completa depois)
+Escopo desta entrega (mínimo viável para rastrear):
+- Ao gerar/copiar o link de convite em `LeagueDetailPanel.tsx`, anexar `?ref=<affiliate_code>` quando o dono possuir um `affiliates.referral_code` (consulta rápida na tabela `affiliates` pelo `user_id` do dono).
+- Se o dono ainda não tiver affiliate, criar automaticamente uma linha em `public.affiliates` (usar `generate_referral_code()` já existente).
+- Em `LeagueJoin.tsx`, ler `?ref=` da URL e persistir no `sessionStorage` como `pending_affiliate_ref` (ainda sem gravar comissão — só rastreio).
+- **Não** implementar cálculo/split de comissão nesta fase — apenas a infraestrutura de rastreio.
 
-```
-`${window.location.origin}/liga/${invite_code}`
-```
+### Arquivos afetados
 
-por uma constante `PROD_URL = "https://saude.saudecomvc.com.br"` já usada no projeto (memória `tecnico/configuracao-dominio-producao`), gerando:
+**Migration (nova):**
+- `leagues.scoring_event_keys` + atualização de `league_ranking()`.
+- Policy (se necessário) para dono atualizar `papel` em `league_members`.
 
-```
-`${PROD_URL}/liga/${invite_code}`
-```
+**Frontend:**
+- `src/components/mayla/HomeTab.tsx` — remover MyLeagueCard.
+- `src/components/mayla/MaylaApp.tsx` — remover props relacionadas.
+- `src/components/mayla/MyLeagueCard.tsx` — deletar.
+- `src/components/mayla/leagues/LeaguesPanel.tsx` — seleção de atividades na criação.
+- `src/components/mayla/leagues/LeagueDetailPanel.tsx` — editar atividades, promover coadmin, gerar link com `?ref=`.
+- `src/pages/LeagueJoin.tsx` — capturar `?ref=` no sessionStorage.
 
-A rota `/liga/:code` continua existindo em `App.tsx` para receber quem clicar no link.
-
-### 2. Ligas dentro da aba "Desafios"
-
-**Padrão existente**: `CampanhasTab.tsx` já usa `subView` para alternar entre "overview" e "missions" sem sair da aba. Vamos aplicar o mesmo padrão para ligas.
-
-**`CampanhasTab.tsx`**
-- Adicionar novos sub-views: `"leagues" | "league-detail"`.
-- Adicionar botão "Minhas Ligas" (card no mesmo estilo de "Ranking" / "Minhas Missões"), visível somente se `companies.leagues_enabled = true` (checar via hook/query já usado no `MyLeagueCard`).
-- Renderizar componentes internos ao invés de navegar:
-  - `subView === "leagues"` → `<LeaguesPanel onOpen={(id) => setSubView({ view:'league-detail', id })} onBack={() => setSubView('overview')} />`
-  - `subView === "league-detail"` → `<LeagueDetailPanel leagueId={id} onBack={() => setSubView('leagues')} />`
-
-**Novos componentes (extraídos das páginas atuais, sem `min-h-screen`, sem `nav("/...")`, com `onBack` prop):**
-- `src/components/mayla/leagues/LeaguesPanel.tsx` — conteúdo hoje em `pages/Leagues.tsx`.
-- `src/components/mayla/leagues/LeagueDetailPanel.tsx` — conteúdo hoje em `pages/LeagueDetail.tsx`.
-
-Ambos usam `TopBar` com título e botão voltar, mantendo o layout mobile da aba.
-
-**`MyLeagueCard.tsx` (HomeTab)**
-- Trocar `nav("/ligas")` / `nav("/ligas/:id")` por uma prop `onOpenLeagues: () => void` fornecida pelo `HomeTab`, que muda a aba ativa para "campanhas" e sinaliza abrir sub-view de ligas.
-- `MaylaApp` já gerencia `active` tab; adicionar estado inicial de sub-view da aba Desafios ou usar um pequeno event/prop drilling (`campanhasInitialView`).
-
-**Rotas em `App.tsx`**
-- Manter `/liga/:code` (LeagueJoin) — é a landing pública do convite; após aceitar, redireciona para `/` (aba Desafios abrindo a liga).
-- Remover as rotas `/ligas` e `/ligas/:id` do `App.tsx` (ou deixá-las como fallback opcional). Recomendação: **remover**, pois tudo passa a viver dentro da aba.
-
-**`LeagueJoin.tsx`**
-- Após entrar na liga, em vez de `nav("/ligas/:id")`, navegar para `/` e sinalizar (via `sessionStorage` ou query param) que a aba Desafios deve abrir direto no detalhe da liga recém-aceita. O `MaylaApp`/`CampanhasTab` lê esse sinal no mount e limpa.
-
-### 3. Limpeza
-
-- `AdminCompanySettings` continua controlando `leagues_enabled` normalmente.
-- Excluir `src/pages/Leagues.tsx` e `src/pages/LeagueDetail.tsx` (substituídos pelos panels), mantendo `LeagueJoin.tsx`.
-
-## Detalhes técnicos
-
-- Nenhuma mudança de schema/DB.
-- Constante do domínio: reutilizar o mesmo padrão já existente no projeto (memória) — se não houver constante exportada, criar `src/lib/production-url.ts` com `export const PROD_URL = "https://saude.saudecomvc.com.br";`.
-- Sem alteração em RLS/edge functions.
-
-## Arquivos afetados
-
-- Criar: `src/components/mayla/leagues/LeaguesPanel.tsx`, `LeagueDetailPanel.tsx`, `src/lib/production-url.ts`.
-- Editar: `src/components/mayla/CampanhasTab.tsx`, `src/components/mayla/MyLeagueCard.tsx`, `src/components/mayla/HomeTab.tsx`, `src/components/mayla/MaylaApp.tsx`, `src/pages/LeagueJoin.tsx`, `src/App.tsx`.
-- Excluir: `src/pages/Leagues.tsx`, `src/pages/LeagueDetail.tsx`.
+### Fora do escopo (fica para depois)
+- Cálculo de comissão real do afiliado por convite de liga.
+- UI de painel de afiliados dentro do contexto de ligas.

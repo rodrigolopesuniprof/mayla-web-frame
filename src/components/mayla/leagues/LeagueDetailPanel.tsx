@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Copy, LogOut, Trash2, Crown } from "lucide-react";
+import { Copy, LogOut, Trash2, Crown, Settings, ShieldPlus, ShieldOff } from "lucide-react";
 import { TopBar } from "../TopBar";
 import { PROD_URL } from "@/lib/production-url";
 
@@ -17,6 +19,7 @@ interface League {
   owner_id: string;
   company_id: string;
   marca_logo_url: string | null;
+  scoring_event_keys: string[];
 }
 
 interface Member {
@@ -33,6 +36,12 @@ interface RankingRow {
   posicao: number;
 }
 
+interface PointRule {
+  event_key: string;
+  label: string;
+  emoji: string | null;
+}
+
 interface Props {
   leagueId: string;
   onBack: () => void;
@@ -44,7 +53,12 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
   const [league, setLeague] = useState<League | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [ranking, setRanking] = useState<Record<string, RankingRow>>({});
+  const [rules, setRules] = useState<PointRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showActivities, setShowActivities] = useState(false);
+  const [editingKeys, setEditingKeys] = useState<string[]>([]);
+  const [savingActs, setSavingActs] = useState(false);
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
 
   const load = async () => {
     if (!leagueId || !user) return;
@@ -52,10 +66,11 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
 
     const { data: l } = await supabase
       .from("leagues" as any)
-      .select("id, nome, visibilidade, invite_code, status, owner_id, company_id, marca_logo_url")
+      .select("id, nome, visibilidade, invite_code, status, owner_id, company_id, marca_logo_url, scoring_event_keys")
       .eq("id", leagueId).maybeSingle();
     if (!l) { setLoading(false); return; }
-    setLeague(l as unknown as League);
+    const lg = l as unknown as League;
+    setLeague(lg);
 
     const { data: mems } = await supabase
       .from("league_members" as any)
@@ -74,6 +89,25 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
     const rankMap: Record<string, RankingRow> = {};
     ((rank || []) as RankingRow[]).forEach((r) => { rankMap[r.user_id] = r; });
     setRanking(rankMap);
+
+    const { data: pr } = await supabase
+      .from("point_rules")
+      .select("event_key, label, emoji, active")
+      .eq("company_id", lg.company_id)
+      .eq("active", true)
+      .order("label");
+    setRules(((pr || []) as any[]).map((r) => ({ event_key: r.event_key, label: r.label, emoji: r.emoji })));
+
+    // If the current user is the owner, look up their affiliate referral_code (if any)
+    if (lg.owner_id === user.id) {
+      const { data: aff } = await supabase
+        .from("affiliates")
+        .select("referral_code")
+        .eq("user_id", user.id)
+        .eq("active", true)
+        .maybeSingle();
+      setAffiliateCode((aff as any)?.referral_code ?? null);
+    }
 
     setLoading(false);
   };
@@ -104,8 +138,13 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
     return pb - pa;
   });
 
+  const buildInviteUrl = () => {
+    const base = `${PROD_URL}/liga/${league.invite_code}`;
+    return affiliateCode ? `${base}?ref=${affiliateCode}` : base;
+  };
+
   const copyInvite = () => {
-    const url = `${PROD_URL}/liga/${league.invite_code}`;
+    const url = buildInviteUrl();
     navigator.clipboard.writeText(url);
     toast({ title: "Link de convite copiado!", description: url });
   };
@@ -129,6 +168,44 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
     onLeft();
   };
 
+  const openActivitiesDialog = () => {
+    setEditingKeys(league.scoring_event_keys || []);
+    setShowActivities(true);
+  };
+
+  const toggleEditKey = (key: string) => {
+    setEditingKeys((keys) =>
+      keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]
+    );
+  };
+
+  const saveActivities = async () => {
+    setSavingActs(true);
+    const { error } = await supabase.from("leagues" as any)
+      .update({ scoring_event_keys: editingKeys } as any).eq("id", league.id);
+    setSavingActs(false);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Atividades atualizadas!" });
+    setShowActivities(false);
+    load();
+  };
+
+  const setPapel = async (targetUserId: string, papel: "coadmin" | "membro") => {
+    const { error } = await supabase.from("league_members" as any)
+      .update({ papel } as any)
+      .eq("league_id", league.id)
+      .eq("user_id", targetUserId);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: papel === "coadmin" ? "Coadmin adicionado" : "Coadmin removido" });
+    load();
+  };
+
+  const activitiesLabel = (() => {
+    const keys = league.scoring_event_keys || [];
+    if (keys.length === 0) return "Todas as atividades pontuam";
+    return `${keys.length} atividade${keys.length === 1 ? "" : "s"} selecionada${keys.length === 1 ? "" : "s"}`;
+  })();
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <TopBar title={league.nome} onBack={onBack} />
@@ -149,6 +226,25 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
             <Button variant="outline" size="sm" className="w-full" onClick={copyInvite}>
               <Copy className="h-4 w-4 mr-2" /> Copiar link de convite
             </Button>
+            {isOwner && !affiliateCode && (
+              <p className="text-[11px] text-muted-foreground">
+                Dica: vire afiliado para que convites feitos por você sejam rastreados.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Atividades que pontuam</p>
+              <p className="text-xs text-muted-foreground truncate">{activitiesLabel}</p>
+            </div>
+            {isOwner && (
+              <Button variant="outline" size="sm" onClick={openActivitiesDialog}>
+                <Settings className="h-4 w-4 mr-1" /> Editar
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -159,6 +255,7 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
               {sortedMembers.map((m, i) => {
                 const r = ranking[m.user_id];
                 const pts = r?.pontos_semana ?? 0;
+                const canManage = isOwner && m.user_id !== league.owner_id;
                 return (
                   <div key={m.user_id} className="flex items-center gap-3 p-3">
                     <div className="w-6 text-center font-bold text-sm text-muted-foreground">
@@ -175,6 +272,18 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
                       {m.papel === "coadmin" && <p className="text-xs text-muted-foreground">Coadmin</p>}
                     </div>
                     <div className="text-sm font-semibold">{pts} pts</div>
+                    {canManage && m.papel === "membro" && (
+                      <Button variant="ghost" size="icon" title="Tornar coadmin"
+                        onClick={() => setPapel(m.user_id, "coadmin")}>
+                        <ShieldPlus className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canManage && m.papel === "coadmin" && (
+                      <Button variant="ghost" size="icon" title="Remover coadmin"
+                        onClick={() => setPapel(m.user_id, "membro")}>
+                        <ShieldOff className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 );
               })}
@@ -198,6 +307,37 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
           )}
         </div>
       </div>
+
+      <Dialog open={showActivities} onOpenChange={setShowActivities}>
+        <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Atividades que pontuam</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Escolha o que vale pontos nesta liga. Se não marcar nada, <strong>todas</strong> as atividades contam.
+            </p>
+            <div className="max-h-72 overflow-y-auto space-y-1 rounded-md border p-2">
+              {rules.length === 0 && (
+                <p className="text-xs text-muted-foreground px-1">Nenhuma regra configurada.</p>
+              )}
+              {rules.map((r) => (
+                <label key={r.event_key} className="flex items-center gap-2 p-2 rounded hover:bg-accent/10 cursor-pointer">
+                  <Checkbox
+                    checked={editingKeys.includes(r.event_key)}
+                    onCheckedChange={() => toggleEditKey(r.event_key)}
+                  />
+                  <span className="text-sm flex-1">
+                    {r.emoji && <span className="mr-1">{r.emoji}</span>}
+                    {r.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <Button className="w-full" onClick={saveActivities} disabled={savingActs}>
+              {savingActs ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -155,14 +155,6 @@ export function MaylaApp() {
                     onOpenArticle={(id) => setActiveArticleId(id)}
                     onOpenAllArticles={() => setShowAllArticles(true)}
                     onOpenLeaderboard={() => setShowLeaderboard(true)}
-                    onOpenLeagues={() => {
-                      setActiveTab("campanhas");
-                      setCampanhasInitialView({ view: "leagues" });
-                    }}
-                    onOpenLeague={(leagueId) => {
-                      setActiveTab("campanhas");
-                      setCampanhasInitialView({ view: "league-detail", leagueId });
-                    }}
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}

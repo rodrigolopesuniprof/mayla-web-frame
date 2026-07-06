@@ -14,9 +14,15 @@ export default function LeagueJoin() {
   const [league, setLeague] = useState<{ id: string; nome: string; visibilidade: string; owner_id: string } | null>(null);
 
   useEffect(() => {
+    // Capture affiliate ref from URL (?ref=CODE) so it can be attributed later.
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) sessionStorage.setItem("pending_affiliate_ref", ref);
+
     if (authLoading) return;
     if (!user) {
-      sessionStorage.setItem("post_login_redirect", `/liga/${code}`);
+      const suffix = ref ? `?ref=${ref}` : "";
+      sessionStorage.setItem("post_login_redirect", `/liga/${code}${suffix}`);
       nav("/login");
       return;
     }
