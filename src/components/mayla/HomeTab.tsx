@@ -192,6 +192,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         onOpenChallenges={() => setTab("campanhas")}
       />
 
+      <MyLeagueCard />
+
       {/* Assistente Digital de Saúde Card */}
       {onOpenAssistant && (
         <div
