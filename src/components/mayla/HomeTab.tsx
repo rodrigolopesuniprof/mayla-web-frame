@@ -9,6 +9,7 @@ import { HealthMagazineCarousel } from "./HealthMagazineCarousel";
 import { GamificationStatusCard } from "./GamificationStatusCard";
 import { MedicationReminderCard } from "./MedicationReminderCard";
 import { FirstStepsCard } from "./FirstStepsCard";
+import { MyLeagueCard } from "./MyLeagueCard";
 
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard }: {
   setTab: (id: TabId) => void;
@@ -190,6 +191,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         onOpenLeaderboard={onOpenLeaderboard}
         onOpenChallenges={() => setTab("campanhas")}
       />
+
+      <MyLeagueCard />
 
       {/* Assistente Digital de Saúde Card */}
       {onOpenAssistant && (
