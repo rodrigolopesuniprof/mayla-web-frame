@@ -11,7 +11,7 @@ import { MedicationReminderCard } from "./MedicationReminderCard";
 import { FirstStepsCard } from "./FirstStepsCard";
 import { MyLeagueCard } from "./MyLeagueCard";
 
-export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard }: {
+export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard, onOpenLeagues, onOpenLeague }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
   onOpenAppointment: () => void;
@@ -23,6 +23,8 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
   onOpenArticle?: (id: string) => void;
   onOpenAllArticles?: () => void;
   onOpenLeaderboard?: () => void;
+  onOpenLeagues?: () => void;
+  onOpenLeague?: (leagueId: string) => void;
 }) {
   const { isDefault } = useCompany();
   const { user } = useAuth();
@@ -192,7 +194,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         onOpenChallenges={() => setTab("campanhas")}
       />
 
-      <MyLeagueCard />
+      <MyLeagueCard onOpenLeagues={onOpenLeagues} onOpenLeague={onOpenLeague} />
 
       {/* Assistente Digital de Saúde Card */}
       {onOpenAssistant && (
