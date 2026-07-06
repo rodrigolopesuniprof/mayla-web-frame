@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Users, Trophy } from "lucide-react";
@@ -21,6 +22,12 @@ interface League {
   marca_logo_url: string | null;
 }
 
+interface PointRule {
+  event_key: string;
+  label: string;
+  emoji: string | null;
+}
+
 interface Props {
   onBack: () => void;
   onOpen: (id: string) => void;
@@ -34,7 +41,12 @@ export function LeaguesPanel({ onBack, onOpen }: Props) {
   const [publicLeagues, setPublicLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ nome: "", visibilidade: "privada" as "publica" | "privada" });
+  const [form, setForm] = useState({
+    nome: "",
+    visibilidade: "privada" as "publica" | "privada",
+    scoring_event_keys: [] as string[],
+  });
+  const [rules, setRules] = useState<PointRule[]>([]);
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -64,10 +76,27 @@ export function LeaguesPanel({ onBack, onOpen }: Props) {
     const mineIds = new Set(mine.map((l) => l.id));
     setPublicLeagues(((publics || []) as any[]).filter((l) => !mineIds.has(l.id)));
 
+    const { data: pr } = await supabase
+      .from("point_rules")
+      .select("event_key, label, emoji, active")
+      .eq("company_id", companyId)
+      .eq("active", true)
+      .order("label");
+    setRules(((pr || []) as any[]).map((r) => ({ event_key: r.event_key, label: r.label, emoji: r.emoji })));
+
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [user, companyId]);
+
+  const toggleKey = (key: string) => {
+    setForm((f) => ({
+      ...f,
+      scoring_event_keys: f.scoring_event_keys.includes(key)
+        ? f.scoring_event_keys.filter((k) => k !== key)
+        : [...f.scoring_event_keys, key],
+    }));
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +107,8 @@ export function LeaguesPanel({ onBack, onOpen }: Props) {
       .insert({
         company_id: companyId, owner_id: user.id,
         nome: form.nome.trim(), visibilidade: form.visibilidade,
-      })
+        scoring_event_keys: form.scoring_event_keys,
+      } as any)
       .select("id").single();
     setSaving(false);
     if (error) {
@@ -87,7 +117,7 @@ export function LeaguesPanel({ onBack, onOpen }: Props) {
     }
     toast({ title: "Liga criada! 🏆" });
     setShowCreate(false);
-    setForm({ nome: "", visibilidade: "privada" });
+    setForm({ nome: "", visibilidade: "privada", scoring_event_keys: [] });
     onOpen((data as any).id);
   };
 
@@ -170,7 +200,7 @@ export function LeaguesPanel({ onBack, onOpen }: Props) {
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Criar nova liga</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-2">
@@ -196,6 +226,31 @@ export function LeaguesPanel({ onBack, onOpen }: Props) {
                   : "Qualquer pessoa da empresa pode entrar."}
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label>Atividades que pontuam</Label>
+              <p className="text-xs text-muted-foreground">
+                Escolha o que vale pontos nesta liga. Se não marcar nada, <strong>todas</strong> as atividades contam.
+              </p>
+              <div className="max-h-56 overflow-y-auto space-y-1 rounded-md border p-2">
+                {rules.length === 0 && (
+                  <p className="text-xs text-muted-foreground px-1">Nenhuma regra configurada.</p>
+                )}
+                {rules.map((r) => (
+                  <label key={r.event_key} className="flex items-center gap-2 p-2 rounded hover:bg-accent/10 cursor-pointer">
+                    <Checkbox
+                      checked={form.scoring_event_keys.includes(r.event_key)}
+                      onCheckedChange={() => toggleKey(r.event_key)}
+                    />
+                    <span className="text-sm flex-1">
+                      {r.emoji && <span className="mr-1">{r.emoji}</span>}
+                      {r.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <p className="text-xs text-muted-foreground">
               Você só pode ter <strong>1 liga ativa</strong> por vez.
             </p>
