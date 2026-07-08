@@ -19,6 +19,8 @@ interface League {
   company_id: string;
   marca_logo_url: string | null;
   scoring_event_keys: string[];
+  is_default?: boolean;
+  conversations_enabled?: boolean;
 }
 
 interface Member {
@@ -40,6 +42,7 @@ interface Props {
 export function LeagueManagePanel({ league, members, onBack, onArchived }: Props) {
   const { user } = useAuth();
   const isOwner = league.owner_id === user?.id;
+  const isDefault = !!league.is_default;
   const [rules, setRules] = useState<PointRule[]>([]);
   const [showActivities, setShowActivities] = useState(false);
   const [editingKeys, setEditingKeys] = useState<string[]>(league.scoring_event_keys || []);
@@ -47,6 +50,20 @@ export function LeagueManagePanel({ league, members, onBack, onArchived }: Props
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [savingLogo, setSavingLogo] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [chatOn, setChatOn] = useState<boolean>(!!league.conversations_enabled);
+  const [savingChat, setSavingChat] = useState(false);
+
+  const toggleChat = async () => {
+    setSavingChat(true);
+    const next = !chatOn;
+    const { error } = await supabase.from("leagues" as any)
+      .update({ conversations_enabled: next } as any).eq("id", league.id);
+    setSavingChat(false);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setChatOn(next);
+    league.conversations_enabled = next;
+    toast({ title: next ? "Conversas liberadas 💬" : "Conversas desativadas" });
+  };
 
   useEffect(() => {
     supabase.from("point_rules").select("event_key, label, emoji, active")
@@ -145,6 +162,23 @@ export function LeagueManagePanel({ league, members, onBack, onArchived }: Props
           </Card>
         )}
 
+        {/* Conversas entre participantes */}
+        {isOwner && (
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Liberar conversas entre os participantes</p>
+                <p className="text-xs text-muted-foreground">
+                  {chatOn ? "Recados, cutucadas e provocações estão ativos." : "Membros não podem trocar recados nem cutucadas."}
+                </p>
+              </div>
+              <Button variant={chatOn ? "default" : "outline"} size="sm" onClick={toggleChat} disabled={savingChat}>
+                {chatOn ? "Ativado" : "Desativado"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Atividades */}
         {isOwner && (
           <Card>
@@ -203,7 +237,7 @@ export function LeagueManagePanel({ league, members, onBack, onArchived }: Props
         </div>
 
         {/* Arquivar */}
-        {isOwner && (
+        {isOwner && !isDefault && (
           <Button variant="outline" className="w-full" onClick={archive}>
             <Trash2 className="h-4 w-4 mr-1" /> Arquivar liga
           </Button>

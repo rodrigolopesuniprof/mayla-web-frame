@@ -6,7 +6,7 @@ import { useDailyStreak } from "@/hooks/useDailyStreak";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { MAYLA_LEAGUE_ID } from "./constants";
+import { MAYLA_LEAGUE_ID, useDefaultLeague } from "./constants";
 import { useLeagueFeed, useWeekCountdown } from "./useLeagueFeed";
 import { LeaguePokeComposer } from "./LeaguePokeComposer";
 import "./leagues.css";
@@ -33,6 +33,7 @@ export function LeaguesPanel({ onOpen }: Props) {
   const { companyId } = useCompany();
   const { streak } = useDailyStreak();
   const countdown = useWeekCountdown();
+  const { league: defaultLeague } = useDefaultLeague(companyId);
 
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [myLeagues, setMyLeagues] = useState<League[]>([]);
@@ -52,9 +53,14 @@ export function LeaguesPanel({ onOpen }: Props) {
   const [form, setForm] = useState({ nome: "", visibilidade: "privada" as "publica" | "privada", scoring_event_keys: [] as string[], logo_file: null as File | null });
   const [saving, setSaving] = useState(false);
 
-  const feed = useLeagueFeed(selectedId, companyId);
-  const leagueSel = selectedId === MAYLA_LEAGUE_ID ? null : myLeagues.find((l) => l.id === selectedId) || null;
-  const leagueSelName = selectedId === MAYLA_LEAGUE_ID ? "Liga Mayla" : leagueSel?.nome || "sua liga";
+  // Resolve the "Mayla" sentinel to the real per-company default league id.
+  const isDefaultSelected = selectedId === MAYLA_LEAGUE_ID;
+  const effectiveSelectedId = isDefaultSelected ? (defaultLeague?.id || MAYLA_LEAGUE_ID) : selectedId;
+  const feed = useLeagueFeed(effectiveSelectedId, companyId);
+  const leagueSel = isDefaultSelected
+    ? (defaultLeague ? { id: defaultLeague.id, nome: defaultLeague.nome, visibilidade: "publica" as const, invite_code: "", status: "ativa" as const, owner_id: defaultLeague.owner_id, marca_logo_url: defaultLeague.marca_logo_url } : null)
+    : (myLeagues.find((l) => l.id === selectedId) || null);
+  const leagueSelName = isDefaultSelected ? (defaultLeague?.nome || "sua liga") : leagueSel?.nome || "sua liga";
 
   useEffect(() => {
     if (!user || !companyId) return;
@@ -234,9 +240,9 @@ export function LeaguesPanel({ onOpen }: Props) {
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => setSelectedId(MAYLA_LEAGUE_ID)}
-            className={`liga-pill ${selectedId === MAYLA_LEAGUE_ID ? "liga-pill--active" : ""}`}
+            className={`liga-pill ${isDefaultSelected ? "liga-pill--active" : ""}`}
           >
-            🏆 Liga Mayla
+            🏆 {defaultLeague?.nome || "Sua empresa"}
           </button>
           {myLeagues.map((l) => (
             <button key={l.id}
@@ -354,9 +360,9 @@ export function LeaguesPanel({ onOpen }: Props) {
             Abrir {leagueSel.nome} →
           </button>
         )}
-        {selectedId === MAYLA_LEAGUE_ID && (
-          <button className="liga-btn w-full" onClick={() => onOpen(MAYLA_LEAGUE_ID)}>
-            Ver ranking completo →
+        {isDefaultSelected && defaultLeague && (
+          <button className="liga-btn w-full" onClick={() => onOpen(defaultLeague.id)}>
+            Abrir {defaultLeague.nome} →
           </button>
         )}
       </div>
