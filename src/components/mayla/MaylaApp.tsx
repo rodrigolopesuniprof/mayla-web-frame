@@ -6,7 +6,7 @@ import { OnboardingScreen } from "./OnboardingScreen";
 import { BottomNav } from "./BottomNav";
 import { HomeTab } from "./HomeTab";
 import { WellbeingTab } from "./WellbeingTab";
-import { CampanhasTab } from "./CampanhasTab";
+import { DesafiosTab } from "./DesafiosTab";
 import { ServicosTab } from "./ServicosTab";
 import { ProfileTab } from "./ProfileTab";
 import { TelemedicineScreen } from "./TelemedicineScreen";
