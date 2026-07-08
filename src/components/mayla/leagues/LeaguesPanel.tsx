@@ -199,7 +199,7 @@ export function LeaguesPanel({ onOpen }: Props) {
             <div>
               <div className="liga-caps" style={{ color: "var(--liga-on-dark)", opacity: .65 }}>Sua semana</div>
               <div className="liga-serif" style={{ fontSize: 22, fontWeight: 600, marginTop: 2 }}>
-                {myPos ? `${myPos}º` : "—"} na {leagueSelName}
+                {myPos ? `${myPos}º` : "—"} na {(leagueSelName ?? "").split(/\s+/)[0].slice(0, 10)}
               </div>
               <div className="text-xs mt-1" style={{ opacity: .8 }}>
                 {posDelta > 0 && <><span style={{ color: "var(--liga-green)" }}>↑ subiu {posDelta} posiç{posDelta === 1 ? "ão" : "ões"} hoje</span> · de {totalMembers}</>}
