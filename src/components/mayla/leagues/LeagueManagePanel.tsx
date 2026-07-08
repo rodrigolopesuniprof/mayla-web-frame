@@ -42,6 +42,7 @@ interface Props {
 export function LeagueManagePanel({ league, members, onBack, onArchived }: Props) {
   const { user } = useAuth();
   const isOwner = league.owner_id === user?.id;
+  const isDefault = !!league.is_default;
   const [rules, setRules] = useState<PointRule[]>([]);
   const [showActivities, setShowActivities] = useState(false);
   const [editingKeys, setEditingKeys] = useState<string[]>(league.scoring_event_keys || []);
@@ -49,6 +50,20 @@ export function LeagueManagePanel({ league, members, onBack, onArchived }: Props
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [savingLogo, setSavingLogo] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [chatOn, setChatOn] = useState<boolean>(!!league.conversations_enabled);
+  const [savingChat, setSavingChat] = useState(false);
+
+  const toggleChat = async () => {
+    setSavingChat(true);
+    const next = !chatOn;
+    const { error } = await supabase.from("leagues" as any)
+      .update({ conversations_enabled: next } as any).eq("id", league.id);
+    setSavingChat(false);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setChatOn(next);
+    league.conversations_enabled = next;
+    toast({ title: next ? "Conversas liberadas 💬" : "Conversas desativadas" });
+  };
 
   useEffect(() => {
     supabase.from("point_rules").select("event_key, label, emoji, active")
