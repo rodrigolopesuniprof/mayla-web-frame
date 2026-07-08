@@ -2006,9 +2006,11 @@ export type Database = {
       leagues: {
         Row: {
           company_id: string
+          conversations_enabled: boolean
           created_at: string
           id: string
           invite_code: string
+          is_default: boolean
           marca_logo_url: string | null
           nome: string
           owner_id: string
@@ -2019,9 +2021,11 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          conversations_enabled?: boolean
           created_at?: string
           id?: string
           invite_code?: string
+          is_default?: boolean
           marca_logo_url?: string | null
           nome: string
           owner_id: string
@@ -2032,9 +2036,11 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          conversations_enabled?: boolean
           created_at?: string
           id?: string
           invite_code?: string
+          is_default?: boolean
           marca_logo_url?: string | null
           nome?: string
           owner_id?: string
@@ -4598,6 +4604,7 @@ export type Database = {
         Returns: number
       }
       ensure_daily_challenge: { Args: { _company_id: string }; Returns: string }
+      ensure_default_league: { Args: { _company_id: string }; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_company_id_strict: { Args: { _user_id: string }; Returns: string }
       get_company_wellbeing_summary: {
