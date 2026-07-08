@@ -162,6 +162,23 @@ export function LeagueManagePanel({ league, members, onBack, onArchived }: Props
           </Card>
         )}
 
+        {/* Conversas entre participantes */}
+        {isOwner && (
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Liberar conversas entre os participantes</p>
+                <p className="text-xs text-muted-foreground">
+                  {chatOn ? "Recados, cutucadas e provocações estão ativos." : "Membros não podem trocar recados nem cutucadas."}
+                </p>
+              </div>
+              <Button variant={chatOn ? "default" : "outline"} size="sm" onClick={toggleChat} disabled={savingChat}>
+                {chatOn ? "Ativado" : "Desativado"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Atividades */}
         {isOwner && (
           <Card>
