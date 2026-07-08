@@ -1373,6 +1373,33 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_leads: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone: string
+          source: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+          source?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+          source?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       doctor_availability: {
         Row: {
           consultation_mode: string | null
