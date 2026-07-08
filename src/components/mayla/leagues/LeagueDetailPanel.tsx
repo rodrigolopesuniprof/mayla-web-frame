@@ -3,8 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
-import { ChevronLeft, Settings, UserPlus, LogOut, Crown } from "lucide-react";
-import { isMaylaLeague } from "./constants";
+import { ChevronLeft, Settings, UserPlus, LogOut, Crown, MessageSquareOff } from "lucide-react";
 import { LeagueManagePanel } from "./LeagueManagePanel";
 import { LeagueInvitePanel } from "./LeagueInvitePanel";
 import { LeaguePokeComposer } from "./LeaguePokeComposer";
@@ -16,6 +15,7 @@ interface League {
   id: string; nome: string; visibilidade: "publica" | "privada";
   invite_code: string; status: string; owner_id: string; company_id: string;
   marca_logo_url: string | null; scoring_event_keys: string[]; created_at: string;
+  is_default: boolean; conversations_enabled: boolean;
 }
 
 interface Challenge {
