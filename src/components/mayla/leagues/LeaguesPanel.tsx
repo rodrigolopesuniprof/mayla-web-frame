@@ -360,9 +360,9 @@ export function LeaguesPanel({ onOpen }: Props) {
             Abrir {leagueSel.nome} →
           </button>
         )}
-        {selectedId === MAYLA_LEAGUE_ID && (
-          <button className="liga-btn w-full" onClick={() => onOpen(MAYLA_LEAGUE_ID)}>
-            Ver ranking completo →
+        {isDefaultSelected && defaultLeague && (
+          <button className="liga-btn w-full" onClick={() => onOpen(defaultLeague.id)}>
+            Abrir {defaultLeague.nome} →
           </button>
         )}
       </div>
