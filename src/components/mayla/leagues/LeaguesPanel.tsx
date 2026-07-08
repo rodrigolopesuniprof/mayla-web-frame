@@ -357,12 +357,12 @@ export function LeaguesPanel({ onOpen }: Props) {
         {/* CTA para abrir a liga selecionada em detalhe */}
         {leagueSel && (
           <button className="liga-btn w-full" onClick={() => onOpen(leagueSel.id)}>
-            Abrir {leagueSel.nome} →
+            Abrir {(leagueSel.nome ?? "").split(/\s+/)[0].slice(0, 10)} &nbsp;→
           </button>
         )}
         {isDefaultSelected && defaultLeague && (
           <button className="liga-btn w-full" onClick={() => onOpen(defaultLeague.id)}>
-            Abrir {defaultLeague.nome} →
+            Abrir {(defaultLeague.nome ?? "").split(/\s+/)[0].slice(0, 10)}&nbsp;&nbsp;→
           </button>
         )}
       </div>
