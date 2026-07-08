@@ -1965,6 +1965,44 @@ export type Database = {
           },
         ]
       }
+      league_pokes: {
+        Row: {
+          created_at: string
+          from_user: string
+          id: string
+          league_id: string
+          texto: string
+          tipo: string
+          to_user: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_user: string
+          id?: string
+          league_id: string
+          texto: string
+          tipo: string
+          to_user?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_user?: string
+          id?: string
+          league_id?: string
+          texto?: string
+          tipo?: string
+          to_user?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_pokes_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leagues: {
         Row: {
           company_id: string
