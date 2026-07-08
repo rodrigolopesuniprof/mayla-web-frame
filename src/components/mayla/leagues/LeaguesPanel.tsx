@@ -6,7 +6,7 @@ import { useDailyStreak } from "@/hooks/useDailyStreak";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { MAYLA_LEAGUE_ID } from "./constants";
+import { MAYLA_LEAGUE_ID, useDefaultLeague } from "./constants";
 import { useLeagueFeed, useWeekCountdown } from "./useLeagueFeed";
 import { LeaguePokeComposer } from "./LeaguePokeComposer";
 import "./leagues.css";
