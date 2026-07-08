@@ -240,9 +240,9 @@ export function LeaguesPanel({ onOpen }: Props) {
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => setSelectedId(MAYLA_LEAGUE_ID)}
-            className={`liga-pill ${selectedId === MAYLA_LEAGUE_ID ? "liga-pill--active" : ""}`}
+            className={`liga-pill ${isDefaultSelected ? "liga-pill--active" : ""}`}
           >
-            🏆 Liga Mayla
+            🏆 {defaultLeague?.nome || "Sua empresa"}
           </button>
           {myLeagues.map((l) => (
             <button key={l.id}
