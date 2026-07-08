@@ -1,0 +1,162 @@
+/* Tokens escopados do módulo Ligas — não vazam para o resto do app. */
+.liga-scope {
+  --liga-canvas: #f4efe6;
+  --liga-card: #ffffff;
+  --liga-ink: #2e2a26;
+  --liga-ink-soft: #7b746c;
+  --liga-ink-mute: #a39a8f;
+  --liga-hairline: rgba(46, 42, 38, 0.1);
+  --liga-hairline-strong: rgba(46, 42, 38, 0.16);
+  --liga-coral: #df6a4d;
+  --liga-coral-soft: #fbe9e3;
+  --liga-coral-ink: #b8543a;
+  --liga-steel: #567095;
+  --liga-pill-blue: #eef1f5;
+  --liga-gold: #c9973a;
+  --liga-gold-bg: #f6ecd4;
+  --liga-gold-ink: #8a5f16;
+  --liga-green: #8fd6a0;
+  --liga-dark: #2e2a26;
+  --liga-on-dark: #f4efe6;
+
+  background: var(--liga-canvas);
+  color: var(--liga-ink);
+  font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01" on, "cv11" on;
+  -webkit-font-smoothing: antialiased;
+}
+.liga-scope * { border-color: var(--liga-hairline); }
+
+.liga-serif { font-family: "Newsreader", ui-serif, Georgia, serif; letter-spacing: -0.01em; }
+.liga-sans  { font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif; }
+
+.liga-h1 { font-family: "Newsreader", serif; font-weight: 600; font-size: 30px; line-height: 1.1; letter-spacing: -0.02em; color: var(--liga-ink); }
+.liga-h2 { font-family: "Newsreader", serif; font-weight: 600; font-size: 20px; line-height: 1.15; color: var(--liga-ink); }
+.liga-caps { font-family: "Instrument Sans", sans-serif; font-size: 10.5px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--liga-ink-mute); }
+.liga-muted { color: var(--liga-ink-soft); }
+
+.liga-card {
+  background: var(--liga-card);
+  border: 1px solid var(--liga-hairline);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+.liga-dark-card {
+  background: var(--liga-dark);
+  color: var(--liga-on-dark);
+  border-radius: 18px;
+  padding: 16px;
+}
+.liga-gold-card {
+  background: var(--liga-gold-bg);
+  border: 1px solid rgba(201, 151, 58, 0.28);
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: var(--liga-gold-ink);
+}
+.liga-coral-card {
+  background: var(--liga-coral-soft);
+  border: 1px solid rgba(223, 106, 77, 0.22);
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: var(--liga-coral-ink);
+}
+
+.liga-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; line-height: 1;
+  background: var(--liga-card); color: var(--liga-ink);
+  border: 1px solid var(--liga-hairline);
+  white-space: nowrap;
+}
+.liga-pill--active { background: var(--liga-dark); color: var(--liga-on-dark); border-color: var(--liga-dark); }
+.liga-pill--blue   { background: var(--liga-pill-blue); color: var(--liga-steel); border-color: transparent; }
+.liga-pill--gold   { background: var(--liga-gold-bg); color: var(--liga-gold-ink); border-color: transparent; }
+.liga-pill--coral  { background: var(--liga-coral-soft); color: var(--liga-coral-ink); border-color: transparent; }
+
+.liga-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 14px; border-radius: 12px;
+  font-family: "Instrument Sans", sans-serif; font-weight: 600; font-size: 14px;
+  border: 1px solid var(--liga-hairline);
+  background: var(--liga-card); color: var(--liga-ink);
+  cursor: pointer; transition: transform .06s ease, opacity .12s ease;
+}
+.liga-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.liga-btn:active:not(:disabled) { transform: scale(0.985); }
+.liga-btn--coral { background: var(--liga-coral); color: #fff; border-color: var(--liga-coral); }
+.liga-btn--steel { background: var(--liga-steel); color: #fff; border-color: var(--liga-steel); }
+.liga-btn--gold  { background: var(--liga-gold); color: #fff; border-color: var(--liga-gold); }
+.liga-btn--ghost { background: transparent; }
+.liga-btn--sm    { padding: 6px 12px; font-size: 12.5px; border-radius: 10px; }
+
+.liga-bar {
+  position: relative; height: 8px; border-radius: 99px;
+  background: rgba(255,255,255,0.14); overflow: hidden;
+}
+.liga-bar--light { background: rgba(46,42,38,0.08); }
+.liga-bar > i {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--liga-coral); border-radius: 99px;
+  transition: width .4s ease;
+}
+.liga-bar--gold > i { background: var(--liga-gold); }
+
+.liga-tab-strip {
+  display: flex; gap: 4px; padding: 3px; border-radius: 12px;
+  background: rgba(46,42,38,0.06); border: 1px solid var(--liga-hairline);
+}
+.liga-tab-strip button {
+  flex: 1; padding: 8px 6px; border-radius: 9px;
+  font-family: "Instrument Sans", sans-serif; font-weight: 500; font-size: 13px;
+  color: var(--liga-ink-soft); background: transparent; border: 0; cursor: pointer;
+}
+.liga-tab-strip button.is-active {
+  background: var(--liga-card); color: var(--liga-ink);
+  box-shadow: 0 1px 2px rgba(46,42,38,.06);
+}
+
+.liga-dot-live {
+  display: inline-block; width: 6px; height: 6px; border-radius: 99px;
+  background: var(--liga-coral); box-shadow: 0 0 0 0 rgba(223,106,77,.5);
+  animation: liga-pulse 1.6s infinite;
+  margin-right: 6px;
+}
+@keyframes liga-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(223,106,77,.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(223,106,77,0); }
+  100% { box-shadow: 0 0 0 0 rgba(223,106,77,0); }
+}
+
+.liga-avatar-stack { display: inline-flex; }
+.liga-avatar-stack > * { margin-left: -8px; border: 2px solid var(--liga-canvas); }
+.liga-avatar-stack > *:first-child { margin-left: 0; }
+
+.liga-podium {
+  display: grid; grid-template-columns: 1fr 1.15fr 1fr;
+  align-items: end; gap: 10px;
+}
+.liga-podium-block {
+  background: var(--liga-gold-bg);
+  border: 1px solid rgba(201, 151, 58, 0.28);
+  border-radius: 14px; padding: 12px 6px; text-align: center;
+  color: var(--liga-gold-ink);
+}
+
+.liga-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--liga-card);
+  border: 1px solid var(--liga-hairline);
+  border-radius: 14px;
+}
+.liga-row + .liga-row { margin-top: 6px; }
+.liga-row--me { border-color: var(--liga-coral); box-shadow: 0 0 0 3px rgba(223,106,77,.06); }
+.liga-row--warn { border-color: rgba(223, 106, 77, 0.4); }
+
+.liga-avatar-coral {
+  background: var(--liga-coral); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 600; font-family: "Instrument Sans", sans-serif;
+  border-radius: 999px;
+}
