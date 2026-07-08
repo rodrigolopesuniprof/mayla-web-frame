@@ -242,7 +242,7 @@ export function LeaguesPanel({ onOpen }: Props) {
             onClick={() => setSelectedId(MAYLA_LEAGUE_ID)}
             className={`liga-pill ${isDefaultSelected ? "liga-pill--active" : ""}`}
           >
-            🏆 {defaultLeague?.nome || "Sua empresa"}
+            🏆 {(defaultLeague?.nome ?? "Sua empresa").split(/\s+/)[0].slice(0, 10)}
           </button>
           {myLeagues.map((l) => (
             <button key={l.id}
