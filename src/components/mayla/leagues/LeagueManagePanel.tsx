@@ -237,7 +237,7 @@ export function LeagueManagePanel({ league, members, onBack, onArchived }: Props
         </div>
 
         {/* Arquivar */}
-        {isOwner && (
+        {isOwner && !isDefault && (
           <Button variant="outline" className="w-full" onClick={archive}>
             <Trash2 className="h-4 w-4 mr-1" /> Arquivar liga
           </Button>
