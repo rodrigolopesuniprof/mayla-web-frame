@@ -19,6 +19,8 @@ interface League {
   company_id: string;
   marca_logo_url: string | null;
   scoring_event_keys: string[];
+  is_default?: boolean;
+  conversations_enabled?: boolean;
 }
 
 interface Member {
