@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
-import { ChevronLeft, Settings, UserPlus, LogOut, Crown, MessageSquareOff } from "lucide-react";
+import { ChevronLeft, Settings, UserPlus, LogOut, Crown, Lock } from "lucide-react";
 import { LeagueManagePanel } from "./LeagueManagePanel";
 import { LeagueInvitePanel } from "./LeagueInvitePanel";
 import { LeaguePokeComposer } from "./LeaguePokeComposer";
@@ -32,7 +32,6 @@ const firstName = (n?: string | null) => (n || "Colaborador").split(" ")[0];
 export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
   const { user } = useAuth();
   const { companyId } = useCompany();
-  const isMayla = isMaylaLeague(leagueId);
 
   const [league, setLeague] = useState<League | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -40,39 +39,45 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
   const [sub, setSub] = useState<Sub>("detail");
   const [pokeState, setPokeState] = useState<{ target: { user_id: string; full_name: string | null } | null; tipo: "cutucar" | "torcer" | "provocar" | "recado" } | null>(null);
 
-  const feed = useLeagueFeed(leagueId, companyId);
+  const feed = useLeagueFeed(league?.id || leagueId, companyId);
 
-  useEffect(() => {
-    if (isMayla) { setLeague(null); return; }
+  const loadLeague = () => {
     supabase.from("leagues" as any)
-      .select("id, nome, visibilidade, invite_code, status, owner_id, company_id, marca_logo_url, scoring_event_keys, created_at")
+      .select("id, nome, visibilidade, invite_code, status, owner_id, company_id, marca_logo_url, scoring_event_keys, created_at, is_default, conversations_enabled")
       .eq("id", leagueId).maybeSingle()
       .then(({ data }) => setLeague(data as any));
+  };
+
+  useEffect(() => {
+    loadLeague();
     supabase.from("league_challenges" as any)
       .select("id, titulo, metrica, alvo, premio, week_id")
       .eq("league_id", leagueId)
       .order("week_id", { ascending: false }).limit(10)
       .then(({ data }) => setChallenges(((data || []) as any[])));
-  }, [leagueId, isMayla]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leagueId]);
 
-  if (!isMayla && !league) {
+  if (!league) {
     return <div className="liga-scope flex-1 p-6"><p className="text-sm liga-muted">Carregando…</p></div>;
   }
 
-  if (!isMayla && league && sub === "manage") {
+  if (sub === "manage") {
     const members = feed.members.map((m) => ({ user_id: m.user_id, papel: m.papel, full_name: m.full_name, avatar_url: m.avatar_url }));
-    return <LeagueManagePanel league={league} members={members} onBack={() => { setSub("detail"); feed.reload(); }} onArchived={onLeft} />;
+    return <LeagueManagePanel league={league} members={members} onBack={() => { setSub("detail"); loadLeague(); feed.reload(); }} onArchived={onLeft} />;
   }
-  if (!isMayla && league && sub === "invite") {
+  if (sub === "invite") {
     return <LeagueInvitePanel league={league} onBack={() => setSub("detail")} />;
   }
 
   const me = feed.members.find((m) => m.user_id === user?.id);
-  const isOwner = !isMayla && league?.owner_id === user?.id;
+  const isOwner = league.owner_id === user?.id;
   const isCoadmin = me?.papel === "coadmin";
   const canManage = isOwner || isCoadmin;
+  const isDefault = league.is_default;
+  const chatOn = league.conversations_enabled;
 
-  const displayName = isMayla ? "Liga Mayla" : (league?.nome || "");
+  const displayName = league.nome;
   const totalMembers = feed.members.length;
   const top3 = feed.members.slice(0, 3);
   const leaderId = feed.members[0]?.user_id;
@@ -96,12 +101,20 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
   };
 
   const handleLeave = async () => {
-    if (!user || !league) return;
+    if (!user) return;
     if (!confirm("Sair desta liga?")) return;
     const { error } = await supabase.from("league_members" as any).delete().eq("league_id", league.id).eq("user_id", user.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Você saiu da liga." });
     onLeft();
+  };
+
+  const enableChat = async () => {
+    const { error } = await supabase.from("leagues" as any)
+      .update({ conversations_enabled: true } as any).eq("id", league.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Conversas liberadas 💬" });
+    loadLeague();
   };
 
   return (
@@ -115,45 +128,61 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
         <h1 className="liga-serif flex-1 truncate" style={{ fontSize: 22, fontWeight: 600 }}>
           {displayName}
         </h1>
-        {!isMayla && (
-          <div className="flex gap-1">
+        <div className="flex gap-1">
+          {!isDefault && (
             <button className="liga-btn liga-btn--sm" onClick={() => setSub("invite")} title="Convidar">
               <UserPlus className="h-4 w-4" />
             </button>
-            {canManage && (
-              <button className="liga-btn liga-btn--sm" onClick={() => setSub("manage")} title="Gerenciar">
-                <Settings className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        )}
+          )}
+          {canManage && (
+            <button className="liga-btn liga-btn--sm" onClick={() => setSub("manage")} title="Gerenciar">
+              <Settings className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Sub-nav segmentada */}
       <div className="px-5 pb-3">
         <div className="liga-tab-strip">
-          {(["ranking", "desafios", "membros", "recados"] as Tab[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              className={tab === t ? "is-active" : ""}
-              disabled={isMayla && (t === "desafios" || t === "recados")}
-              style={isMayla && (t === "desafios" || t === "recados") ? { opacity: 0.35 } : undefined}>
-              {t === "ranking" && "Ranking"}
-              {t === "desafios" && "Desafios"}
-              {t === "membros" && "Membros"}
-              {t === "recados" && "Recados"}
-            </button>
-          ))}
+          {(["ranking", "desafios", "membros", "recados"] as Tab[]).map((t) => {
+            const disabled = t === "recados" && !chatOn;
+            return (
+              <button key={t} onClick={() => !disabled && setTab(t)}
+                className={tab === t ? "is-active" : ""}
+                disabled={disabled}
+                title={disabled ? "Conversas desativadas pelo admin" : undefined}
+                style={disabled ? { opacity: 0.35 } : undefined}>
+                {t === "ranking" && "Ranking"}
+                {t === "desafios" && "Desafios"}
+                {t === "membros" && "Membros"}
+                {t === "recados" && "Recados"}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-3">
         {/* Info liga */}
-        {!isMayla && league && (
-          <div className="flex items-center gap-3 pb-1">
-            <span className="text-xs" style={{ color: "var(--liga-ink-soft)" }}>
-              {league.visibilidade === "publica" ? "🌍 Pública" : "🔒 Privada"} · {totalMembers} membros · criada em {new Date(league.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-            </span>
-            {feed.prize?.elegivel && <span className="liga-pill liga-pill--gold">Prêmio ativo</span>}
+        <div className="flex items-center gap-3 pb-1 flex-wrap">
+          <span className="text-xs" style={{ color: "var(--liga-ink-soft)" }}>
+            {isDefault ? "🏢 Liga da empresa" : (league.visibilidade === "publica" ? "🌍 Pública" : "🔒 Privada")} · {totalMembers} membros
+            {!isDefault && ` · criada em ${new Date(league.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`}
+          </span>
+          {feed.prize?.elegivel && <span className="liga-pill liga-pill--gold">Prêmio ativo</span>}
+        </div>
+
+        {/* Admin CTA para liberar conversas */}
+        {!chatOn && canManage && (
+          <div className="liga-dark-card flex items-center gap-3">
+            <Lock className="h-5 w-5" />
+            <div className="flex-1 text-sm">
+              Recados e cutucadas entre participantes estão desativados.
+            </div>
+            <button className="liga-btn liga-btn--coral liga-btn--sm" onClick={enableChat}>
+              Liberar
+            </button>
           </div>
         )}
 
@@ -210,7 +239,7 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
         )}
 
         {/* Desafios */}
-        {tab === "desafios" && !isMayla && (
+        {tab === "desafios" && (
           <div className="space-y-2">
             {challenges.length === 0 && (
               <p className="text-sm text-center py-8" style={{ color: "var(--liga-ink-soft)" }}>
@@ -235,7 +264,7 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
         {/* Membros */}
         {tab === "membros" && (
           <>
-            {!isMayla && (
+            {chatOn && (
               <div className="liga-dark-card flex items-center gap-3 mb-2">
                 <div style={{ fontSize: 22 }}>📣</div>
                 <div className="flex-1 text-sm">Manda um recado pra liga toda</div>
@@ -267,7 +296,7 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
                         {isParado && !isMe && " · 😴 parad" + (m.full_name?.match(/a$/) ? "a" : "o")}
                       </p>
                     </div>
-                    {chip && !isMayla && (
+                    {chip && chatOn && (
                       <button
                         className={`liga-btn liga-btn--sm ${chip.cls}`}
                         onClick={() => setPokeState({ target: { user_id: m.user_id, full_name: m.full_name }, tipo: chip.tipo })}
@@ -283,7 +312,7 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
         )}
 
         {/* Recados */}
-        {tab === "recados" && !isMayla && league && (
+        {tab === "recados" && chatOn && (
           <div className="space-y-3">
             <button className="liga-btn liga-btn--coral w-full"
               onClick={() => setPokeState({ target: null, tipo: "recado" })}>
@@ -293,14 +322,14 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
           </div>
         )}
 
-        {!isMayla && !isOwner && tab === "membros" && (
+        {!isDefault && !isOwner && tab === "membros" && (
           <button className="liga-btn w-full mt-3" onClick={handleLeave}>
             <LogOut className="h-4 w-4" /> Sair da liga
           </button>
         )}
       </div>
 
-      {!isMayla && league && pokeState && (
+      {pokeState && (
         <LeaguePokeComposer
           open={!!pokeState}
           onOpenChange={(o) => !o && setPokeState(null)}
