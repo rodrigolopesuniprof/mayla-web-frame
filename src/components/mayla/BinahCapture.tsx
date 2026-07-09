@@ -684,15 +684,23 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
               </div>
               {rawResults?.payload && <AdvancedIndicatorsSection payload={rawResults.payload} />}
               <button
-                onClick={saveResult}
-                disabled={saving || saved}
+                onClick={() => {
+                  if (onSaveOverride && mappedResult) {
+                    onSaveOverride(mappedResult);
+                    return;
+                  }
+                  saveResult();
+                }}
+                disabled={!onSaveOverride && (saving || saved)}
                 className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white mt-2 disabled:opacity-60"
                 style={{
                   background:
                     "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
                 }}
               >
-                {saved ? "✓ Salvo" : saving ? "Salvando..." : "Salvar Medição"}
+                {onSaveOverride
+                  ? (saveButtonLabel || "Analisar Medição")
+                  : (saved ? "✓ Salvo" : saving ? "Salvando..." : (saveButtonLabel || "Salvar Medição"))}
               </button>
             </div>
           )}
