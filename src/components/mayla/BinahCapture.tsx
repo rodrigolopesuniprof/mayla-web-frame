@@ -20,6 +20,10 @@ interface BinahCaptureProps {
   sourceKey?: string;
   /** When the environment doesn't support the advanced analysis, offer a fallback to basic rPPG. */
   onFallbackToBasic?: () => void;
+  /** Override the primary action button label (default: "Salvar Medição"). */
+  saveButtonLabel?: string;
+  /** If provided, replaces default save-to-DB behavior on the primary button and disables auto-save. */
+  onSaveOverride?: (result: MappedResult) => void | Promise<void>;
 }
 
 type CapturePhase = "consent" | "camera" | "ready" | "measuring" | "result" | "error" | "unsupported";
