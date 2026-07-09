@@ -240,8 +240,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     stopMeasurement();
     stopTimer();
     stopCamera();
-    // Flush pending result before tearing down the SDK.
-    if (rawResults && mappedResult && !autoSavedRef.current && !saved && !saving) {
+    // Flush pending result before tearing down the SDK (skip when using override).
+    if (!onSaveOverride && rawResults && mappedResult && !autoSavedRef.current && !saved && !saving) {
       autoSavedRef.current = true;
       try { await saveResult(); } catch (e) { console.warn("[Vitals] flush on cancel failed", e); }
     }
