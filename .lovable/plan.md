@@ -1,55 +1,30 @@
-## Objetivo
-Na rota pública `/demo` (usada para embed no site institucional), trocar o botão **"Salvar Medição"** por **"Analisar Medição"** e, em vez de salvar no banco, abrir o WhatsApp (`wa.me/553197863970`) com uma mensagem pré-formatada contendo os resultados da medição.
+## Diagnóstico
 
-**Restrição crítica:** nenhuma alteração de comportamento no app Mayla principal. O botão "Salvar Medição" e o fluxo de persistência continuam iguais para todos os outros usos (`HealthTab`, etc.).
+Não há bug no ambiente de testes nem problema de conexão. Verifiquei diretamente no backend:
 
-## Escopo
+- Usuário `lbachtschin@uniprof.com.br` existe (id `1d843b6c-...`)
+- E-mail confirmado (11/03/2026)
+- Senha cadastrada
+- Não está banido/bloqueado
+- Último login com sucesso: 28/05/2026
+- Logs de auth mostram os POSTs recentes em `/token` retornando **400** com `msg: "request completed"` — sem erro de infra
 
-### 1. `src/components/mayla/BinahCapture.tsx`
-Adicionar duas props opcionais (não-invasivas):
-- `saveButtonLabel?: string` — sobrescreve o texto do botão (default: "Salvar Medição").
-- `onSaveOverride?: (result: MappedResult) => void | Promise<void>` — quando fornecido, substitui a chamada padrão `saveResult()` no `onClick` do botão principal e desativa a auto-persistência em `special_measurements` / `health_measurements`.
+O Supabase Auth só devolve **400 Invalid login credentials** em uma situação: **e-mail + senha não batem**. Não é 500 (backend caiu), não é 429 (rate limit), não é 401 (token/sessão). É credencial errada.
 
-Trocas mínimas:
-- No `onClick` do botão (linha ~682): usar `onSaveOverride` se existir, senão `saveResult` (comportamento atual).
-- No texto (linha ~690): usar `saveButtonLabel` se existir, senão "Salvar Medição".
-- No `useEffect` de auto-save (após `status === "completed"`): pular a persistência quando `onSaveOverride` estiver presente.
-- No `handleCancel`: pular o flush quando `onSaveOverride` estiver presente.
+Como a conta existe e já logou antes, o cenário é: **a senha atual não é a que está sendo digitada** (esquecida, trocada por outro admin, ou o usuário está tentando uma senha antiga).
 
-Nenhum outro consumidor (HealthTab, WellbeingTab) passa essas props, então o comportamento existente fica idêntico.
+## Ação sugerida (não é mudança de código)
 
-### 2. `src/pages/DemoBinah.tsx`
-- Passar `saveButtonLabel="Analisar Medição"`.
-- Passar `onSaveOverride={(r) => window.open(buildWhatsAppUrl(r), "_blank")}`.
-- Helper local `buildWhatsAppUrl(r)` gera:
+Uma das três opções, você escolhe:
 
-```
-https://wa.me/553197863970?text=<encoded>
-```
+1. **Usuário faz "Esqueceu a senha?"** na própria tela de login → recebe e-mail com link para `/reset-password` (fluxo já existe e funciona).
+2. **Você (admin) redefine a senha** pelo painel admin de usuários — se quiser, eu confirmo se essa ação já existe na UI de `AdminUsers` ou preciso expor um botão "Redefinir senha".
+3. **Eu reseto agora via migration** (um `UPDATE` em `auth.users` com senha temporária que você me passa) — só faço se você pedir explicitamente, porque envolve tocar em senha de usuário real.
 
-Formato da mensagem (campos ausentes são omitidos, ex.: se PA não vier, sai só "PA —" ou o campo é pulado — vou pular quando `undefined` para não poluir):
+## O que NÃO farei sem sua confirmação
 
-```
-Olá, gostaria de avaliar meus dados de saúde
-FC 81, PA 129/78, SPO2 98, FR 15, Stress 26, VFC 44, Bem-estar 60, Hemog 14.9, HbA1c 5.4%
-```
+- Não vou alterar código de login / AuthContext (está funcionando — outros usuários logam normalmente).
+- Não vou mexer em `auto_confirm_email` nem em políticas de auth.
+- Não vou resetar senha sem você dizer qual caminho prefere.
 
-Mapeamento `MappedResult` → rótulos:
-- FC ← `heart_rate`
-- PA ← `blood_pressure_sys`/`blood_pressure_dia`
-- SPO2 ← `spo2`
-- FR ← `respiratory_rate`
-- Stress ← `stress_level`
-- VFC ← `hrv_sdnn`
-- Bem-estar ← `wellness_score`
-- Hemog ← `hemoglobin`
-- HbA1c ← `hba1c` (com `%`)
-
-## Fora do escopo
-- O botão inferior **"Quero entender meu resultado"** aparece do site externo que faz o embed — será removido/ajustado pelo Claude do site, não neste projeto.
-- Nenhuma nova rota, tabela, edge function ou migration.
-- Nenhuma mudança em `HealthTab`, `WellbeingTab`, ou qualquer outro consumidor de `BinahCapture`.
-
-## Validação
-- Abrir `/demo` no preview publicado → botão mostra "Analisar Medição" → clicar abre WhatsApp com a mensagem preenchida.
-- Abrir `HealthTab` no app normal → botão continua "Salvar Medição" e ainda persiste no banco.
+Me diga qual das 3 opções seguir (ou se quer que eu investigue outro usuário específico da UNIPROF antes).
