@@ -24,6 +24,10 @@ interface BinahCaptureProps {
   saveButtonLabel?: string;
   /** If provided, replaces default save-to-DB behavior on the primary button and disables auto-save. */
   onSaveOverride?: (result: MappedResult) => void | Promise<void>;
+  /** Hide the "+100 pontos" hint on the consent screen (for /demo). */
+  hidePointsHint?: boolean;
+  /** Override the consent-phase CTA label (default includes "· +100 pts"). */
+  consentCtaLabel?: string;
 }
 
 type CapturePhase = "consent" | "camera" | "ready" | "measuring" | "result" | "error" | "unsupported";
@@ -72,7 +76,7 @@ const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
 
 const PROCESSING_TIME = 60;
 
-export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic, saveButtonLabel, onSaveOverride }: BinahCaptureProps) {
+export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic, saveButtonLabel, onSaveOverride, hidePointsHint, consentCtaLabel }: BinahCaptureProps) {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -447,7 +451,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Duração: ~60 segundos · Necessário boa iluminação · ganhe +100 pontos
+                Duração: ~60 segundos · Necessário boa iluminação{hidePointsHint ? "" : " · ganhe +100 pontos"}
               </p>
               <button
                 onClick={openCamera}
@@ -458,7 +462,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
                   boxShadow: "0 8px 24px rgba(26,92,138,.3)",
                 }}
               >
-                Iniciar Medição Especial · +100 pts
+                {consentCtaLabel || "Iniciar Medição Especial · +100 pts"}
               </button>
             </div>
           )}

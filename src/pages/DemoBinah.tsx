@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { BinahCapture } from "@/components/mayla/BinahCapture";
+import { DemoLeadForm, type LeadData } from "./DemoLeadForm";
+import { supabase } from "@/integrations/supabase/client";
+import "./demo.css";
 
-const WHATSAPP_NUMBER = "553197863970";
+type Phase = "lead" | "measure" | "done";
 
 interface DemoResult {
   heart_rate?: number;
@@ -16,59 +19,74 @@ interface DemoResult {
   wellness_score?: number;
 }
 
-function fmt(n: number | undefined, decimals = 0): string | null {
-  if (n === undefined || n === null || Number.isNaN(n)) return null;
-  return decimals > 0 ? Number(n).toFixed(decimals) : String(Math.round(n));
-}
-
-function buildWhatsAppUrl(r: DemoResult): string {
-  const parts: string[] = [];
-  const fc = fmt(r.heart_rate);
-  if (fc) parts.push(`FC ${fc}`);
-  const sys = fmt(r.blood_pressure_sys);
-  const dia = fmt(r.blood_pressure_dia);
-  if (sys && dia) parts.push(`PA ${sys}/${dia}`);
-  const spo2 = fmt(r.spo2);
-  if (spo2) parts.push(`SPO2 ${spo2}`);
-  const fr = fmt(r.respiratory_rate);
-  if (fr) parts.push(`FR ${fr}`);
-  const stress = fmt(r.stress_level);
-  if (stress) parts.push(`Stress ${stress}`);
-  const vfc = fmt(r.hrv_sdnn);
-  if (vfc) parts.push(`VFC ${vfc}`);
-  const wellness = fmt(r.wellness_score);
-  if (wellness) parts.push(`Bem-estar ${wellness}`);
-  const hemog = fmt(r.hemoglobin, 1);
-  if (hemog) parts.push(`Hemog ${hemog}`);
-  const hba1c = fmt(r.hba1c, 1);
-  if (hba1c) parts.push(`HbA1c ${hba1c}%`);
-
-  const text =
-    parts.length > 0
-      ? `Olá, gostaria de avaliar meus dados de saúde\n${parts.join(", ")}`
-      : `Olá, gostaria de avaliar meus dados de saúde`;
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
-}
-
 export default function DemoBinah() {
-  const [key, setKey] = useState(0);
+  const [phase, setPhase] = useState<Phase>("lead");
+  const [lead, setLead] = useState<LeadData | null>(null);
+  const [sending, setSending] = useState(false);
+  const [captureKey, setCaptureKey] = useState(0);
 
+  async function sendHealth(result: DemoResult) {
+    if (!lead) return;
+    if (sending) return;
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("demo-health-submit", {
+        body: { nome: lead.nome, whatsapp: lead.whatsapp, medicao: result },
+      });
+      if (error) throw error;
+      if (data && (data as any).ok === false) throw new Error("crm_error");
+    } catch (err) {
+      console.error("[demo] health submit failed", err);
+      // We still show the "done" screen — the user finished the test — but log the error.
+    } finally {
+      setSending(false);
+      setPhase("done");
+    }
+  }
+
+  function restart() {
+    setLead(null);
+    setPhase("lead");
+    setCaptureKey((k) => k + 1);
+  }
+
+  if (phase === "lead") {
+    return <DemoLeadForm onSubmitted={(d) => { setLead(d); setPhase("measure"); }} />;
+  }
+
+  if (phase === "done") {
+    return (
+      <div className="demo-scope">
+        <div className="demo-shell">
+          <div className="demo-done">
+            <div className="demo-done-icon">✅</div>
+            <h2>Recebemos seus dados!</h2>
+            <p>
+              Em instantes você receberá pelo WhatsApp uma mensagem da equipe Mayla com as dicas do seu resultado.
+            </p>
+            <button className="demo-cta" onClick={restart}>Fazer novo teste</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // phase === "measure"
   return (
     <div className="min-h-screen w-full bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <BinahCapture
-          key={key}
-          onClose={() => setKey((k) => k + 1)}
-          onComplete={() => { /* no-op in demo mode */ }}
+          key={captureKey}
+          onClose={restart}
+          onComplete={() => { /* handled by onSaveOverride */ }}
           municipalityId={null}
           companyId={null}
           providerOverride="binah"
           displayName="Mayla Saúde · Teste"
-          saveButtonLabel="Analisar Medição"
-          onSaveOverride={(result) => {
-            const url = buildWhatsAppUrl(result as DemoResult);
-            window.open(url, "_blank", "noopener,noreferrer");
-          }}
+          saveButtonLabel={sending ? "Enviando…" : "Enviar dados e finalizar teste"}
+          hidePointsHint
+          consentCtaLabel="Iniciar medição"
+          onSaveOverride={(result) => sendHealth(result as DemoResult)}
         />
       </div>
     </div>
