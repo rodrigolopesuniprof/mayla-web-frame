@@ -76,7 +76,7 @@ const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
 
 const PROCESSING_TIME = 60;
 
-export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic, saveButtonLabel, onSaveOverride }: BinahCaptureProps) {
+export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic, saveButtonLabel, onSaveOverride, hidePointsHint, consentCtaLabel }: BinahCaptureProps) {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
