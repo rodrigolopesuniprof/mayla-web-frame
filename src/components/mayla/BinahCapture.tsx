@@ -451,7 +451,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Duração: ~60 segundos · Necessário boa iluminação · ganhe +100 pontos
+                Duração: ~60 segundos · Necessário boa iluminação{hidePointsHint ? "" : " · ganhe +100 pontos"}
               </p>
               <button
                 onClick={openCamera}
@@ -462,7 +462,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
                   boxShadow: "0 8px 24px rgba(26,92,138,.3)",
                 }}
               >
-                Iniciar Medição Especial · +100 pts
+                {consentCtaLabel || "Iniciar Medição Especial · +100 pts"}
               </button>
             </div>
           )}
