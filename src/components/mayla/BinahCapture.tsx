@@ -24,6 +24,10 @@ interface BinahCaptureProps {
   saveButtonLabel?: string;
   /** If provided, replaces default save-to-DB behavior on the primary button and disables auto-save. */
   onSaveOverride?: (result: MappedResult) => void | Promise<void>;
+  /** Hide the "+100 pontos" hint on the consent screen (for /demo). */
+  hidePointsHint?: boolean;
+  /** Override the consent-phase CTA label (default includes "· +100 pts"). */
+  consentCtaLabel?: string;
 }
 
 type CapturePhase = "consent" | "camera" | "ready" | "measuring" | "result" | "error" | "unsupported";
