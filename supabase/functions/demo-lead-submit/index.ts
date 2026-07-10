@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       nome,
       celular,
       ddi: "55",
-      abrir_conversa: true,
+      abrir_conversa: false,
       tags: ["site-mayla-saude", "teste-saude"],
       campos: {
         seu_nome: nome,
