@@ -1,24 +1,20 @@
-## Correção: abrir o chat LunaOS automaticamente após a medição
+## Problema
+No ranking da liga padrão da empresa (Liga Mayla / UNIPROF), aparece "0 membros" e "Ninguém pontuou". Os colaboradores existentes não foram inscritos automaticamente na `league_members` da liga padrão — só entram novos perfis (via trigger `profiles_join_default_league`). O backfill original rodou uma vez na migração, mas usuários criados depois (ou profiles cuja `company_id` foi setada sem disparar o trigger corretamente) ficaram de fora, resultando em ranking vazio.
 
-Hoje, ao concluir a medição em `/demo`, a tela "Recebemos seus dados!" aparece e o usuário precisa clicar em "Quero entender os meus resultados" para abrir o widget. O comportamento desejado é que essa tela intermediária deixe de existir e o chat da LunaOS entre no lugar automaticamente.
+## Regra
+- Ligas **padrão** (`is_default = true`): todos os perfis da empresa são membros automaticamente, sem etapa de aceite.
+- Ligas **criadas por usuários** (`is_default = false`): continuam com convite/aceite como hoje.
 
-### Mudanças (apenas em `src/pages/DemoBinah.tsx` e `src/pages/demo.css`, sem tocar no app principal)
+## Alterações
 
-1. **Remover a tela de sucesso ("done")**
-   - Ao terminar o envio dos dados de saúde (`handleHealthSubmit` concluído), pular direto para o estado de chat aberto, sem passar pela tela "Recebemos seus dados!".
-   - Remover o botão "💬 Quero entender os meus resultados" e o botão "Fazer novo teste" dessa tela (que deixa de existir).
+### 1. Migração de banco
+- Atualizar `ensure_default_league(_company_id)` para sempre reconciliar membros: inserir todo `profile` da empresa que ainda não esteja em `league_members` (idempotente, `ON CONFLICT DO NOTHING`). Já faz isso, mas garantir que o path "liga já existe" também rode o backfill (hoje roda — validar).
+- Rodar um `DO $$` de backfill para todas as empresas existentes, invocando `ensure_default_league` novamente agora.
+- Garantir que o trigger `profiles_join_default_league` dispare também em `UPDATE` de `company_id` (já está) e adicionar um pequeno RPC público `join_default_league()` que o front chama ao entrar na tela, como rede de segurança.
 
-2. **Novo estado final: `chat`**
-   - Substituir `phase: "done"` por `phase: "chat"`.
-   - Nessa fase, renderizar apenas:
-     - Cabeçalho compacto da marca Mayla.
-     - O iframe da LunaOS (`https://mayla.lunaos.com.br/chat/PSMiOg0P9Fik9MnYr8GgK8BN0Gdjm9Vj`) ocupando a tela inteira no mobile e uma área grande centralizada no desktop.
-     - Um link discreto "Fazer novo teste" no rodapé, que reinicia o fluxo (volta para o formulário de lead).
+### 2. Frontend
+- Em `src/components/mayla/leagues/LeagueDetailPanel.tsx` (e/ou `LeaguesPanel.tsx`), quando `league.is_default = true`, chamar `supabase.rpc("ensure_default_league", { _company_id })` uma vez no mount antes de carregar o feed — isso reconcilia a lista caso algum perfil tenha ficado fora.
+- Nenhuma mudança para ligas privadas (fluxo de aceite preservado).
 
-3. **CSS**
-   - Ajustar `demo.css`: o container do chat vira layout principal da fase (não mais um painel flutuante com botão de fechar), garantindo `100vh`/`100dvh` no mobile e sem sobreposição do widget nativo da LunaOS.
-   - Remover estilos do botão de fechar flutuante e do CTA "Quero entender os meus resultados" que não são mais usados.
-
-### Fora de escopo
-- Nenhuma alteração no restante do sistema Mayla Web Frame (componentes do app principal, `BinahCapture`, edge functions, rotas fora de `/demo`).
-- Nenhuma alteração de payload enviado para a LunaOS.
+## Resultado
+Todos os colaboradores da empresa aparecem automaticamente no ranking da liga padrão. Ligas privadas continuam exigindo entrada explícita via convite.

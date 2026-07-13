@@ -4698,6 +4698,7 @@ export type Database = {
         Returns: boolean
       }
       is_wellbeing_manager: { Args: { _user_id: string }; Returns: boolean }
+      join_my_default_league: { Args: never; Returns: string }
       league_ranking: {
         Args: { p_league_id: string; p_week_id?: string }
         Returns: {
