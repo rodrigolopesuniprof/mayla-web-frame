@@ -46,6 +46,23 @@ export async function lunaOpenConversation(body: Record<string, unknown>): Promi
   return res;
 }
 
+export async function lunaOpenChatConversation(body: Record<string, unknown>): Promise<Response> {
+  const token = Deno.env.get("LUNA_API_TOKEN");
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: "LUNA_API_TOKEN not configured" }), { status: 500 });
+  }
+  const res = await fetch(`${LUNA_BASE_URL}/conversas`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  return res;
+}
+
 // Very simple in-memory IP throttle: 20 requests per 5 minutes.
 const buckets = new Map<string, { count: number; resetAt: number }>();
 export function rateLimit(ip: string, limit = 20, windowMs = 5 * 60 * 1000): boolean {

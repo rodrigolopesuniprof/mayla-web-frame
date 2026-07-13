@@ -27,13 +27,18 @@ export default function DemoBinah() {
   const [sending, setSending] = useState(false);
   const [captureKey, setCaptureKey] = useState(0);
   const [widgetUrl, setWidgetUrl] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<DemoResult | null>(null);
 
   async function sendHealth(result: DemoResult) {
     if (!lead) return;
     if (sending) return;
+    setLastResult(result);
+    setChatError(null);
     setSending(true);
     setPhase("chat");
     let nextWidgetUrl: string | null = null;
+    let nextChatError: string | null = null;
     try {
       const { data, error } = await supabase.functions.invoke("demo-health-submit", {
         body: { nome: lead.nome, whatsapp: lead.whatsapp, medicao: result },
@@ -41,17 +46,29 @@ export default function DemoBinah() {
       if (error) throw error;
       if (data && (data as any).ok === false) throw new Error("crm_error");
       nextWidgetUrl = (data as any)?.widgetUrl ?? null;
+      nextChatError = (data as any)?.chatError ?? null;
+      if (!nextWidgetUrl && nextChatError) {
+        console.warn("[demo] chat handoff did not return widget", data);
+      }
     } catch (err) {
       console.error("[demo] health submit failed", err);
+      nextChatError = "request_failed";
     } finally {
       setWidgetUrl(nextWidgetUrl);
+      setChatError(nextChatError);
       setSending(false);
     }
+  }
+
+  function retryChat() {
+    if (lastResult) void sendHealth(lastResult);
   }
 
   function restart() {
     setLead(null);
     setWidgetUrl(null);
+    setChatError(null);
+    setLastResult(null);
     setPhase("lead");
     setCaptureKey((k) => k + 1);
   }
@@ -78,9 +95,16 @@ export default function DemoBinah() {
           />
         ) : (
           <div className="demo-done" style={{ flex: 1 }}>
-            <div className="demo-done-icon">✓</div>
+            <div className="demo-done-icon">!</div>
             <h2>Avaliação enviada</h2>
-            <p>Não conseguimos abrir o chat agora. Tente novamente.</p>
+            <p>
+              Não conseguimos abrir a conversa agora. {chatError ? `Código: ${chatError}.` : ""}
+            </p>
+            {lastResult && (
+              <button className="demo-cta-secondary" onClick={retryChat} disabled={sending}>
+                Tentar abrir conversa novamente
+              </button>
+            )}
           </div>
         )}
         <button className="demo-chat-restart" onClick={restart}>
