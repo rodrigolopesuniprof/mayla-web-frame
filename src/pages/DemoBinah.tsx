@@ -32,6 +32,7 @@ export default function DemoBinah() {
     if (!lead) return;
     if (sending) return;
     setSending(true);
+    setPhase("chat");
     let nextWidgetUrl: string | null = null;
     try {
       const { data, error } = await supabase.functions.invoke("demo-health-submit", {
@@ -45,7 +46,6 @@ export default function DemoBinah() {
     } finally {
       setWidgetUrl(nextWidgetUrl);
       setSending(false);
-      setPhase("chat");
     }
   }
 
@@ -63,17 +63,24 @@ export default function DemoBinah() {
   if (phase === "chat") {
     return (
       <div className="demo-scope demo-chat-scope">
-        {widgetUrl ? (
+        {sending ? (
+          <div className="demo-done" style={{ flex: 1 }}>
+            <div className="demo-done-icon">…</div>
+            <h2>Finalizando avaliação</h2>
+            <p>Estamos abrindo a conversa com a Maria…</p>
+          </div>
+        ) : widgetUrl ? (
           <iframe
             src={widgetUrl}
             title="Mayla Assistente"
             className="demo-chat-iframe"
+            allow="microphone; camera; clipboard-write"
           />
         ) : (
           <div className="demo-done" style={{ flex: 1 }}>
             <div className="demo-done-icon">✓</div>
-            <h2>Teste concluído</h2>
-            <p>Não conseguimos abrir o chat agora, mas seus dados foram enviados. Tente novamente em instantes.</p>
+            <h2>Avaliação enviada</h2>
+            <p>Não conseguimos abrir o chat agora. Tente novamente.</p>
           </div>
         )}
         <button className="demo-chat-restart" onClick={restart}>

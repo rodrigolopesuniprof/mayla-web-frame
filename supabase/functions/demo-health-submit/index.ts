@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
-import { lunaSubmit, normalizeWhatsapp, rateLimit, clientIp } from "../_shared/luna.ts";
+import { lunaSubmit, lunaOpenConversation, normalizeWhatsapp, rateLimit, clientIp } from "../_shared/luna.ts";
 
 const MedicaoSchema = z.object({
   heart_rate: z.number().optional().nullable(),
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
       nome,
       celular,
       ddi: "55",
-      abrir_conversa: true,
+      abrir_conversa: false,
       tags: ["site-mayla-saude", "dados-saude"],
       campos,
     };
@@ -113,20 +113,45 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Second call: open a fresh conversation with the Maria agent via /contatos.
+    // This endpoint is the one documented to accept `abrir_conversa: true` and
+    // return a `data.widget.url` for immediate chat embedding.
     let widgetUrl: string | null = null;
     let expiresAt: string | null = null;
+    let chatError: string | null = null;
     try {
-      const parsedUpstream = JSON.parse(text);
-      widgetUrl = parsedUpstream?.data?.widget?.url ?? null;
-      expiresAt = parsedUpstream?.data?.widget?.expira_em ?? null;
+      const contatoBody: Record<string, unknown> = {
+        nome,
+        celular,
+        ddi: "55",
+        abrir_conversa: true,
+        tags: ["site-mayla-saude", "dados-saude", "abrir-chat-maria"],
+      };
+      const chatRes = await lunaOpenConversation(contatoBody);
+      const chatText = await chatRes.text();
+      if (!chatRes.ok) {
+        console.error("[demo-health-submit] /contatos error", chatRes.status, chatText);
+        chatError = `contatos_${chatRes.status}`;
+      } else {
+        try {
+          const parsedChat = JSON.parse(chatText);
+          widgetUrl = parsedChat?.data?.widget?.url ?? null;
+          expiresAt = parsedChat?.data?.widget?.expira_em ?? null;
+          if (!widgetUrl) {
+            console.warn("[demo-health-submit] /contatos ok but no widget.url; body:", chatText);
+            chatError = "no_widget_url";
+          }
+        } catch (e) {
+          console.warn("[demo-health-submit] could not parse /contatos json", e, chatText);
+          chatError = "parse_error";
+        }
+      }
     } catch (e) {
-      console.warn("[demo-health-submit] could not parse upstream json", e);
-    }
-    if (!widgetUrl) {
-      console.warn("[demo-health-submit] upstream ok but no widget.url in payload; body:", text);
+      console.error("[demo-health-submit] /contatos fetch failed", e);
+      chatError = "fetch_failed";
     }
 
-    return new Response(JSON.stringify({ ok: true, widgetUrl, expiresAt }), {
+    return new Response(JSON.stringify({ ok: true, widgetUrl, expiresAt, chatError }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
