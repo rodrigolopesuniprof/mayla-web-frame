@@ -58,6 +58,16 @@ export function LeagueDetailPanel({ leagueId, onBack, onLeft }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
 
+  // Safety-net: if this is a default (company) league, ensure current user is a member
+  useEffect(() => {
+    if (league?.is_default && companyId) {
+      supabase.rpc("ensure_default_league" as any, { _company_id: companyId })
+        .then(() => feed.reload());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league?.is_default, companyId]);
+
+
   if (!league) {
     return <div className="liga-scope flex-1 p-6"><p className="text-sm liga-muted">Carregando…</p></div>;
   }
