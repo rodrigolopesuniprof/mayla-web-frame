@@ -28,10 +28,14 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type AppPhase = "loading" | "splash" | "onboarding" | "main";
 
-export function MaylaApp() {
+interface MaylaAppProps {
+  initialTab?: TabId;
+}
+
+export function MaylaApp({ initialTab = "inicio" }: MaylaAppProps) {
   const { user } = useAuth();
   const [phase, setPhase] = useState<AppPhase>("loading");
-  const [activeTab, setActiveTab] = useState<TabId>("inicio");
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [showTelemedicine, setShowTelemedicine] = useState(false);
   const [showAppointment, setShowAppointment] = useState(false);
   const [showEsfLink, setShowEsfLink] = useState(false);

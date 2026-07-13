@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
@@ -23,6 +22,7 @@ import MySubscription from "./pages/MySubscription.tsx";
 import AffiliatePortal from "./pages/AffiliatePortal.tsx";
 import PublicLeaderboard from "./pages/PublicLeaderboard.tsx";
 import { AccessGate } from "./components/AccessGate";
+import { ExternalAuthRoute } from "./components/ExternalAuthRoute";
 import { lazy, Suspense } from "react";
 
 const HealthReport = lazy(() => import("./components/report/HealthReport"));
@@ -89,13 +89,7 @@ const App = () => (
               />
               <Route
                 path="/"
-                element={
-                  <ProtectedRoute>
-                    <AccessGate>
-                      <Index />
-                    </AccessGate>
-                  </ProtectedRoute>
-                }
+                element={<ExternalAuthRoute />}
               />
               {/* Admin routes */}
               <Route path="/admin" element={<AdminLogin />} />

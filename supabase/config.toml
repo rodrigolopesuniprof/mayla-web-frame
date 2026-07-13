@@ -12,3 +12,5 @@ verify_jwt = false
 [functions.invite-signup]
 verify_jwt = false
 
+[functions.external-auth]
+verify_jwt = false
