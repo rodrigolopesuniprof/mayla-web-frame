@@ -32,6 +32,7 @@ export default function DemoBinah() {
     if (!lead) return;
     if (sending) return;
     setSending(true);
+    setPhase("chat");
     let nextWidgetUrl: string | null = null;
     try {
       const { data, error } = await supabase.functions.invoke("demo-health-submit", {
@@ -45,7 +46,6 @@ export default function DemoBinah() {
     } finally {
       setWidgetUrl(nextWidgetUrl);
       setSending(false);
-      setPhase("chat");
     }
   }
 
