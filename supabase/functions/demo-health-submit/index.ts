@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
-import { lunaSubmit, normalizeWhatsapp, rateLimit, clientIp } from "../_shared/luna.ts";
+import { lunaSubmit, lunaOpenConversation, normalizeWhatsapp, rateLimit, clientIp } from "../_shared/luna.ts";
 
 const MedicaoSchema = z.object({
   heart_rate: z.number().optional().nullable(),
