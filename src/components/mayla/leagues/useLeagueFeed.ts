@@ -64,101 +64,45 @@ export function useLeagueFeed(leagueId: string | null, companyId: string | null)
     if (!leagueId || !user) return;
     setData((d) => ({ ...d, loading: true }));
 
-    // Ranking + membros + perfis
-    let memberIds: string[] = [];
-    let rankingMap = new Map<string, { pontos_semana: number; posicao: number }>();
-    let papelMap = new Map<string, "dono" | "coadmin" | "membro">();
-
-    if (leagueId === "__mayla__" && companyId) {
-      const [{ data: profs }, { data: rk }] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, avatar_url").eq("company_id", companyId).limit(500),
-        supabase.rpc("mayla_ranking" as any, { p_company_id: companyId }),
-      ]);
-      memberIds = ((profs || []) as any[]).map((p) => p.user_id);
-      const nameMap = new Map<string, any>();
-      ((profs || []) as any[]).forEach((p) => nameMap.set(p.user_id, p));
-      ((rk || []) as any[]).forEach((r) => {
-        rankingMap.set(r.user_id, { pontos_semana: Number(r.pontos_semana) || 0, posicao: Number(r.posicao) || 0 });
-      });
-      papelMap = new Map(memberIds.map((id) => [id, "membro" as const]));
-
-      const membersOut: FeedMember[] = memberIds.map((uid) => ({
-        user_id: uid,
-        full_name: nameMap.get(uid)?.full_name || null,
-        avatar_url: nameMap.get(uid)?.avatar_url || null,
-        papel: "membro",
-        pontos_semana: rankingMap.get(uid)?.pontos_semana ?? 0,
-        posicao: rankingMap.get(uid)?.posicao ?? null,
-        last_point_at: null,
-      }));
-      // sort by ranking desc
-      membersOut.sort((a, b) => (b.pontos_semana || 0) - (a.pontos_semana || 0));
-
-      // last points per user + prize (mayla não tem prize/challenge)
-      const { data: ledger } = await supabase
-        .from("points_ledger")
-        .select("user_id, points, created_at")
-        .eq("company_id", companyId)
-        .gte("created_at", new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString())
-        .order("created_at", { ascending: false })
-        .limit(200);
-      const lastByUser = new Map<string, string>();
-      const events: LiveEvent[] = [];
-      ((ledger || []) as any[]).forEach((row) => {
-        if (!lastByUser.has(row.user_id)) lastByUser.set(row.user_id, row.created_at);
-        if (row.points >= 100 && events.length < 6) {
-          const p = nameMap.get(row.user_id);
-          events.push({
-            user_id: row.user_id, full_name: p?.full_name || null, avatar_url: p?.avatar_url || null,
-            points: row.points, created_at: row.created_at,
-          });
-        }
-      });
-      membersOut.forEach((m) => { m.last_point_at = lastByUser.get(m.user_id) || null; });
-
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const withPoints = new Set<string>();
-      ((ledger || []) as any[]).forEach((r) => {
-        if (new Date(r.created_at) >= today) withPoints.add(r.user_id);
-      });
-
-      setData({
-        loading: false, members: membersOut, events, currentChallenge: null,
-        prize: null, memberCountWithPointsToday: withPoints.size, reload: load,
-      });
-      return;
+    // Resolve real league id when caller passes the legacy "__mayla__" sentinel.
+    let realLeagueId = leagueId;
+    if (leagueId === "__mayla__") {
+      if (!companyId) return;
+      const { data: resolved } = await supabase.rpc("ensure_default_league" as any, { _company_id: companyId });
+      if (typeof resolved === "string") realLeagueId = resolved;
+      else {
+        const { data: row } = await supabase.from("leagues" as any)
+          .select("id").eq("company_id", companyId).eq("is_default", true).maybeSingle();
+        if ((row as any)?.id) realLeagueId = (row as any).id;
+        else return;
+      }
     }
 
-    // Liga real: busca membros e perfis separadamente para não depender de relacionamento
-    // implícito entre league_members.user_id e profiles.user_id na API de dados.
-    const [{ data: mems }, { data: rk }, { data: ch }, { data: pe }] = await Promise.all([
+    const rankingMap = new Map<string, { pontos_semana: number; posicao: number }>();
+    const papelMap = new Map<string, "dono" | "coadmin" | "membro">();
+
+    // Members + perfis (via RPC segura que só expõe primeiro nome + avatar) + ranking + desafio + prize.
+    const [{ data: mems }, { data: publicProfs }, { data: rk }, { data: ch }, { data: pe }] = await Promise.all([
       supabase.from("league_members" as any)
         .select("user_id, papel")
-        .eq("league_id", leagueId),
-      supabase.rpc("league_ranking" as any, { p_league_id: leagueId }),
+        .eq("league_id", realLeagueId),
+      supabase.rpc("get_league_members_public" as any, { p_league_id: realLeagueId }),
+      supabase.rpc("league_ranking" as any, { p_league_id: realLeagueId }),
       supabase.from("league_challenges" as any)
         .select("id, titulo, metrica, alvo, week_id")
-        .eq("league_id", leagueId).eq("week_id", currentWeekId())
+        .eq("league_id", realLeagueId).eq("week_id", currentWeekId())
         .order("created_at", { ascending: false }).limit(1),
       supabase.from("league_prize_eligible" as any)
-        .select("membros, elegivel_premio_mayla").eq("league_id", leagueId).maybeSingle(),
+        .select("membros, elegivel_premio_mayla").eq("league_id", realLeagueId).maybeSingle(),
     ]);
 
-    memberIds = ((mems || []) as any[]).map((m) => m.user_id);
+    const memberIds: string[] = ((mems || []) as any[]).map((m) => m.user_id);
 
-    const { data: profs } = memberIds.length > 0
-      ? await supabase.from("profiles")
-          .select("user_id, full_name, avatar_url")
-          .in("user_id", memberIds)
-      : { data: [] as any[] };
-
-    const nameMap = new Map<string, any>();
-    ((profs || []) as any[]).forEach((p) => {
-      nameMap.set(p.user_id, { full_name: p.full_name ?? null, avatar_url: p.avatar_url ?? null });
+    const nameMap = new Map<string, { full_name: string | null; avatar_url: string | null }>();
+    ((publicProfs || []) as any[]).forEach((p) => {
+      nameMap.set(p.user_id, { full_name: p.first_name ?? null, avatar_url: p.avatar_url ?? null });
     });
-    ((mems || []) as any[]).forEach((m) => {
-      papelMap.set(m.user_id, m.papel);
-    });
+    ((mems || []) as any[]).forEach((m) => { papelMap.set(m.user_id, m.papel); });
     ((rk || []) as any[]).forEach((r) => {
       rankingMap.set(r.user_id, { pontos_semana: Number(r.pontos_semana) || 0, posicao: Number(r.posicao) || 0 });
     });

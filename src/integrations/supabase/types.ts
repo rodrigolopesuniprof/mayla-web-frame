@@ -4676,6 +4676,14 @@ export type Database = {
           name: string
         }[]
       }
+      get_league_members_public: {
+        Args: { p_league_id: string }
+        Returns: {
+          avatar_url: string
+          first_name: string
+          user_id: string
+        }[]
+      }
       get_public_dashboard: { Args: { _token: string }; Returns: Json }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_municipality_id: { Args: { _user_id: string }; Returns: string }
