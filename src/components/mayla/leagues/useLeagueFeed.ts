@@ -129,10 +129,11 @@ export function useLeagueFeed(leagueId: string | null, companyId: string | null)
       return;
     }
 
-    // Liga privada
+    // Liga real: busca membros e perfis separadamente para não depender de relacionamento
+    // implícito entre league_members.user_id e profiles.user_id na API de dados.
     const [{ data: mems }, { data: rk }, { data: ch }, { data: pe }] = await Promise.all([
       supabase.from("league_members" as any)
-        .select("user_id, papel, profiles:user_id (full_name, avatar_url)")
+        .select("user_id, papel")
         .eq("league_id", leagueId),
       supabase.rpc("league_ranking" as any, { p_league_id: leagueId }),
       supabase.from("league_challenges" as any)
@@ -143,12 +144,21 @@ export function useLeagueFeed(leagueId: string | null, companyId: string | null)
         .select("membros, elegivel_premio_mayla").eq("league_id", leagueId).maybeSingle(),
     ]);
 
+    memberIds = ((mems || []) as any[]).map((m) => m.user_id);
+
+    const { data: profs } = memberIds.length > 0
+      ? await supabase.from("profiles")
+          .select("user_id, full_name, avatar_url")
+          .in("user_id", memberIds)
+      : { data: [] as any[] };
+
     const nameMap = new Map<string, any>();
+    ((profs || []) as any[]).forEach((p) => {
+      nameMap.set(p.user_id, { full_name: p.full_name ?? null, avatar_url: p.avatar_url ?? null });
+    });
     ((mems || []) as any[]).forEach((m) => {
-      nameMap.set(m.user_id, { full_name: m.profiles?.full_name ?? null, avatar_url: m.profiles?.avatar_url ?? null });
       papelMap.set(m.user_id, m.papel);
     });
-    memberIds = ((mems || []) as any[]).map((m) => m.user_id);
     ((rk || []) as any[]).forEach((r) => {
       rankingMap.set(r.user_id, { pontos_semana: Number(r.pontos_semana) || 0, posicao: Number(r.posicao) || 0 });
     });

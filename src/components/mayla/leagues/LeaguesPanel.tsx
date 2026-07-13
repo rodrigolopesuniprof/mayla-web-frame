@@ -19,6 +19,7 @@ interface League {
   status: "ativa" | "arquivada";
   owner_id: string;
   marca_logo_url: string | null;
+  is_default?: boolean;
 }
 
 interface Props {
@@ -79,18 +80,20 @@ export function LeaguesPanel({ onOpen }: Props) {
     });
 
     supabase.from("league_members" as any)
-      .select("league_id, leagues:league_id (id, nome, visibilidade, invite_code, status, owner_id, marca_logo_url)")
+      .select("league_id, leagues:league_id (id, nome, visibilidade, invite_code, status, owner_id, marca_logo_url, is_default)")
       .eq("user_id", user.id)
       .then(({ data }) => {
-        const mine = ((data || []) as any[]).map((m) => m.leagues).filter((l) => l && l.status === "ativa") as League[];
+        const mine = ((data || []) as any[])
+          .map((m) => m.leagues)
+          .filter((l) => l && l.status === "ativa" && !l.is_default) as League[];
         setMyLeagues(mine);
         setOwnedActive(mine.filter((l) => l.owner_id === user.id).length);
       });
 
     supabase.from("leagues" as any)
-      .select("id, nome, visibilidade, invite_code, status, owner_id, marca_logo_url")
+      .select("id, nome, visibilidade, invite_code, status, owner_id, marca_logo_url, is_default")
       .eq("company_id", companyId).eq("visibilidade", "publica").eq("status", "ativa").limit(20)
-      .then(({ data }) => setPublicLeagues(((data || []) as any[])));
+      .then(({ data }) => setPublicLeagues(((data || []) as any[]).filter((l) => !l.is_default)));
 
     supabase.from("point_rules").select("event_key, label, emoji, active")
       .eq("company_id", companyId).eq("active", true).order("label")
@@ -358,11 +361,6 @@ export function LeaguesPanel({ onOpen }: Props) {
         {leagueSel && (
           <button className="liga-btn w-full" onClick={() => onOpen(leagueSel.id)}>
             Abrir {(leagueSel.nome ?? "").split(/\s+/)[0].slice(0, 10)} &nbsp;→
-          </button>
-        )}
-        {isDefaultSelected && defaultLeague && (
-          <button className="liga-btn w-full" onClick={() => onOpen(defaultLeague.id)}>
-            Abrir {(defaultLeague.nome ?? "").split(/\s+/)[0].slice(0, 10)}&nbsp;&nbsp;→
           </button>
         )}
       </div>

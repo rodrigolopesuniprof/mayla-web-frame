@@ -1,20 +1,25 @@
-## Problema
-No ranking da liga padrão da empresa (Liga Mayla / UNIPROF), aparece "0 membros" e "Ninguém pontuou". Os colaboradores existentes não foram inscritos automaticamente na `league_members` da liga padrão — só entram novos perfis (via trigger `profiles_join_default_league`). O backfill original rodou uma vez na migração, mas usuários criados depois (ou profiles cuja `company_id` foi setada sem disparar o trigger corretamente) ficaram de fora, resultando em ranking vazio.
+Plano de correção para a seção Desafios/Ligas:
 
-## Regra
-- Ligas **padrão** (`is_default = true`): todos os perfis da empresa são membros automaticamente, sem etapa de aceite.
-- Ligas **criadas por usuários** (`is_default = false`): continuam com convite/aceite como hoje.
+1. Corrigir o ranking/membros zerados
+- O banco já possui membros nas ligas gerais das empresas testadas: MEDDIT, OFICIAL FARMA e UNIPROF têm membros vinculados.
+- O problema está na leitura do frontend: a tela tenta buscar `profiles` como relacionamento direto de `league_members.user_id`, mas esse relacionamento não existe no cache da API, gerando erro 400 e fazendo a lista aparecer vazia.
+- Ajustar `useLeagueFeed` para carregar em duas etapas seguras:
+  - buscar `league_members` com `user_id` e `papel`;
+  - buscar `profiles` separado usando `.in("user_id", memberIds)`;
+  - juntar os dados no frontend.
+- Isso mantém todos os usuários aparecendo automaticamente na liga geral, sem precisar mexer na regra de aceite das ligas privadas.
 
-## Alterações
+2. Preservar a regra de liga geral vs. ligas criadas
+- Liga geral da empresa: todos os colaboradores da empresa aparecem automaticamente.
+- Ligas criadas por usuários: continuam usando entrada por convite/código/aceite conforme já definido.
+- Não farei alteração estrutural no banco para esse ajuste, pois o backfill já está correto.
 
-### 1. Migração de banco
-- Atualizar `ensure_default_league(_company_id)` para sempre reconciliar membros: inserir todo `profile` da empresa que ainda não esteja em `league_members` (idempotente, `ON CONFLICT DO NOTHING`). Já faz isso, mas garantir que o path "liga já existe" também rode o backfill (hoje roda — validar).
-- Rodar um `DO $$` de backfill para todas as empresas existentes, invocando `ensure_default_league` novamente agora.
-- Garantir que o trigger `profiles_join_default_league` dispare também em `UPDATE` de `company_id` (já está) e adicionar um pequeno RPC público `join_default_league()` que o front chama ao entrar na tela, como rede de segurança.
+3. Remover a duplicação visual dos botões
+- Em `LeaguesPanel`, hoje a liga geral renderiza dois CTAs iguais: um por `leagueSel` e outro por `isDefaultSelected && defaultLeague`.
+- Manter apenas um botão “Abrir MEDDIT → / Abrir OFICIAL → / Abrir UNIPROF →”, usando a regra de nome curto já aplicada.
+- O texto “AO VIVO NA MEDDIT” permanece como rótulo do feed, não como botão.
 
-### 2. Frontend
-- Em `src/components/mayla/leagues/LeagueDetailPanel.tsx` (e/ou `LeaguesPanel.tsx`), quando `league.is_default = true`, chamar `supabase.rpc("ensure_default_league", { _company_id })` uma vez no mount antes de carregar o feed — isso reconcilia a lista caso algum perfil tenha ficado fora.
-- Nenhuma mudança para ligas privadas (fluxo de aceite preservado).
-
-## Resultado
-Todos os colaboradores da empresa aparecem automaticamente no ranking da liga padrão. Ligas privadas continuam exigindo entrada explícita via convite.
+4. Validar o resultado
+- Conferir que OFICIAL FARMA e MEDDIT deixam de mostrar “0 membros”.
+- Conferir que o ranking/membros aparece mesmo quando ninguém pontuou na semana.
+- Conferir que aparece apenas um botão “Abrir [empresa] →” na tela principal de ligas.
