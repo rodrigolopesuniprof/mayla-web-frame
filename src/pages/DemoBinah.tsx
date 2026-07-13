@@ -19,27 +19,31 @@ interface DemoResult {
   wellness_score?: number;
 }
 
-const LUNA_CHAT_URL = "https://mayla.lunaos.com.br/chat/PSMiOg0P9Fik9MnYr8GgK8BN0Gdjm9Vj";
+
 
 export default function DemoBinah() {
   const [phase, setPhase] = useState<Phase>("lead");
   const [lead, setLead] = useState<LeadData | null>(null);
   const [sending, setSending] = useState(false);
   const [captureKey, setCaptureKey] = useState(0);
+  const [widgetUrl, setWidgetUrl] = useState<string | null>(null);
 
   async function sendHealth(result: DemoResult) {
     if (!lead) return;
     if (sending) return;
     setSending(true);
+    let nextWidgetUrl: string | null = null;
     try {
       const { data, error } = await supabase.functions.invoke("demo-health-submit", {
         body: { nome: lead.nome, whatsapp: lead.whatsapp, medicao: result },
       });
       if (error) throw error;
       if (data && (data as any).ok === false) throw new Error("crm_error");
+      nextWidgetUrl = (data as any)?.widgetUrl ?? null;
     } catch (err) {
       console.error("[demo] health submit failed", err);
     } finally {
+      setWidgetUrl(nextWidgetUrl);
       setSending(false);
       setPhase("chat");
     }
@@ -47,6 +51,7 @@ export default function DemoBinah() {
 
   function restart() {
     setLead(null);
+    setWidgetUrl(null);
     setPhase("lead");
     setCaptureKey((k) => k + 1);
   }
@@ -58,11 +63,19 @@ export default function DemoBinah() {
   if (phase === "chat") {
     return (
       <div className="demo-scope demo-chat-scope">
-        <iframe
-          src={LUNA_CHAT_URL}
-          title="Mayla Assistente"
-          className="demo-chat-iframe"
-        />
+        {widgetUrl ? (
+          <iframe
+            src={widgetUrl}
+            title="Mayla Assistente"
+            className="demo-chat-iframe"
+          />
+        ) : (
+          <div className="demo-done" style={{ flex: 1 }}>
+            <div className="demo-done-icon">✓</div>
+            <h2>Teste concluído</h2>
+            <p>Não conseguimos abrir o chat agora, mas seus dados foram enviados. Tente novamente em instantes.</p>
+          </div>
+        )}
         <button className="demo-chat-restart" onClick={restart}>
           Fazer novo teste
         </button>

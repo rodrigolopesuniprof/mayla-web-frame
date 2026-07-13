@@ -113,7 +113,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
+    let widgetUrl: string | null = null;
+    let expiresAt: string | null = null;
+    try {
+      const parsedUpstream = JSON.parse(text);
+      widgetUrl = parsedUpstream?.data?.widget?.url ?? null;
+      expiresAt = parsedUpstream?.data?.widget?.expira_em ?? null;
+    } catch (e) {
+      console.warn("[demo-health-submit] could not parse upstream json", e);
+    }
+    if (!widgetUrl) {
+      console.warn("[demo-health-submit] upstream ok but no widget.url in payload");
+    }
+
+    return new Response(JSON.stringify({ ok: true, widgetUrl, expiresAt }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
