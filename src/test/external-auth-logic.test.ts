@@ -123,6 +123,16 @@ describe("parseExternalPatient", () => {
     });
   });
 
+  it("accepts absent optional profile groups", () => {
+    const { personal_info: _personalInfo, address_contact: _addressContact, ...required } = validResponse;
+    const patient = parseExternalPatient(required);
+
+    expect(patient.birthDate).toBeNull();
+    expect(patient.biologicalSex).toBeNull();
+    expect(patient.city).toBeNull();
+    expect(patient.cellphone).toBeNull();
+  });
+
   it.each([
     [{ ...validResponse, cpf: "111.111.111-11" }, "invalid_external_response"],
     [{ ...validResponse, email: null }, "invalid_external_response"],

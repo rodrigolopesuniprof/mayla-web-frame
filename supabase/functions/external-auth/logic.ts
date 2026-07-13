@@ -47,6 +47,14 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function optionalObject(value: unknown): JsonObject {
+  if (value === null || value === undefined) return {};
+  if (!isObject(value)) {
+    throw new ExternalAuthValidationError("invalid_external_response");
+  }
+  return value;
+}
+
 function requiredString(value: unknown, maxLength: number): string {
   if (typeof value !== "string") {
     throw new ExternalAuthValidationError("invalid_external_response");
@@ -195,11 +203,8 @@ export function parseExternalPatient(value: unknown): ExternalPatient {
     throw new ExternalAuthValidationError("invalid_external_response");
   }
 
-  const personalInfo = value.personal_info;
-  const addressContact = value.address_contact;
-  if (!isObject(personalInfo) || !isObject(addressContact)) {
-    throw new ExternalAuthValidationError("invalid_external_response");
-  }
+  const personalInfo = optionalObject(value.personal_info);
+  const addressContact = optionalObject(value.address_contact);
 
   const cpf = normalizeCpf(value.cpf);
   if (!isValidCpf(cpf)) {

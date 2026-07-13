@@ -53,9 +53,9 @@ Confirmado:
 - A API espera `Accept: application/json`.
 - Timeout da consulta externa: 30 segundos.
 - Formato observado do `ssid`: UUID.
-- O `ssid` é de uso único.
-- Segundo o provedor, o `ssid` não expira enquanto não for utilizado.
-- O consumo e a rejeição de reutilização do `ssid` são responsabilidade da API externa; a aplicação não manterá estado local de consumo.
+- Em produção, o `ssid` deve ser tratado como credencial temporária e preferencialmente de uso único.
+- Os `ssid` fornecidos para esta homologação são reutilizáveis; isso foi confirmado em teste remoto bem-sucedido.
+- Expiração, consumo e eventual rejeição de reutilização são responsabilidade da API externa; a aplicação não manterá estado local de consumo.
 - Campos permitidos da resposta:
   - `id`: identificador externo usado como `external_subject`.
   - `name`: nome completo.
@@ -72,6 +72,7 @@ Confirmado:
 - O provisionamento externo deve atribuir o papel `employee`.
 - O provisionamento externo deve vincular o perfil à empresa com slug `mayla`.
 - A empresa `mayla` não exige assinatura paga; usuários provisionados por este fluxo devem passar pelo `AccessGate` sem assinatura.
+- A empresa `mayla` e sua configuração `require_paid_subscription = false` foram criadas no projeto remoto pela migration `20260713134000_seed_mayla_company.sql`.
 
 Pendente:
 
@@ -114,7 +115,8 @@ Estado:
 - Usuários existentes preservam uma empresa já atribuída; `mayla` é aplicada quando o perfil não tem empresa.
 - O token retornado é `token_hash`, para troca no frontend com `verifyOtp({ token_hash, type: "email" })`.
 - Testes unitários do contrato estão em `src/test/external-auth-logic.test.ts`.
-- Função ainda não implantada.
+- Função implantada no projeto Supabase `zhcdfpveuwulwnwvvvcm` em 13/07/2026, versão 3 e estado `ACTIVE`.
+- Grupos opcionais ausentes (`personal_info` e `address_contact`) são aceitos sem impedir a autenticação.
 
 Segredos necessários:
 
@@ -126,6 +128,14 @@ EXTERNAL_AUTH_RATE_LIMIT_SALT
 ```
 
 `EXTERNAL_AUTH_API_URL` deve ser uma URL HTTPS completa. `EXTERNAL_AUTH_ALLOWED_ORIGINS` deve conter origens separadas por vírgula, sem caminhos. O salt deve ser um valor aleatório próprio e não deve ser reutilizado como outra credencial.
+
+Estado remoto:
+
+- Os quatro secrets estão configurados no projeto.
+- `EXTERNAL_AUTH_ALLOWED_ORIGINS` está restrito a `https://saude.saudecomvc.com.br`.
+- O preflight CORS remoto respondeu com HTTP 200 e liberou somente a origem configurada.
+- O smoke test remoto sem sessão real respondeu HTTP 400 com `invalid_ssid` e `request_id`, confirmando o contrato sem consumir um `ssid`.
+- O teste remoto completo com `ssid` de homologação respondeu HTTP 200, criou a sessão e confirmou perfil, empresa `mayla`, papel `employee`, data de nascimento e sexo.
 
 ### 3. Preparar o banco para localizar usuários por CPF
 
@@ -154,7 +164,7 @@ Estado:
 - A migration normaliza CPFs, valida os dígitos verificadores e cria um índice único parcial.
 - A implantação aborta com contagens, sem expor CPFs, se ainda houver valores inválidos ou duplicados.
 - A tabela `external_identities` fica acessível somente pelo backend com service role.
-- Migration ainda não aplicada ao ambiente remoto.
+- Migration aplicada ao projeto Supabase `zhcdfpveuwulwnwvvvcm` em 13/07/2026.
 
 ### 4. Resolver ou cadastrar o usuário
 
