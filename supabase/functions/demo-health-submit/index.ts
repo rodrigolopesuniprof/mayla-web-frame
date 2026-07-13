@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       console.warn("[demo-health-submit] could not parse upstream json", e);
     }
     if (!widgetUrl) {
-      console.warn("[demo-health-submit] upstream ok but no widget.url in payload");
+      console.warn("[demo-health-submit] upstream ok but no widget.url in payload; body:", text);
     }
 
     return new Response(JSON.stringify({ ok: true, widgetUrl, expiresAt }), {
