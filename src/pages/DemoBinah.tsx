@@ -4,7 +4,7 @@ import { DemoLeadForm, type LeadData } from "./DemoLeadForm";
 import { supabase } from "@/integrations/supabase/client";
 import "./demo.css";
 
-type Phase = "lead" | "measure" | "done";
+type Phase = "lead" | "measure" | "chat";
 
 interface DemoResult {
   heart_rate?: number;
@@ -26,7 +26,6 @@ export default function DemoBinah() {
   const [lead, setLead] = useState<LeadData | null>(null);
   const [sending, setSending] = useState(false);
   const [captureKey, setCaptureKey] = useState(0);
-  const [chatOpen, setChatOpen] = useState(false);
 
   async function sendHealth(result: DemoResult) {
     if (!lead) return;
@@ -40,10 +39,9 @@ export default function DemoBinah() {
       if (data && (data as any).ok === false) throw new Error("crm_error");
     } catch (err) {
       console.error("[demo] health submit failed", err);
-      // We still show the "done" screen — the user finished the test — but log the error.
     } finally {
       setSending(false);
-      setPhase("done");
+      setPhase("chat");
     }
   }
 
@@ -57,42 +55,20 @@ export default function DemoBinah() {
     return <DemoLeadForm onSubmitted={(d) => { setLead(d); setPhase("measure"); }} />;
   }
 
-  if (phase === "done") {
+  if (phase === "chat") {
     return (
-      <div className="demo-scope">
-        <div className="demo-shell">
-          <div className="demo-done">
-            <div className="demo-done-icon">✅</div>
-            <h2>Recebemos seus dados!</h2>
-            <p>
-              Em instantes você receberá pelo WhatsApp uma mensagem da equipe Mayla com as dicas do seu resultado.
-            </p>
-            <button className="demo-cta" onClick={() => setChatOpen(true)}>
-              💬 Quero entender os meus resultados
-            </button>
-            <button className="demo-cta-secondary" onClick={restart}>Fazer novo teste</button>
-          </div>
-        </div>
-        {chatOpen && (
-          <div className="demo-chat-frame">
-            <button
-              className="demo-chat-close"
-              onClick={() => setChatOpen(false)}
-              aria-label="Fechar chat"
-            >
-              ×
-            </button>
-            <iframe
-              src={LUNA_CHAT_URL}
-              title="Mayla Assistente"
-              style={{ width: "100%", height: "100%", border: 0 }}
-            />
-          </div>
-        )}
+      <div className="demo-scope demo-chat-scope">
+        <iframe
+          src={LUNA_CHAT_URL}
+          title="Mayla Assistente"
+          className="demo-chat-iframe"
+        />
+        <button className="demo-chat-restart" onClick={restart}>
+          Fazer novo teste
+        </button>
       </div>
     );
   }
-
 
   // phase === "measure"
   return (
