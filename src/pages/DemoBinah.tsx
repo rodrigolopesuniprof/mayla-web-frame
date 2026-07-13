@@ -19,11 +19,14 @@ interface DemoResult {
   wellness_score?: number;
 }
 
+const LUNA_CHAT_URL = "https://mayla.lunaos.com.br/chat/PSMiOg0P9Fik9MnYr8GgK8BN0Gdjm9Vj";
+
 export default function DemoBinah() {
   const [phase, setPhase] = useState<Phase>("lead");
   const [lead, setLead] = useState<LeadData | null>(null);
   const [sending, setSending] = useState(false);
   const [captureKey, setCaptureKey] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
 
   async function sendHealth(result: DemoResult) {
     if (!lead) return;
