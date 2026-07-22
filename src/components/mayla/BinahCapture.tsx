@@ -20,6 +20,14 @@ interface BinahCaptureProps {
   sourceKey?: string;
   /** When the environment doesn't support the advanced analysis, offer a fallback to basic rPPG. */
   onFallbackToBasic?: () => void;
+  /** Override the primary action button label (default: "Salvar Medição"). */
+  saveButtonLabel?: string;
+  /** If provided, replaces default save-to-DB behavior on the primary button and disables auto-save. */
+  onSaveOverride?: (result: MappedResult) => void | Promise<void>;
+  /** Hide the "+100 pontos" hint on the consent screen (for /demo). */
+  hidePointsHint?: boolean;
+  /** Override the consent-phase CTA label (default includes "· +100 pts"). */
+  consentCtaLabel?: string;
 }
 
 type CapturePhase = "consent" | "camera" | "ready" | "measuring" | "result" | "error" | "unsupported";
@@ -68,7 +76,7 @@ const VALIDITY_MESSAGES: Record<number, { text: string; emoji: string }> = {
 
 const PROCESSING_TIME = 60;
 
-export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic }: BinahCaptureProps) {
+export function BinahCapture({ onClose, onComplete, municipalityId, companyId, providerOverride, displayName, sourceKey, onFallbackToBasic, saveButtonLabel, onSaveOverride, hidePointsHint, consentCtaLabel }: BinahCaptureProps) {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -236,8 +244,8 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
     stopMeasurement();
     stopTimer();
     stopCamera();
-    // Flush pending result before tearing down the SDK.
-    if (rawResults && mappedResult && !autoSavedRef.current && !saved && !saving) {
+    // Flush pending result before tearing down the SDK (skip when using override).
+    if (!onSaveOverride && rawResults && mappedResult && !autoSavedRef.current && !saved && !saving) {
       autoSavedRef.current = true;
       try { await saveResult(); } catch (e) { console.warn("[Vitals] flush on cancel failed", e); }
     }
@@ -321,11 +329,12 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
 
   // Auto-save as soon as results arrive, so data is never lost if user closes the screen.
   useEffect(() => {
+    if (onSaveOverride) return;
     if (status === "completed" && mappedResult && !autoSavedRef.current && !saved && !saving) {
       autoSavedRef.current = true;
       saveResult();
     }
-  }, [status, mappedResult, saved, saving]);
+  }, [status, mappedResult, saved, saving, onSaveOverride]);
 
   const validityInfo = VALIDITY_MESSAGES[imageValidity] || VALIDITY_MESSAGES[ImageValidity.VALID];
   const partialMapped = partialVitals ? mapVitalsToResult(partialVitals) : null;
@@ -442,7 +451,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Duração: ~60 segundos · Necessário boa iluminação · ganhe +100 pontos
+                Duração: ~60 segundos · Necessário boa iluminação{hidePointsHint ? "" : " · ganhe +100 pontos"}
               </p>
               <button
                 onClick={openCamera}
@@ -453,7 +462,7 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
                   boxShadow: "0 8px 24px rgba(26,92,138,.3)",
                 }}
               >
-                Iniciar Medição Especial · +100 pts
+                {consentCtaLabel || "Iniciar Medição Especial · +100 pts"}
               </button>
             </div>
           )}
@@ -679,15 +688,23 @@ export function BinahCapture({ onClose, onComplete, municipalityId, companyId, p
               </div>
               {rawResults?.payload && <AdvancedIndicatorsSection payload={rawResults.payload} />}
               <button
-                onClick={saveResult}
-                disabled={saving || saved}
+                onClick={() => {
+                  if (onSaveOverride && mappedResult) {
+                    onSaveOverride(mappedResult);
+                    return;
+                  }
+                  saveResult();
+                }}
+                disabled={!onSaveOverride && (saving || saved)}
                 className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white mt-2 disabled:opacity-60"
                 style={{
                   background:
                     "linear-gradient(135deg, hsl(var(--mayla-pref)), hsl(var(--mayla-teal)))",
                 }}
               >
-                {saved ? "✓ Salvo" : saving ? "Salvando..." : "Salvar Medição"}
+                {onSaveOverride
+                  ? (saveButtonLabel || "Analisar Medição")
+                  : (saved ? "✓ Salvo" : saving ? "Salvando..." : (saveButtonLabel || "Salvar Medição"))}
               </button>
             </div>
           )}

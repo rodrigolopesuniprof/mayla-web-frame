@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.external-auth]
 verify_jwt = false
+
+[functions.mcp]
+verify_jwt = false
+
+
+

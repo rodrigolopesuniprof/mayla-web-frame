@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import type { CampanhasView } from "./CampanhasTab";
 import type { TabId } from "@/lib/mayla-config";
 import { SplashScreen } from "./SplashScreen";
 import { OnboardingScreen } from "./OnboardingScreen";
 import { BottomNav } from "./BottomNav";
 import { HomeTab } from "./HomeTab";
 import { WellbeingTab } from "./WellbeingTab";
-import { CampanhasTab } from "./CampanhasTab";
+import { DesafiosTab } from "./DesafiosTab";
 import { ServicosTab } from "./ServicosTab";
 import { ProfileTab } from "./ProfileTab";
 import { TelemedicineScreen } from "./TelemedicineScreen";
@@ -49,7 +50,19 @@ export function MaylaApp({ initialTab = "inicio" }: MaylaAppProps) {
   const [assistantInitialMessage, setAssistantInitialMessage] = useState<string | null>(null);
   const [activeVideoCall, setActiveVideoCall] = useState<{ id: string; roomToken?: string; professionalName: string; professionalType: string; specialty: string } | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
+  const [campanhasInitialView, setCampanhasInitialView] = useState<CampanhasView | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Após aceitar convite em /liga/:code, o LeagueJoin salva o id da liga em
+  // sessionStorage e redireciona para "/". Aqui abrimos direto o detalhe.
+  useEffect(() => {
+    const openId = sessionStorage.getItem("open_league_id");
+    if (openId) {
+      sessionStorage.removeItem("open_league_id");
+      setActiveTab("campanhas");
+      setCampanhasInitialView({ view: "league-detail", leagueId: openId });
+    }
+  }, []);
 
   useEffect(() => {
     if (hasChecked) return;
@@ -149,12 +162,7 @@ export function MaylaApp({ initialTab = "inicio" }: MaylaAppProps) {
                   />
                 )}
                 {activeTab === "bemestar" && <WellbeingTab />}
-                {activeTab === "campanhas" && (
-                  <CampanhasTab
-                    onNavigate={(tab) => setActiveTab(tab)}
-                    onOpenLeaderboard={() => setShowLeaderboard(true)}
-                  />
-                )}
+                {activeTab === "campanhas" && <DesafiosTab />}
                 {activeTab === "servicos" && <ServicosTab startOnlineMode={consultOnlineMode} onClearOnlineMode={() => setConsultOnlineMode(false)} />}
                 {activeTab === "perfil" && <ProfileTab />}
               </div>

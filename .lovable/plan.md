@@ -1,45 +1,59 @@
 ## Diagnóstico
 
-Cruzei as regras configuradas no Admin (`point_rules`) com os locais do código que disparam pontuação e com o histórico real (`points_ledger`). Encontrei os seguintes pontos onde a ação acontece mas nenhum ponto é creditado:
+A estrutura atual ainda não segue exatamente o padrão documentado do LunaOS para handoff do widget:
 
-| Evento | Configurado no Admin? | Ação dispara pontos? | Histórico (ledger) |
-|---|---|---|---|
-| Medição básica (rPPG) | Sim (50 pts) | Sim | 54 registros OK |
-| Medição premium (Shen.ai/Binah) | Sim (100 pts) | Sim | 43 registros OK |
-| Cadastro completo | Sim (150 pts) | Sim | 53 registros OK |
-| Autoavaliação | Sim (200 pts) | Sim (trigger) | 17 registros OK |
-| Pesquisa standalone | Sim (100 pts) | Sim | 5 registros OK |
-| Avatar | Sim (150 pts) | Sim | 3 registros OK |
-| Missão concluída | Sim | Sim (trigger UPDATE) | 4 registros OK |
-| **Check-in semanal (bem-estar)** | Sim (50 pts) | **NÃO — falta chamada** | **0 registros, com 49 check-ins feitos** |
-| **Vínculo ESF** | Sim (500 pts) | **Parcial — trigger só em UPDATE** | 0 registros |
-| **Vínculo equipe de apoio** | Sim (500 pts) | **Parcial — trigger só em UPDATE** | 0 registros |
-| Adesão a medicamento | Sim (100 pts) | Trigger existe, sem dados ainda | 0 registros (sem logs) |
-| Desafio do dia | Sim | RPC existe, sem dados ainda | 0 registros (sem conclusões) |
+- `POST /formularios/{slug}/respostas` pode abrir conversa e retornar `data.widget.url`, mas precisa de `abrir_conversa: true` e `conexao_id: 1`.
+- `POST /conversas` é o endpoint mais direto para abrir uma conversa, registrar a primeira mensagem e receber o `widget.url` quando a conexão é do tipo `site`.
+- O código atual chama `POST /contatos` para abrir a conversa, mas a documentação mostra que o retorno com `widget` é garantido no fluxo de `/conversas` e também em `/formularios` quando abre conversa.
+- A função atual não envia `conexao_id: 1` nem uma `mensagem` inicial contextualizada para a Maria, então a conversa pode até criar contato, mas não necessariamente ativa o chat/IA nem retorna widget.
 
-## Correções propostas
+## Plano de correção
 
-### 1. Check-in semanal de bem-estar (bug confirmado)
-- Em `WellbeingCheckin.tsx`, após o `insert` em `wellbeing_checkins`, chamar `supabase.rpc("award_event", { _user_id, _event_key: "weekly_checkin" })`.
-- A regra já tem `cap_per_week = 1`, então a função impede duplicidade dentro da semana.
-- Disparar `points-awarded` event para o toast aparecer ao usuário.
+1. Ajustar o helper LunaOS
+   - Adicionar uma função `lunaOpenChatConversation()` apontando para `POST /conversas`.
+   - Manter `lunaSubmit()` para o envio dos dados do formulário.
+   - Padronizar parsing e logs sem expor o token.
 
-### 2. Vínculo ESF e Equipe de Apoio (latente)
-Hoje os triggers `award_esf_link_points` e `award_support_team_link_points` só executam em `UPDATE` (verificam `OLD.esf_team_id IS NULL AND NEW.esf_team_id IS NOT NULL`). Se um usuário entrar já com o time selecionado (signup ou import), nunca recebe os pontos.
+2. Reestruturar `demo-health-submit`
+   - Continuar enviando os dados de saúde para o formulário `dados-de-saude`.
+   - Incluir `conexao_id: 1` no payload LunaOS.
+   - Depois do envio da avaliação, chamar `POST /conversas` com:
+     - `nome`
+     - `celular`
+     - `ddi: "55"`
+     - `conexao_id: 1`
+     - `assunto: "Teste de saúde Mayla"`
+     - `mensagem` inicial contendo o resumo dos dados medidos, para a Maria já receber contexto.
+     - tags do demo.
+   - Extrair o widget em `data.widget.url`, com fallback para qualquer formato equivalente retornado pela LunaOS.
+   - Se o widget não vier, retornar erro estruturado com `chatError`, `conversationId` e diagnóstico seguro para a tela não ficar travada.
 
-- Migração: recriar ambos os triggers para também responder a `INSERT`, tratando `OLD` como `NULL` nesse caminho.
+3. Ajustar a tela final do `/demo`
+   - Manter a tela de carregamento enquanto a avaliação é salva e a conversa é aberta.
+   - Só sair do loading quando houver `widgetUrl` ou erro final.
+   - Exibir uma opção clara de tentar abrir novamente quando o widget não vier.
+   - Evitar tela “travada” silenciosa.
 
-### 3. Backfill de pontos retroativos (check-in semanal)
-Existem 49 check-ins históricos sem pontuação. Proposta: rodar um script único que credita 1 evento `weekly_checkin` por usuário/semana já registrada, respeitando o cap semanal. Confirmar antes de executar para não inflar o ranking sem aviso.
+4. Validar com chamada real
+   - Depois de implementar, publicar/deployar a função `demo-health-submit`.
+   - Testar a função com um payload de medição simulado.
+   - Conferir se o retorno inclui `widgetUrl`.
+   - Revisar os logs da função se a LunaOS devolver 401/403/422 ou não retornar `widget`.
 
-### 4. Diagnóstico para o Admin (opcional)
-- Adicionar na tela "Regras de pontuação" um pequeno indicador por regra: "Última pontuação concedida em ___ · X eventos no último mês". Ajuda a detectar regressões futuras sem precisar consultar o banco.
+## Resultado esperado
 
-## Itens NÃO alterados
-- Missões (`mission_complete`), avatar, autoavaliação, perfil completo, pesquisas standalone e medições continuam como estão — funcionam.
-- Não vou mudar os valores de pontos (são todos configuráveis pelo Admin).
-- Não vou criar novas regras (consulta agendada, favoritar médico, etc.) sem você pedir.
+Depois que o visitante confirma/finaliza a medição:
 
-## Pergunta antes de implementar
+```text
+Binah finaliza teste
+  -> app envia dados para demo-health-submit
+  -> função salva avaliação no formulário LunaOS
+  -> função abre conversa via POST /conversas usando conexão 1
+  -> LunaOS retorna data.widget.url
+  -> app carrega esse URL no iframe final
+  -> Maria inicia conversa já com contexto da avaliação
+```
 
-Quer que eu **execute o backfill** dos 49 check-ins semanais que já foram feitos, ou prefere que a partir de agora os pontos passem a contar apenas para novos check-ins? E se houver alguma outra ação específica que você notou não pontuando (ex.: agendar consulta, favoritar médico, completar campanha, ler matéria), me diga qual para eu incluir no escopo.
+## Observação importante
+
+Se após isso o retorno da LunaOS vier sem `widget`, o problema passa a ser configuração externa: a conexão `1` precisa ser uma conexão do tipo `site`, pois a própria documentação diz que o `widget` só vem quando a conversa é aberta numa conexão desse tipo.

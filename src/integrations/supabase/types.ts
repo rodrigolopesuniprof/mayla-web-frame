@@ -823,6 +823,7 @@ export type Database = {
           hr_contact_email: string | null
           id: string
           industry: string | null
+          leagues_enabled: boolean
           logo_url: string | null
           name: string
           plan_type: string | null
@@ -846,6 +847,7 @@ export type Database = {
           hr_contact_email?: string | null
           id?: string
           industry?: string | null
+          leagues_enabled?: boolean
           logo_url?: string | null
           name: string
           plan_type?: string | null
@@ -869,6 +871,7 @@ export type Database = {
           hr_contact_email?: string | null
           id?: string
           industry?: string | null
+          leagues_enabled?: boolean
           logo_url?: string | null
           name?: string
           plan_type?: string | null
@@ -1370,6 +1373,33 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_leads: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone: string
+          source: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+          source?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+          source?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       doctor_availability: {
         Row: {
           consultation_mode: string | null
@@ -1844,6 +1874,214 @@ export type Database = {
             columns: ["municipality_id"]
             isOneToOne: false
             referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_challenges: {
+        Row: {
+          alvo: number
+          created_at: string
+          created_by: string
+          id: string
+          league_id: string
+          metrica: string
+          premio: string | null
+          titulo: string
+          week_id: string
+        }
+        Insert: {
+          alvo: number
+          created_at?: string
+          created_by: string
+          id?: string
+          league_id: string
+          metrica: string
+          premio?: string | null
+          titulo: string
+          week_id?: string
+        }
+        Update: {
+          alvo?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          league_id?: string
+          metrica?: string
+          premio?: string | null
+          titulo?: string
+          week_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_challenges_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_invites: {
+        Row: {
+          affiliate_code: string
+          created_at: string
+          id: string
+          invitee_contato: string | null
+          inviter_id: string
+          league_id: string
+          status: string
+        }
+        Insert: {
+          affiliate_code: string
+          created_at?: string
+          id?: string
+          invitee_contato?: string | null
+          inviter_id: string
+          league_id: string
+          status?: string
+        }
+        Update: {
+          affiliate_code?: string
+          created_at?: string
+          id?: string
+          invitee_contato?: string | null
+          inviter_id?: string
+          league_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_invites_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_members: {
+        Row: {
+          id: string
+          joined_at: string
+          league_id: string
+          papel: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          league_id: string
+          papel?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          league_id?: string
+          papel?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_members_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_pokes: {
+        Row: {
+          created_at: string
+          from_user: string
+          id: string
+          league_id: string
+          texto: string
+          tipo: string
+          to_user: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_user: string
+          id?: string
+          league_id: string
+          texto: string
+          tipo: string
+          to_user?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_user?: string
+          id?: string
+          league_id?: string
+          texto?: string
+          tipo?: string
+          to_user?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_pokes_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leagues: {
+        Row: {
+          company_id: string
+          conversations_enabled: boolean
+          created_at: string
+          id: string
+          invite_code: string
+          is_default: boolean
+          marca_logo_url: string | null
+          nome: string
+          owner_id: string
+          scoring_event_keys: string[]
+          status: string
+          updated_at: string
+          visibilidade: string
+        }
+        Insert: {
+          company_id: string
+          conversations_enabled?: boolean
+          created_at?: string
+          id?: string
+          invite_code?: string
+          is_default?: boolean
+          marca_logo_url?: string | null
+          nome: string
+          owner_id: string
+          scoring_event_keys?: string[]
+          status?: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Update: {
+          company_id?: string
+          conversations_enabled?: boolean
+          created_at?: string
+          id?: string
+          invite_code?: string
+          is_default?: boolean
+          marca_logo_url?: string | null
+          nome?: string
+          owner_id?: string
+          scoring_event_keys?: string[]
+          status?: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leagues_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -3147,6 +3385,59 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_rewards: {
+        Row: {
+          affiliate_code: string
+          carencia_ate: string | null
+          created_at: string
+          id: string
+          invite_id: string | null
+          inviter_id: string
+          pago_em: string | null
+          referred_user_id: string | null
+          release_ate: string | null
+          split_ref: string | null
+          status: string
+          valor: number | null
+        }
+        Insert: {
+          affiliate_code: string
+          carencia_ate?: string | null
+          created_at?: string
+          id?: string
+          invite_id?: string | null
+          inviter_id: string
+          pago_em?: string | null
+          referred_user_id?: string | null
+          release_ate?: string | null
+          split_ref?: string | null
+          status?: string
+          valor?: number | null
+        }
+        Update: {
+          affiliate_code?: string
+          carencia_ate?: string | null
+          created_at?: string
+          id?: string
+          invite_id?: string | null
+          inviter_id?: string
+          pago_em?: string | null
+          referred_user_id?: string | null
+          release_ate?: string | null
+          split_ref?: string | null
+          status?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_rewards_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "league_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_access_codes: {
         Row: {
           access_code: string
@@ -4265,6 +4556,22 @@ export type Database = {
           },
         ]
       }
+      league_prize_eligible: {
+        Row: {
+          elegivel_premio_mayla: boolean | null
+          league_id: string | null
+          membros: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_members_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_points_to_profile: {
@@ -4324,6 +4631,7 @@ export type Database = {
         Returns: number
       }
       ensure_daily_challenge: { Args: { _company_id: string }; Returns: string }
+      ensure_default_league: { Args: { _company_id: string }; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_company_id_strict: { Args: { _user_id: string }; Returns: string }
       get_company_wellbeing_summary: {
@@ -4368,6 +4676,14 @@ export type Database = {
           name: string
         }[]
       }
+      get_league_members_public: {
+        Args: { p_league_id: string }
+        Returns: {
+          avatar_url: string
+          first_name: string
+          user_id: string
+        }[]
+      }
       get_public_dashboard: { Args: { _token: string }; Returns: Json }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_municipality_id: { Args: { _user_id: string }; Returns: string }
@@ -4381,7 +4697,32 @@ export type Database = {
       }
       is_company_admin: { Args: { _user_id: string }; Returns: boolean }
       is_hr_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_league_admin: {
+        Args: { p_league: string; p_user?: string }
+        Returns: boolean
+      }
+      is_league_member: {
+        Args: { p_league: string; p_user?: string }
+        Returns: boolean
+      }
       is_wellbeing_manager: { Args: { _user_id: string }; Returns: boolean }
+      join_my_default_league: { Args: never; Returns: string }
+      league_ranking: {
+        Args: { p_league_id: string; p_week_id?: string }
+        Returns: {
+          pontos_semana: number
+          posicao: number
+          user_id: string
+        }[]
+      }
+      mayla_ranking: {
+        Args: { p_company_id: string; p_week_id?: string }
+        Returns: {
+          pontos_semana: number
+          posicao: number
+          user_id: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -4411,6 +4752,7 @@ export type Database = {
         Args: { _company_id: string }
         Returns: undefined
       }
+      user_xp: { Args: { p_user?: string }; Returns: number }
       validate_invite_token: {
         Args: { _token: string }
         Returns: {

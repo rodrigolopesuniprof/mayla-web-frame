@@ -10,6 +10,7 @@ import { GamificationStatusCard } from "./GamificationStatusCard";
 import { MedicationReminderCard } from "./MedicationReminderCard";
 import { FirstStepsCard } from "./FirstStepsCard";
 
+
 export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenEsfLink, onOpenVideoCall, onOpenOnDemand, onOpenConsultationOnline, onOpenAssistant, onOpenArticle, onOpenAllArticles, onOpenLeaderboard }: {
   setTab: (id: TabId) => void;
   onOpenTelemedicine: () => void;
@@ -190,6 +191,7 @@ export function HomeTab({ setTab, onOpenTelemedicine, onOpenAppointment, onOpenE
         onOpenLeaderboard={onOpenLeaderboard}
         onOpenChallenges={() => setTab("campanhas")}
       />
+
 
       {/* Assistente Digital de Saúde Card */}
       {onOpenAssistant && (
