@@ -25,4 +25,4 @@ dist-ssr
 .nginx
 /binah
 supabase/.temp/
-supabase/temp/
+package-lock.json
