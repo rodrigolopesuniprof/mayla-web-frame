@@ -15,9 +15,9 @@ POST /functions/v1/external-auth
         ↓
 Valida o ssid na API externa
         ↓
-Normaliza e valida o CPF
+Normaliza e valida os dados recebidos
         ↓
-Localiza ou cria auth.users + profiles
+Localiza auth.users pelo e-mail
         ↓
 Gera token de login de uso único
         ↓
@@ -26,7 +26,9 @@ Frontend cria a sessão Supabase
 target=desafios → aba interna "campanhas"
 ```
 
-Observação: o exemplo contém `souce`, provavelmente um erro de digitação. Recomenda-se padronizar como `source`, podendo aceitar `souce` temporariamente por compatibilidade.
+Se não existir uma conta cadastrada com o e-mail retornado pela API externa, a
+Edge Function responde `email_not_registered` e o frontend redireciona para
+`/login`. Este fluxo não cria usuários, perfis, papéis ou vínculos.
 
 ## Plano de implementação
 
@@ -69,9 +71,9 @@ Confirmado:
   - `address_contact.city`, `state`, `zip_code` e `cellphone`: dados opcionais de perfil.
 - Todos os demais campos da resposta devem ser ignorados.
 - O campo `password`, mesmo quando retornado pela API, deve ser sempre ignorado e nunca pode ser armazenado, registrado ou usado para autenticação.
-- O provisionamento externo deve atribuir o papel `employee`.
-- O provisionamento externo deve vincular o perfil à empresa com slug `mayla`.
-- A empresa `mayla` não exige assinatura paga; usuários provisionados por este fluxo devem passar pelo `AccessGate` sem assinatura.
+- O fluxo externo não provisiona contas nem altera perfis.
+- A conta localizada deve ter sido previamente cadastrada com os papéis, empresa e
+  permissões necessários para passar pelo `AccessGate`.
 - A empresa `mayla` e sua configuração `require_paid_subscription = false` foram criadas no projeto remoto pela migration `20260713134000_seed_mayla_company.sql`.
 
 Pendente:
@@ -83,7 +85,7 @@ Segurança:
 - Nunca versionar nem registrar o Bearer token.
 - Rotacionar qualquer token compartilhado por chat, ticket ou outro canal não destinado a segredos.
 - Um `ssid` sem expiração permanece vulnerável enquanto não for consumido. Recomenda-se que o provedor adote uma validade curta, além do uso único.
-- Respostas sem um endereço de e-mail válido devem ser rejeitadas antes da criação ou associação de usuário.
+- Respostas sem um endereço de e-mail válido devem ser rejeitadas antes da busca do usuário.
 - Respostas sem CPF ou com CPF inválido devem ser rejeitadas. O valor deve ser normalizado para 11 dígitos e validado pelos dígitos verificadores.
 - Mapear `personal_info.gender` para o perfil como `M` → `male` e `F` → `female`. Um valor não nulo fora desse domínio deve ser rejeitado.
 
@@ -110,9 +112,9 @@ Estado:
 - Endpoint configurado com `verify_jwt = false`, pois a autenticação externa ocorre antes da sessão Supabase.
 - CORS usa lista explícita de origens; `*` não é aceito.
 - Rate limit persistente: 10 tentativas por IP a cada 60 segundos, armazenando somente uma chave com hash e salt.
-- Conflitos entre identidade externa, CPF e e-mail são rejeitados sem reassociar contas.
-- O e-mail confirmado da conta é sincronizado com o valor validado retornado pelo provedor antes da geração do token.
-- Usuários existentes preservam uma empresa já atribuída; `mayla` é aplicada quando o perfil não tem empresa.
+- A conta é localizada exclusivamente pelo e-mail normalizado retornado pelo provedor.
+- Um e-mail sem conta cadastrada resulta em `email_not_registered` (HTTP 404).
+- O fluxo não cria nem atualiza conta, perfil, papel, empresa ou identidade externa.
 - O token retornado é `token_hash`, para troca no frontend com `verifyOtp({ token_hash, type: "email" })`.
 - Testes unitários do contrato estão em `src/test/external-auth-logic.test.ts`.
 - Função implantada no projeto Supabase `zhcdfpveuwulwnwvvvcm` em 13/07/2026, versão 3 e estado `ACTIVE`.
@@ -135,54 +137,28 @@ Estado remoto:
 - `EXTERNAL_AUTH_ALLOWED_ORIGINS` está restrito a `https://saude.saudecomvc.com.br`.
 - O preflight CORS remoto respondeu com HTTP 200 e liberou somente a origem configurada.
 - O smoke test remoto sem sessão real respondeu HTTP 400 com `invalid_ssid` e `request_id`, confirmando o contrato sem consumir um `ssid`.
-- O teste remoto completo com `ssid` de homologação respondeu HTTP 200, criou a sessão e confirmou perfil, empresa `mayla`, papel `employee`, data de nascimento e sexo.
+- Antes desta alteração, um teste remoto completo com `ssid` de homologação respondeu HTTP 200 e confirmou o fluxo implantado naquela versão. A nova busca estrita por e-mail ainda precisa de smoke test após a implantação.
 
-### 3. Preparar o banco para localizar usuários por CPF
+### 3. Suporte de banco para localizar usuários por e-mail
 
-Atualmente `profiles.cpf` é anulável e não possui unicidade garantida. Antes da integração:
+O lookup atual usa a função backend-only
+`public.get_auth_user_id_by_email(text)`, que consulta `auth.users` de modo
+case-insensitive e pode ser executada somente pela `service_role`.
 
-- Normalizar CPFs para 11 dígitos.
-- Identificar CPFs duplicados já existentes.
-- Corrigir duplicidades manualmente.
-- Criar índice único parcial para CPF.
-- Adicionar validações de formato.
-
-Também se recomenda uma tabela `external_identities`:
-
-```text
-source
-external_subject
-user_id
-last_login_at
-```
-
-A primeira associação pode ser feita pelo CPF. Nos próximos acessos, deve-se priorizar `source + external_subject`, evitando depender permanentemente de um dado pessoal mutável.
-
-Estado:
+Estado histórico:
 
 - Migration local criada em `supabase/migrations/20260702120000_prepare_external_auth.sql`.
-- A migration normaliza CPFs, valida os dígitos verificadores e cria um índice único parcial.
-- A implantação aborta com contagens, sem expor CPFs, se ainda houver valores inválidos ou duplicados.
-- A tabela `external_identities` fica acessível somente pelo backend com service role.
+- A migration também contém estruturas de CPF e identidade externa criadas para o fluxo anterior; elas não participam da resolução atual.
 - Migration aplicada ao projeto Supabase `zhcdfpveuwulwnwvvvcm` em 13/07/2026.
 
-### 4. Resolver ou cadastrar o usuário
+### 4. Localizar o usuário cadastrado
 
 Dentro da Edge Function:
 
-1. Procurar a identidade externa.
-2. Se ainda não estiver vinculada, procurar `profiles.cpf`.
-3. Se o CPF existir:
-   - Obter o respectivo `auth.users`.
-   - Atualizar somente os campos autorizados pelo contrato.
-4. Se não existir:
-   - Criar o usuário com `auth.admin.createUser`.
-   - Criar ou atualizar o perfil com nome, CPF e demais campos.
-   - Definir empresa, papel e direito de acesso.
-   - Registrar a identidade externa.
-5. Tornar o processo idempotente para duas requisições simultâneas não criarem usuários duplicados.
-
-O projeto já possui um trigger que cria `profiles` durante a criação de `auth.users`, mas ele precisará ser considerado para evitar conflito com o cadastro automático.
+1. Normalizar e validar o e-mail recebido da API externa.
+2. Procurar `auth.users` por esse e-mail, sem diferenciar maiúsculas de minúsculas.
+3. Se a conta existir, gerar o token de login para seu `user_id`.
+4. Se a conta não existir, responder `email_not_registered` sem criar ou alterar dados.
 
 ### 5. Criar a sessão no navegador
 
@@ -198,6 +174,7 @@ Estado:
 - Uma sessão anterior é encerrada localmente antes da chamada externa, impedindo fallback silencioso em caso de falha.
 - O `token_hash` retornado pela Edge Function é trocado por sessão com `verifyOtp({ token_hash, type: "email" })`.
 - A aplicação só é liberada depois que o usuário da nova sessão também estiver refletido no `AuthContext`.
+- A resposta `email_not_registered` redireciona imediatamente para `/login`.
 
 ### 6. Adaptar a rota raiz
 
@@ -215,7 +192,7 @@ Estado:
 
 - A rota `/` agora passa por `ExternalAuthRoute` antes de `ProtectedRoute` e `AccessGate`.
 - O `ssid` é removido da URL com `history.replaceState` antes da autenticação começar.
-- Sem `source/souce + ssid`, o comportamento anterior da rota é preservado.
+- Sem `source + ssid`, o comportamento anterior da rota é preservado.
 - Falhas exibem uma tela própria e, quando disponível, o identificador seguro da requisição para suporte.
 
 ### 7. Mapear o `target`
@@ -241,22 +218,24 @@ Estado:
 - Mapeamento fechado implementado em `src/lib/external-auth.ts`.
 - `target=desafios` inicia o `MaylaApp` em `campanhas`.
 - Targets ausentes ou desconhecidos iniciam em `inicio`.
-- A grafia legada `souce` é aceita temporariamente no frontend e normalizada para `source` na chamada à função.
+- O parâmetro de origem aceito pelo frontend é `source`.
 
 ### 8. Tratar as regras de acesso existentes
 
-Mesmo autenticado, o usuário passa pelo `AccessGate`. Portanto, o cadastro automático precisa definir empresa, assinatura ou outra permissão que garanta acesso.
+Mesmo autenticado, o usuário passa pelo `AccessGate`. Como este fluxo não
+provisiona nem atualiza dados, a conta previamente cadastrada precisa ter
+empresa, assinatura ou outra permissão que garanta acesso.
 
-Além disso, `ProfileCompletionGate` bloqueará a interface se data de nascimento ou sexo estiverem ausentes. Esses dados devem vir da API externa ou o preenchimento obrigatório continuará aparecendo antes de “Desafios”.
+Além disso, `ProfileCompletionGate` bloqueará a interface se data de nascimento
+ou sexo estiverem ausentes no perfil já cadastrado.
 
 ### 9. Testes
 
 Cobertura mínima:
 
-- CPF existente.
-- CPF inexistente e cadastro automático.
-- Duas requisições simultâneas para o mesmo CPF.
-- CPF duplicado ou inválido.
+- E-mail cadastrado.
+- E-mail não cadastrado redirecionando para `/login`.
+- CPF inválido na resposta externa.
 - `ssid` inválido, expirado e reutilizado.
 - API externa indisponível ou lenta.
 - `source` não permitido.
@@ -276,8 +255,8 @@ Estado:
 - Implantar migration e Edge Function.
 - Habilitar inicialmente por feature flag.
 - Monitorar sucesso, latência, cadastros e falhas sem armazenar CPF ou `ssid`.
-- Depois da estabilização, remover a compatibilidade com `souce`.
 
 ## Dependência principal
 
-Antes da implementação, deve ser definido como o usuário recém-criado recebe e-mail, empresa e direito de acesso. Sem isso, ele pode ser autenticado corretamente, mas será bloqueado pelas regras atuais da aplicação.
+O cadastro da conta, do perfil e das permissões ocorre fora deste fluxo. O e-mail
+em `auth.users` deve corresponder ao e-mail retornado pela API externa.

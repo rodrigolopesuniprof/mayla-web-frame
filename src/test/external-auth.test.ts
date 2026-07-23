@@ -16,10 +16,6 @@ describe("external authentication URL", () => {
     });
   });
 
-  it("temporarily accepts the misspelled souce parameter", () => {
-    expect(readExternalAuthAttempt("?souce=maylaapp&ssid=abc")?.source).toBe("maylaapp");
-  });
-
   it("does not start external auth without both source and ssid", () => {
     expect(readExternalAuthAttempt("?source=maylaapp")).toBeNull();
     expect(readExternalAuthAttempt("?ssid=abc")).toBeNull();

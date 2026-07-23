@@ -35,12 +35,6 @@ export interface ExternalPatient {
   cellphone: string | null;
 }
 
-export function hasConflictingUserIds(
-  ...userIds: Array<string | null | undefined>
-): boolean {
-  return new Set(userIds.filter((userId): userId is string => Boolean(userId))).size > 1;
-}
-
 type JsonObject = Record<string, unknown>;
 
 function isObject(value: unknown): value is JsonObject {

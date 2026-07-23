@@ -1,10 +1,8 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.99.0";
 import {
   ExternalAuthValidationError,
-  hasConflictingUserIds,
   parseExternalAuthRequest,
   parseExternalPatient,
-  profileValues,
   type ExternalPatient,
 } from "./logic.ts";
 
@@ -227,166 +225,6 @@ async function findAuthUserIdByEmail(
   return typeof data === "string" ? data : null;
 }
 
-async function resolveOrCreateUser(
-  admin: AdminClient,
-  source: string,
-  patient: ExternalPatient,
-  companyId: string,
-): Promise<string> {
-  const [
-    { data: identity, error: identityError },
-    { data: cpfProfile, error: cpfError },
-    emailUserId,
-  ] = await Promise.all([
-    admin
-      .from("external_identities")
-      .select("user_id")
-      .eq("source", source)
-      .eq("external_subject", patient.externalSubject)
-      .maybeSingle(),
-    admin
-      .from("profiles")
-      .select("user_id")
-      .eq("cpf", patient.cpf)
-      .maybeSingle(),
-    findAuthUserIdByEmail(admin, patient.email),
-  ]);
-
-  if (identityError || cpfError) {
-    throw new ExternalAuthError("service_unavailable", 503);
-  }
-
-  const identityUserId = identity?.user_id || null;
-  const cpfUserId = cpfProfile?.user_id || null;
-
-  if (hasConflictingUserIds(identityUserId, cpfUserId, emailUserId)) {
-    throw new ExternalAuthError("identity_conflict", 409);
-  }
-
-  let userId = identityUserId || cpfUserId || emailUserId;
-
-  if (userId) {
-    const { data: existingProfile, error } = await admin
-      .from("profiles")
-      .select("cpf, company_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) throw new ExternalAuthError("service_unavailable", 503);
-    if (existingProfile?.cpf && existingProfile.cpf !== patient.cpf) {
-      throw new ExternalAuthError("identity_conflict", 409);
-    }
-  } else {
-    const { data: created, error: createError } = await admin.auth.admin
-      .createUser({
-        email: patient.email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: patient.name,
-          cpf: patient.cpf,
-          company_id: companyId,
-        },
-        app_metadata: { external_source: source },
-      });
-
-    if (createError || !created.user) {
-      // A concurrent request may have created the same account.
-      const [retryCpf, retryEmail] = await Promise.all([
-        admin
-          .from("profiles")
-          .select("user_id")
-          .eq("cpf", patient.cpf)
-          .maybeSingle(),
-        findAuthUserIdByEmail(admin, patient.email),
-      ]);
-      const retryCpfUserId = retryCpf.data?.user_id || null;
-      if (
-        retryCpf.error ||
-        (retryCpfUserId && retryEmail && retryCpfUserId !== retryEmail)
-      ) {
-        throw new ExternalAuthError("identity_conflict", 409);
-      }
-      userId = retryCpfUserId || retryEmail;
-      if (!userId) throw new ExternalAuthError("provisioning_failed", 500);
-    } else {
-      userId = created.user.id;
-    }
-  }
-
-  const { error: authUpdateError } = await admin.auth.admin.updateUserById(
-    userId,
-    { email: patient.email, email_confirm: true },
-  );
-  if (authUpdateError) {
-    throw new ExternalAuthError("provisioning_failed", 500);
-  }
-
-  const { data: currentProfile, error: currentProfileError } = await admin
-    .from("profiles")
-    .select("company_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (currentProfileError) {
-    throw new ExternalAuthError("provisioning_failed", 500);
-  }
-
-  const values = profileValues(patient, companyId);
-  if (currentProfile?.company_id) delete values.company_id;
-
-  const { error: profileError } = await admin
-    .from("profiles")
-    .upsert(
-      { user_id: userId, ...values },
-      { onConflict: "user_id" },
-    );
-  if (profileError) throw new ExternalAuthError("provisioning_failed", 500);
-
-  const { error: roleError } = await admin
-    .from("user_roles")
-    .upsert(
-      { user_id: userId, role: "employee" },
-      { onConflict: "user_id,role", ignoreDuplicates: true },
-    );
-  if (roleError) throw new ExternalAuthError("provisioning_failed", 500);
-
-  const { error: identityInsertError } = await admin
-    .from("external_identities")
-    .insert({
-      source,
-      external_subject: patient.externalSubject,
-      external_client_id: patient.externalClientId,
-      user_id: userId,
-      last_login_at: new Date().toISOString(),
-    });
-
-  if (identityInsertError) {
-    const { data: existingIdentity, error: refetchError } = await admin
-      .from("external_identities")
-      .select("user_id")
-      .eq("source", source)
-      .eq("external_subject", patient.externalSubject)
-      .maybeSingle();
-    if (
-      refetchError ||
-      !existingIdentity ||
-      existingIdentity.user_id !== userId
-    ) {
-      throw new ExternalAuthError("identity_conflict", 409);
-    }
-
-    const { error: updateError } = await admin
-      .from("external_identities")
-      .update({
-        external_client_id: patient.externalClientId,
-        last_login_at: new Date().toISOString(),
-      })
-      .eq("source", source)
-      .eq("external_subject", patient.externalSubject);
-    if (updateError) throw new ExternalAuthError("provisioning_failed", 500);
-  }
-
-  return userId;
-}
-
 async function generateLoginToken(
   admin: AdminClient,
   userId: string,
@@ -474,22 +312,10 @@ Deno.serve(async (req) => {
 
     await enforceRateLimit(admin, req, config.rateLimitSalt);
     const patient = await fetchExternalPatient(config, externalRequest.ssid);
-
-    const { data: company, error: companyError } = await admin
-      .from("companies")
-      .select("id")
-      .eq("slug", "mayla")
-      .maybeSingle();
-    if (companyError || !company) {
-      throw new ExternalAuthError("service_unavailable", 503);
+    const userId = await findAuthUserIdByEmail(admin, patient.email);
+    if (!userId) {
+      throw new ExternalAuthError("email_not_registered", 404);
     }
-
-    const userId = await resolveOrCreateUser(
-      admin,
-      externalRequest.source,
-      patient,
-      company.id,
-    );
     const tokenHash = await generateLoginToken(admin, userId);
 
     return finish(

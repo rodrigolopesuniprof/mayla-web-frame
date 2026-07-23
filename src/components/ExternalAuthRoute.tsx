@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { AccessGate } from "@/components/AccessGate";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -139,6 +139,10 @@ export function ExternalAuthRoute() {
   }, [attempt]);
 
   if (state.phase === "error") {
+    if (state.errorCode === "email_not_registered") {
+      return <Navigate to="/login" replace />;
+    }
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="w-full max-w-sm text-center">

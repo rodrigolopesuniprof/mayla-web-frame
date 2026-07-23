@@ -20,7 +20,7 @@ export function resolveExternalAuthTarget(target: string | null): TabId {
 
 export function readExternalAuthAttempt(search: string): ExternalAuthAttempt | null {
   const params = new URLSearchParams(search);
-  const source = params.get("source") ?? params.get("souce");
+  const source = params.get("source");
   const ssid = params.get("ssid");
 
   if (!source || !ssid) return null;

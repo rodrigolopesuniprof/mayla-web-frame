@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   ExternalAuthValidationError,
-  hasConflictingUserIds,
   isValidCpf,
   parseExternalAuthRequest,
   parseExternalPatient,
@@ -60,18 +59,6 @@ describe("CPF validation", () => {
     ["529.982.247-25", false],
   ])("validates %s", (cpf, expected) => {
     expect(isValidCpf(cpf)).toBe(expected);
-  });
-});
-
-describe("external identity resolution", () => {
-  it("accepts candidate identifiers that all point to one user", () => {
-    expect(hasConflictingUserIds("user-1", "user-1", "user-1")).toBe(false);
-    expect(hasConflictingUserIds("user-1", null, undefined)).toBe(false);
-  });
-
-  it("rejects a conflict from any identity, CPF or email candidate", () => {
-    expect(hasConflictingUserIds("user-1", "user-1", "user-2")).toBe(true);
-    expect(hasConflictingUserIds("user-1", null, "user-2")).toBe(true);
   });
 });
 
